@@ -563,7 +563,11 @@ def build():
                     "Record temperature and humidity in your chamber"),
         sp(10),
         p("Click <b>+ Log Reading</b> in the top navigation bar. "
-          "Log a reading every day, ideally at the same time each morning."),
+          "Log a reading every day, ideally at the same time each morning. "
+          "If you use a <b>Govee H5179</b> sensor, you can bulk-import its history instead -- "
+          "click <b>Import Govee CSV</b> on the Environment History page and upload "
+          "your Govee app export. Both &deg;F and &deg;C exports are supported, and "
+          "re-importing the same file is safe (duplicates are skipped automatically)."),
         sp(8),
         field_table([
             ("Phase",          "Select <b>Colonization</b> if your batch is still colonizing, "
@@ -589,7 +593,9 @@ def build():
         callout(
             "Build the habit: log once per day, every day. "
             "After two weeks you will have enough data on the Environment History page "
-            "to spot overnight humidity drops, temperature spikes, and FAE patterns.",
+            "to spot overnight humidity drops, temperature spikes, and FAE patterns. "
+            "The <b>All Readings</b> table below the chart is collapsible and paginated -- "
+            "use the Per Page selector to control how many rows are shown at once.",
             label="Habit tip:"
         ),
     ]

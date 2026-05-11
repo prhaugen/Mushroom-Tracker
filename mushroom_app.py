@@ -3,7 +3,7 @@ Mushroom Tracker Web App v2
 Run: python mushroom_app.py  →  http://localhost:5000
 """
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
-import sqlite3, json, os
+import sqlite3, json, os, csv, io
 from pathlib import Path
 from datetime import datetime, date
 import sys
@@ -446,7 +446,7 @@ def env_history():
     logs = conn.execute("""
         SELECT e.*, b.label batch_label FROM environment_logs e
         LEFT JOIN batches b ON e.batch_id=b.id
-        WHERE e.chamber_id=? ORDER BY e.logged_at DESC LIMIT 60
+        WHERE e.chamber_id=? ORDER BY e.logged_at DESC
     """, (chamber['id'],)).fetchall()
     chart_logs = list(reversed(logs[:40]))
     recent_batch = conn.execute("""
@@ -828,6 +828,127 @@ if not app.debug or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
     except Exception as _e:
         import logging
         logging.getLogger(__name__).warning("Could not start briefing scheduler: %s", _e)
+
+
+# ── Govee CSV Import ──────────────────────────────────────────────────────────
+
+def _parse_govee_csv(conn, content, chamber_id):
+    """Parse a Govee H5179 CSV export and insert new rows. Returns (inserted, skipped)."""
+    reader = csv.reader(io.StringIO(content))
+    ts_col = temp_col = hum_col = None
+    use_celsius = False
+    headers_found = False
+
+    existing = {r[0] for r in conn.execute(
+        "SELECT logged_at FROM environment_logs WHERE chamber_id=?", (chamber_id,)
+    ).fetchall()}
+
+    inserted = skipped = 0
+
+    for row in reader:
+        if not row or all(c.strip() == '' for c in row):
+            continue
+
+        if not headers_found:
+            hdrs = [c.strip().lower() for c in row]
+            for i, h in enumerate(hdrs):
+                if any(k in h for k in ('time', 'date')):
+                    ts_col = i
+                if 'temp' in h:
+                    temp_col = i
+                    use_celsius = any(k in h for k in ('°c', '(c)', 'celsius', 'cel'))
+                if 'humid' in h:
+                    hum_col = i
+            if ts_col is None or temp_col is None or hum_col is None:
+                raise ValueError(
+                    f"Could not find Timestamp, Temperature, and Humidity columns. "
+                    f"Headers detected: {row}"
+                )
+            headers_found = True
+            continue
+
+        try:
+            ts_raw   = row[ts_col].strip()
+            temp_raw = row[temp_col].strip()
+            hum_raw  = row[hum_col].strip()
+        except IndexError:
+            continue
+
+        # Parse timestamp — try common Govee formats
+        ts = None
+        for fmt in ("%Y-%m-%d %H:%M:%S", "%m/%d/%Y %H:%M:%S",
+                    "%Y/%m/%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S",
+                    "%m/%d/%Y %I:%M:%S %p"):
+            try:
+                ts = datetime.strptime(ts_raw, fmt)
+                break
+            except ValueError:
+                continue
+        if ts is None:
+            continue
+
+        ts_str = ts.strftime("%Y-%m-%d %H:%M:%S")
+        if ts_str in existing:
+            skipped += 1
+            continue
+
+        try:
+            temp_val = float(''.join(c for c in temp_raw if c in '0123456789.-'))
+            hum_val  = float(''.join(c for c in hum_raw  if c in '0123456789.-'))
+        except ValueError:
+            continue
+
+        if use_celsius:
+            temp_val = temp_val * 9 / 5 + 32
+        temp_val = round(temp_val, 1)
+        hum_val  = round(hum_val, 1)
+
+        conn.execute(
+            "INSERT INTO environment_logs (chamber_id, logged_at, phase, temp_f, humidity_rh) "
+            "VALUES (?, ?, 'fruiting', ?, ?)",
+            (chamber_id, ts_str, temp_val, hum_val)
+        )
+        existing.add(ts_str)
+        inserted += 1
+
+    return inserted, skipped
+
+
+@app.route('/env/import', methods=['GET', 'POST'])
+def env_import():
+    init_db()
+    conn = get_db()
+    chambers = conn.execute("SELECT * FROM chambers ORDER BY id").fetchall()
+    conn.close()
+
+    if request.method == 'POST':
+        chamber_id = request.form.get('chamber_id')
+        f = request.files.get('csv_file')
+        if not chamber_id:
+            flash('Select a chamber.', 'error')
+            return redirect(url_for('env_import'))
+        if not f or not f.filename:
+            flash('No file selected.', 'error')
+            return redirect(url_for('env_import'))
+        if not f.filename.lower().endswith('.csv'):
+            flash('File must be a .csv export from the Govee app.', 'error')
+            return redirect(url_for('env_import'))
+        try:
+            content  = f.stream.read().decode('utf-8-sig')
+            conn     = get_db()
+            inserted, skipped = _parse_govee_csv(conn, content, int(chamber_id))
+            conn.commit()
+            conn.close()
+            flash(
+                f"Import complete: {inserted} row{'s' if inserted != 1 else ''} inserted, "
+                f"{skipped} duplicate{'s' if skipped != 1 else ''} skipped.",
+                'success'
+            )
+        except Exception as exc:
+            flash(f"Import failed: {exc}", 'error')
+        return redirect(url_for('env_history'))
+
+    return render_template('env_import.html', chambers=chambers)
 
 
 if __name__ == '__main__':

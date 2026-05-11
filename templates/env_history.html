@@ -7,7 +7,10 @@
     <div class="page-title">Environment History</div>
     <div class="page-sub">{{ chamber.name }} &nbsp;·&nbsp; last {{ logs|length }} readings</div>
   </div>
-  <a href="{{ url_for('env_log') }}" class="btn btn-primary btn-sm">+ Log Reading</a>
+  <div class="gap-row">
+    <a href="{{ url_for('env_import') }}" class="btn btn-ghost btn-sm">Import Govee CSV</a>
+    <a href="{{ url_for('env_log') }}" class="btn btn-primary btn-sm">+ Log Reading</a>
+  </div>
 </div>
 
 {% if logs %}
@@ -24,44 +27,85 @@
 </div>
 
 <div class="card">
-  <div class="card-title" style="margin-bottom:14px">All Readings</div>
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th>Timestamp</th>
-          <th>Temp (F)</th>
-          <th>Humidity (%)</th>
-          <th>CO2 (ppm)</th>
-          <th>Notes</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for log in logs %}
-        {% set temp_ok = (log.temp_f - chart_data.target_temp)|abs <= 3 %}
-        {% set hum_ok = log.humidity_rh >= 80 %}
-        <tr>
-          <td class="td-muted td-mono">{{ log.logged_at[:16] }}</td>
-          <td style="color:{{ 'var(--green)' if temp_ok else 'var(--amber)' }};font-weight:600">
-            {{ "%.1f"|format(log.temp_f) }}
-          </td>
-          <td style="color:{{ 'var(--green)' if hum_ok else 'var(--red)' }};font-weight:600">
-            {{ "%.1f"|format(log.humidity_rh) }}
-          </td>
-          <td class="td-muted">{{ log.co2_ppm|int if log.co2_ppm else '—' }}</td>
-          <td class="td-muted">{{ log.notes or '' }}</td>
-          <td style="white-space:nowrap">
-            <a href="{{ url_for('env_edit', log_id=log.id) }}" class="btn btn-ghost btn-sm" style="font-size:11px;padding:2px 8px">Edit</a>
-            <form method="POST" action="{{ url_for('env_delete', log_id=log.id) }}" style="display:inline"
-                  onsubmit="return confirm('Delete this environment reading from {{ log.logged_at[:16] }}?')">
-              <button type="submit" class="btn btn-danger btn-sm" style="font-size:11px;padding:2px 8px">Del</button>
-            </form>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <!-- Header: collapse toggle + per-page selector -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0;min-height:32px">
+    <button onclick="toggleReadings()" id="readingsToggle"
+            style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:8px;color:var(--text-muted);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;padding:0">
+      <svg id="readingsChevron" viewBox="0 0 10 10" width="10" height="10" fill="currentColor"
+           style="transition:transform .2s;transform:rotate(0deg)">
+        <path d="M2 3.5 L5 6.5 L8 3.5" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      All Readings
+      <span id="readingsCountBadge" style="font-weight:400;color:var(--text-dim);font-size:10px"></span>
+    </button>
+    <div id="readingsControls" style="display:flex;align-items:center;gap:8px">
+      <label for="perPageSelect" style="font-size:11px;color:var(--text-muted);white-space:nowrap">Per page:</label>
+      <select id="perPageSelect" onchange="changePerPage()"
+              style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
+                     padding:4px 8px;color:var(--text);font-size:12px;outline:none;cursor:pointer">
+        <option value="25">25</option>
+        <option value="50">50</option>
+        <option value="100">100</option>
+        <option value="0">All</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Collapsible body -->
+  <div id="readingsBody" style="margin-top:14px">
+    <div class="table-wrap">
+      <table id="readingsTable">
+        <thead>
+          <tr>
+            <th>Timestamp</th>
+            <th>Temp (F)</th>
+            <th>Humidity (%)</th>
+            <th>CO2 (ppm)</th>
+            <th>Batch</th>
+            <th>Notes</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="readingsTbody">
+          {% for log in logs %}
+          {% set temp_ok = (log.temp_f - chart_data.target_temp)|abs <= 3 %}
+          {% set hum_ok = log.humidity_rh >= 80 %}
+          <tr>
+            <td class="td-muted td-mono">{{ log.logged_at[:16] }}</td>
+            <td style="color:{{ 'var(--green)' if temp_ok else 'var(--amber)' }};font-weight:600">
+              {{ "%.1f"|format(log.temp_f) }}
+            </td>
+            <td style="color:{{ 'var(--green)' if hum_ok else 'var(--red)' }};font-weight:600">
+              {{ "%.1f"|format(log.humidity_rh) }}
+            </td>
+            <td class="td-muted">{{ log.co2_ppm|int if log.co2_ppm else '—' }}</td>
+            <td class="td-muted">{{ log.batch_label or '—' }}</td>
+            <td class="td-muted">{{ log.notes or '' }}</td>
+            <td style="white-space:nowrap">
+              <a href="{{ url_for('env_edit', log_id=log.id) }}" class="btn btn-ghost btn-sm" style="font-size:11px;padding:2px 8px">Edit</a>
+              <form method="POST" action="{{ url_for('env_delete', log_id=log.id) }}" style="display:inline"
+                    onsubmit="return confirm('Delete this environment reading from {{ log.logged_at[:16] }}?')">
+                <button type="submit" class="btn btn-danger btn-sm" style="font-size:11px;padding:2px 8px">Del</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination bar -->
+    <div id="paginationBar"
+         style="display:flex;align-items:center;justify-content:space-between;margin-top:14px;padding-top:12px;border-top:1px solid var(--border-muted)">
+      <span id="pageInfo" style="font-size:12px;color:var(--text-muted)"></span>
+      <div style="display:flex;align-items:center;gap:6px">
+        <button id="btnFirst"  onclick="goPage(1)"        class="btn btn-ghost btn-sm" style="font-size:11px;padding:3px 9px">&laquo;</button>
+        <button id="btnPrev"   onclick="goPage(curPage-1)" class="btn btn-ghost btn-sm" style="font-size:11px;padding:3px 9px">&#8249; Prev</button>
+        <div id="pageNumbers"  style="display:flex;gap:4px"></div>
+        <button id="btnNext"   onclick="goPage(curPage+1)" class="btn btn-ghost btn-sm" style="font-size:11px;padding:3px 9px">Next &#8250;</button>
+        <button id="btnLast"   onclick="goPage(totalPages)" class="btn btn-ghost btn-sm" style="font-size:11px;padding:3px 9px">&raquo;</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -146,6 +190,137 @@ new Chart(ctx, {
       }
     }
   }
+});
+</script>
+
+<script>
+// ── All Readings: collapse + pagination ───────────────────────────────────────
+const LS_PER_PAGE  = 'envReadingsPerPage';
+const LS_COLLAPSED = 'envReadingsCollapsed';
+
+const allRows    = Array.from(document.querySelectorAll('#readingsTbody tr'));
+const totalRows  = allRows.length;
+let curPage      = 1;
+let perPage      = parseInt(localStorage.getItem(LS_PER_PAGE) || '25', 10);
+let totalPages   = 1;
+let collapsed    = localStorage.getItem(LS_COLLAPSED) === '1';
+
+// Restore per-page selector
+const sel = document.getElementById('perPageSelect');
+sel.value = String(perPage);
+if (![25,50,100,0].includes(perPage)) { perPage = 25; sel.value = '25'; }
+
+document.getElementById('readingsCountBadge').textContent =
+  '(' + totalRows.toLocaleString() + ')';
+
+function renderPage() {
+  const pp = perPage === 0 ? totalRows : perPage;
+  totalPages = pp > 0 ? Math.max(1, Math.ceil(totalRows / pp)) : 1;
+  if (curPage > totalPages) curPage = totalPages;
+  if (curPage < 1)          curPage = 1;
+
+  const start = (curPage - 1) * pp;
+  const end   = pp === 0 ? totalRows : Math.min(start + pp, totalRows);
+
+  allRows.forEach((tr, i) => {
+    tr.style.display = (i >= start && i < end) ? '' : 'none';
+  });
+
+  // Page info text
+  document.getElementById('pageInfo').textContent =
+    pp === 0
+      ? `Showing all ${totalRows.toLocaleString()} rows`
+      : `${(start + 1).toLocaleString()}–${end.toLocaleString()} of ${totalRows.toLocaleString()}`;
+
+  // Show/hide pagination bar
+  const bar = document.getElementById('paginationBar');
+  bar.style.display = (perPage === 0 || totalPages <= 1) ? 'none' : 'flex';
+
+  // Prev / Next / First / Last buttons
+  document.getElementById('btnFirst').disabled = curPage === 1;
+  document.getElementById('btnPrev').disabled  = curPage === 1;
+  document.getElementById('btnNext').disabled  = curPage === totalPages;
+  document.getElementById('btnLast').disabled  = curPage === totalPages;
+
+  // Page number pills — show up to 7 around current page
+  const pn = document.getElementById('pageNumbers');
+  pn.innerHTML = '';
+  if (totalPages > 1) {
+    let pages = [];
+    if (totalPages <= 7) {
+      pages = Array.from({length: totalPages}, (_, i) => i + 1);
+    } else {
+      pages = [1];
+      if (curPage > 3)          pages.push('…');
+      for (let p = Math.max(2, curPage-1); p <= Math.min(totalPages-1, curPage+1); p++) pages.push(p);
+      if (curPage < totalPages-2) pages.push('…');
+      pages.push(totalPages);
+    }
+    pages.forEach(p => {
+      if (p === '…') {
+        const sp = document.createElement('span');
+        sp.textContent = '…';
+        sp.style.cssText = 'color:var(--text-dim);font-size:12px;padding:0 2px;align-self:center';
+        pn.appendChild(sp);
+      } else {
+        const btn = document.createElement('button');
+        btn.textContent = p;
+        btn.className = 'btn btn-ghost btn-sm';
+        btn.style.cssText = 'font-size:11px;padding:3px 8px;min-width:30px';
+        if (p === curPage) {
+          btn.style.background    = 'var(--green-bg)';
+          btn.style.borderColor   = 'var(--green-border)';
+          btn.style.color         = 'var(--green)';
+        }
+        btn.onclick = () => goPage(p);
+        pn.appendChild(btn);
+      }
+    });
+  }
+}
+
+function goPage(p) {
+  curPage = p;
+  renderPage();
+  // Scroll to top of card smoothly
+  document.getElementById('readingsBody').scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+function changePerPage() {
+  perPage = parseInt(sel.value, 10);
+  localStorage.setItem(LS_PER_PAGE, String(perPage));
+  curPage = 1;
+  renderPage();
+}
+
+// ── Collapse ──────────────────────────────────────────────────────────────────
+function toggleReadings() {
+  collapsed = !collapsed;
+  localStorage.setItem(LS_COLLAPSED, collapsed ? '1' : '0');
+  applyCollapse();
+}
+
+function applyCollapse() {
+  const body     = document.getElementById('readingsBody');
+  const chevron  = document.getElementById('readingsChevron');
+  const controls = document.getElementById('readingsControls');
+  if (collapsed) {
+    body.style.display     = 'none';
+    controls.style.display = 'none';
+    chevron.style.transform = 'rotate(-90deg)';
+  } else {
+    body.style.display     = '';
+    controls.style.display = 'flex';
+    chevron.style.transform = 'rotate(0deg)';
+  }
+}
+
+// Init
+applyCollapse();
+if (!collapsed) renderPage();
+// Re-render on expand so rows are visible
+document.getElementById('readingsToggle').addEventListener('click', () => {
+  if (!collapsed) renderPage();
 });
 </script>
 

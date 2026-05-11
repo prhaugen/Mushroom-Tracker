@@ -392,7 +392,9 @@ def build():
         ("8",    "Sales Tracking",                              "11"),
         ("9",    "Logging Environment Readings",                "12"),
         ("10",   "Environment History",                         "12"),
-        ("11",   "Reports",                                     "13"),
+        ("10.1", "All Readings Table",                          "13"),
+        ("10.2", "Importing from a Govee H5179 Sensor",         "13"),
+        ("11",   "Reports",                                     "14"),
         ("12",   "AI Daily Briefing",                           "14"),
         ("12.1", "What It Does",                                "14"),
         ("12.2", "Requirements",                                "14"),
@@ -1237,8 +1239,8 @@ def build():
         rule(),
         p("The Environment page shows a dual-axis line chart plotting temperature (amber) "
           "and humidity (blue) over your last 40 readings. Dashed lines show the target "
-          "values for the most recently active batch. Below the chart, a full table "
-          "lists every reading with color-coded values."),
+          "values for the most recently active batch. Below the chart, the All Readings "
+          "table lists every reading with color-coded values."),
         sp(8),
         *bullet([
             "Temperature values more than 3F from the batch target display in <b>amber</b>",
@@ -1256,6 +1258,75 @@ def build():
           "overnight, you may need to add more perlite or mist before bed. "
           "If you can see pinning events on the batch detail pages, try to correlate "
           "them with specific environmental conditions to find your personal recipe."),
+    ]
+
+    story += [
+        sp(10),
+        h2("11.1  All Readings Table"),
+        p("Below the chart, the <b>All Readings</b> panel lists every stored environment reading "
+          "in reverse-chronological order. The table is collapsible and paginated so it stays "
+          "manageable as your reading count grows."),
+        sp(6),
+        data_table(
+            ["Control", "Behavior"],
+            [
+                ["Collapse toggle (chevron)",
+                 "Click the All Readings header to collapse or expand the table. "
+                 "The collapsed state is remembered in your browser across page reloads."],
+                ["Per page selector",
+                 "Choose 25, 50, 100, or All rows per page. "
+                 "Your selection is saved in the browser and restored on your next visit."],
+                ["Page number pills",
+                 "Click any page number to jump directly to it. "
+                 "Prev / Next and first / last buttons are also provided."],
+            ],
+            col_widths=[4.2*cm, 12*cm],
+        ),
+        sp(8),
+        callout(
+            "The chart always shows your last 40 readings regardless of the table's "
+            "pagination setting -- changing the per-page value does not affect the chart.",
+            label="Note:", color=BLUE_BG, border=BLUE_BORDER
+        ),
+    ]
+
+    story += [
+        sp(10),
+        h2("11.2  Importing from a Govee H5179 Sensor"),
+        p("If you use a Govee H5179 WiFi temperature and humidity sensor, you can bulk-import "
+          "its history directly from a CSV export rather than logging readings manually. "
+          "Click the <b>Import Govee CSV</b> button on the Environment History page."),
+        sp(6),
+        h3("How to export from the Govee app"),
+        *bullet([
+            "Open the Govee Home app and tap your H5179 device",
+            "Tap the graph icon to open the history view",
+            "Select a date range",
+            "Tap <b>Export</b> -- the app saves a .csv file to your device",
+        ]),
+        sp(8),
+        data_table(
+            ["Feature", "Detail"],
+            [
+                ["Unit detection",
+                 "The importer reads the column header to determine whether temperature "
+                 "is in Fahrenheit or Celsius and converts automatically. "
+                 "Both export formats from the Govee app are supported."],
+                ["Deduplication",
+                 "Rows whose timestamp already exists for the selected chamber are skipped. "
+                 "Re-importing the same file is safe -- no duplicate rows will be created."],
+                ["Result summary",
+                 "After import a flash message reports exactly how many rows were inserted "
+                 "and how many were skipped as duplicates."],
+                ["Column detection",
+                 "Column order does not matter. The importer finds columns by keyword: "
+                 "Time/Date for the timestamp, Temp for temperature, Humid for humidity."],
+                ["Phase",
+                 "All imported rows are tagged with phase = fruiting. "
+                 "Edit individual readings afterwards if a different phase applies."],
+            ],
+            col_widths=[3.5*cm, 12.7*cm],
+        ),
     ]
 
     story.append(PageBreak())
