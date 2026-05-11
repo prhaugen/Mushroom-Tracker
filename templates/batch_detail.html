@@ -76,7 +76,9 @@
     <div class="tl-step {{ 'tl-done' if si < ci else ('tl-active' if si == ci else '') }}">
       <div class="tl-dot">{{ loop.index }}</div>
       <div class="tl-lbl">{{ step }}</div>
-      {% if step == 'colonized' and batch.colonization_end_date %}
+      {% if step == 'colonizing' and batch.fruiting_start_date %}
+      <div style="font-size:9px;color:var(--text-muted);margin-top:2px">in chamber {{ batch.fruiting_start_date }}</div>
+      {% elif step == 'colonized' and batch.colonization_end_date %}
       <div style="font-size:9px;color:var(--text-muted);margin-top:2px">{{ batch.colonization_end_date }}</div>
       {% elif step == 'pinning' and batch.first_pin_date %}
       <div style="font-size:9px;color:var(--text-muted);margin-top:2px">{{ batch.first_pin_date }}</div>

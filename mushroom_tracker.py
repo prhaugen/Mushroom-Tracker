@@ -206,6 +206,7 @@ def init_db():
             abort_date              TEXT,
             total_flushes           INTEGER DEFAULT 0,
             total_yield_g           REAL DEFAULT 0.0,
+            fruiting_start_date     TEXT,
             notes                   TEXT,
             created_at              TEXT DEFAULT CURRENT_TIMESTAMP
         );
@@ -303,6 +304,7 @@ def init_db():
         "target_humidity_rh": "REAL DEFAULT 90.0",
         "substrate_notes": "TEXT",
         "pinning_started_at": "TEXT",
+        "fruiting_start_date": "TEXT",
     }.items():
         if col not in existing_b:
             c.execute(f"ALTER TABLE batches ADD COLUMN {col} {typedef}")

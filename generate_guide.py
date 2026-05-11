@@ -770,6 +770,12 @@ def build():
                  "for blocks you did not colonize yourself. Set the Status field to "
                  "reflect the block's actual current stage (Colonized or Fruiting) "
                  "rather than leaving it at Colonizing."],
+                ["Fruiting Chamber Date",     "No",
+                 "The date the block was placed into the fruiting chamber (e.g. your SGFC). "
+                 "For pre-made blocks from a supplier like North Spore, this is the most "
+                 "meaningful start date — use it instead of Inoculation Date for tracking "
+                 "how long the block has been in fruiting conditions. "
+                 "Displayed under the Colonizing step on the Batch Detail lifecycle timeline."],
                 ["Colonization Chamber",      "No",
                  "The chamber where this batch colonized, if different from the fruiting chamber. "
                  "Only shown when more than one chamber is configured."],

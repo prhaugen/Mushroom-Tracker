@@ -478,6 +478,11 @@ def build():
                                        "from a supplier and do not know the inoculation date — "
                                        "the field is optional. Set Status to match the block's "
                                        "actual stage (Colonized or Fruiting) instead of Colonizing."),
+            ("Fruiting Chamber Date", "The date you placed the block into your fruiting chamber (SGFC). "
+                                       "For supplier blocks like North Spore, this is your most meaningful "
+                                       "start date — use it to track how long the block has been in "
+                                       "fruiting conditions. Shows under the Colonizing step on the "
+                                       "Batch Detail lifecycle timeline."),
             ("Colonization Chamber",  "Only shown if you have more than one chamber. "
                                        "Select the chamber where colonization is happening "
                                        "if it differs from your fruiting chamber."),

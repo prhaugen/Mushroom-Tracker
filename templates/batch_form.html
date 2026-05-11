@@ -63,6 +63,12 @@
           <input type="date" name="inoculation_date"
                  value="{{ batch.inoculation_date if editing and batch.inoculation_date else today }}">
         </div>
+        <div class="fg">
+          <label>Date Placed in Fruiting Chamber</label>
+          <input type="date" name="fruiting_start_date"
+                 value="{{ batch.fruiting_start_date if editing and batch.fruiting_start_date else '' }}">
+          <span class="form-hint">When the block entered the SGFC — use inoculation date for pre-made blocks</span>
+        </div>
         {% if all_chambers|length > 1 %}
         <div class="fg">
           <label>Colonization Chamber</label>
