@@ -38,6 +38,13 @@ Your evaluation criteria are provided in the data snapshot under \
 averages when available; fall back to species targets when history is thin \
 (fewer than 5 completed batches for that species).
 
+IMPORTANT — sourced blocks: if a batch has "sourced_block": true, it is a \
+commercially prepared fruiting block purchased from a supplier (e.g. North Spore). \
+Do NOT flag missing dry_weight_g, substrate percentages, sterilization method, \
+spawn type, or spawn lot — these fields are not applicable and their absence is \
+expected. Focus monitoring for sourced blocks on lifecycle timing, environmental \
+conditions, and flush performance only.
+
 Output format — return JSON only, no preamble:
 {
   "briefing_date": "YYYY-MM-DD",
@@ -97,6 +104,8 @@ def _get_active_batches(conn) -> list:
     for row in rows:
         b = dict(row)
         b['days_since_inoculation'] = _days_between(b.get('inoculation_date'))
+
+        b['sourced_block'] = bool(b.get('sourced_block'))
 
         status = b.get('status', '')
         if status == 'colonizing':

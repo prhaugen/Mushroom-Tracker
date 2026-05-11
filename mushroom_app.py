@@ -230,8 +230,8 @@ def batch_add():
              substrate_other,substrate_notes,
              steril_method,steril_temp_f,steril_duration_min,
              inoculation_date,spawn_type,spawn_strain,spawn_rate_pct,spawn_source,spawn_lot,
-             colonization_start_date,fruiting_start_date,status,notes)
-            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+             colonization_start_date,fruiting_start_date,sourced_block,status,notes)
+            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (chamber['id'],
              int(f['colonization_chamber_id']) if f.get('colonization_chamber_id') else None,
              f['label'], species, f.get('strain') or None,
@@ -251,6 +251,7 @@ def batch_add():
              spawn_source, f.get('spawn_lot') or None,
              f.get('inoculation_date') or str(date.today()),
              f.get('fruiting_start_date') or None,
+             1 if f.get('sourced_block') else 0,
              f.get('status','colonizing'), f.get('notes') or None))
         conn.commit(); conn.close()
         flash(f"Batch '{f['label']}' added.", 'success')
@@ -592,7 +593,7 @@ def batch_edit(batch_id):
             gypsum_pct=?,coco_pct=?,substrate_other=?,substrate_notes=?,
             steril_method=?,steril_temp_f=?,steril_duration_min=?,
             inoculation_date=?,spawn_type=?,spawn_strain=?,spawn_rate_pct=?,
-            spawn_source=?,spawn_lot=?,fruiting_start_date=?,notes=?
+            spawn_source=?,spawn_lot=?,fruiting_start_date=?,sourced_block=?,notes=?
             WHERE id=?""",
             (f['label'], species, f.get('strain') or None,
              int(f['colonization_chamber_id']) if f.get('colonization_chamber_id') else None,
@@ -611,6 +612,7 @@ def batch_edit(batch_id):
              float(f['spawn_rate_pct']) if f.get('spawn_rate_pct') else None,
              spawn_source, f.get('spawn_lot') or None,
              f.get('fruiting_start_date') or None,
+             1 if f.get('sourced_block') else 0,
              f.get('notes') or None, batch_id))
         conn.commit(); conn.close()
         flash(f"Batch '{f['label']}' updated.", 'success')

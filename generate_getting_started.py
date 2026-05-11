@@ -483,6 +483,12 @@ def build():
                                        "start date — use it to track how long the block has been in "
                                        "fruiting conditions. Shows under the Colonizing step on the "
                                        "Batch Detail lifecycle timeline."),
+            ("Sourced / Pre-made Block", "Check this if the block came from a supplier (e.g. North Spore) "
+                                          "rather than one you made yourself. "
+                                          "The AI briefing agent will not flag missing substrate, "
+                                          "sterilization, or spawn fields when this is checked. "
+                                          "You can still enter estimated dry weight and moisture — "
+                                          "they will be used for BE% without triggering missing-data alerts."),
             ("Colonization Chamber",  "Only shown if you have more than one chamber. "
                                        "Select the chamber where colonization is happening "
                                        "if it differs from your fruiting chamber."),

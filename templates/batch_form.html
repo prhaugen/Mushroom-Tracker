@@ -69,6 +69,20 @@
                  value="{{ batch.fruiting_start_date if editing and batch.fruiting_start_date else '' }}">
           <span class="form-hint">When the block entered the SGFC — use inoculation date for pre-made blocks</span>
         </div>
+        <div class="fg" style="display:flex;align-items:center;gap:10px;padding-top:20px">
+          <input type="checkbox" name="sourced_block" id="sourcedBlock" value="1"
+                 {{ 'checked' if editing and batch.sourced_block }} onchange="toggleSourcedHint()">
+          <label for="sourcedBlock" style="margin:0;font-weight:600;cursor:pointer">
+            Sourced / pre-made block (e.g. North Spore)
+          </label>
+        </div>
+        <div id="sourcedHint" class="fg" style="{{ '' if (editing and batch.sourced_block) else 'display:none' }}">
+          <span class="form-hint" style="color:var(--blue)">
+            Substrate and sterilization fields are optional for sourced blocks.
+            Enter estimated dry weight and moisture if known — the AI briefing agent
+            will not flag them as missing.
+          </span>
+        </div>
         {% if all_chambers|length > 1 %}
         <div class="fg">
           <label>Colonization Chamber</label>
@@ -326,6 +340,11 @@ function updateBEPreview() {
 // Trigger on load if editing with existing dry weight
 updatePctSum();
 updateBEPreview();
+
+function toggleSourcedHint() {
+  const checked = document.getElementById('sourcedBlock').checked;
+  document.getElementById('sourcedHint').style.display = checked ? 'block' : 'none';
+}
 
 function handleSpeciesChange() {
   const sel = document.getElementById('speciesSelect');

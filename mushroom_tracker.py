@@ -207,6 +207,7 @@ def init_db():
             total_flushes           INTEGER DEFAULT 0,
             total_yield_g           REAL DEFAULT 0.0,
             fruiting_start_date     TEXT,
+            sourced_block           INTEGER DEFAULT 0,
             notes                   TEXT,
             created_at              TEXT DEFAULT CURRENT_TIMESTAMP
         );
@@ -305,6 +306,7 @@ def init_db():
         "substrate_notes": "TEXT",
         "pinning_started_at": "TEXT",
         "fruiting_start_date": "TEXT",
+        "sourced_block": "INTEGER DEFAULT 0",
     }.items():
         if col not in existing_b:
             c.execute(f"ALTER TABLE batches ADD COLUMN {col} {typedef}")

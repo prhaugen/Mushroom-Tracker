@@ -776,6 +776,14 @@ def build():
                  "meaningful start date — use it instead of Inoculation Date for tracking "
                  "how long the block has been in fruiting conditions. "
                  "Displayed under the Colonizing step on the Batch Detail lifecycle timeline."],
+                ["Sourced / Pre-made Block",  "No",
+                 "Check this if the block was purchased from a supplier (e.g. North Spore) "
+                 "rather than prepared in-house. When checked, the AI briefing agent will not "
+                 "flag missing substrate composition, sterilization, or spawn details — those "
+                 "fields are optional for sourced blocks. You may still enter estimated dry "
+                 "weight and moisture if known; they will be used for BE% calculations "
+                 "without triggering missing-data alerts. "
+                 "The Batch Detail page labels the batch as 'sourced block' in the subtitle."],
                 ["Colonization Chamber",      "No",
                  "The chamber where this batch colonized, if different from the fruiting chamber. "
                  "Only shown when more than one chamber is configured."],

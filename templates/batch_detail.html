@@ -13,7 +13,7 @@
       {% if batch.contamination_flag %}<span class="badge badge-contaminated">contaminated</span>{% endif %}
       {% if batch.abort_flag %}<span class="badge badge-aborted">aborted</span>{% endif %}
     </div>
-    <div class="page-sub">{{ batch.species }}{% if batch.strain %} · {{ batch.strain }}{% endif %}</div>
+    <div class="page-sub">{{ batch.species }}{% if batch.strain %} · {{ batch.strain }}{% endif %}{% if batch.sourced_block %} · <span style="color:var(--blue);font-size:12px">sourced block</span>{% endif %}</div>
   </div>
   <div class="gap-row">
     {% if batch.status not in ('done','contaminated','aborted') %}
