@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if flush else 'Log' }} Flush — Mushroom Tracker{% endblock %}
+{% block content %}
+{% set editing = flush is not none %}
+{% set be_so_far = bio_efficiency(batch.total_yield_g, batch.dry_weight_g) %}
+
+<div class="page-head-row">
+  <div class="page-head">
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">
+      <a href="{{ url_for('batch_detail', batch_id=batch.id) }}" style="color:var(--text-muted);text-decoration:none">{{ batch.label }}</a> / {{ 'Edit Flush' if editing else 'Log Flush' }}
+    </div>
+    <div class="page-title">{{ 'Edit Flush #' ~ flush.flush_number if editing else 'Log Flush' }}</div>
+    <div class="page-sub">{{ batch.label }} · {{ batch.species }}{% if batch.strain %} · {{ batch.strain }}{% endif %}</div>
+  </div>
+  <a href="{{ url_for('batch_detail', batch_id=batch.id) }}" class="btn btn-ghost btn-sm">Back</a>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px">
+  <div class="stat">
+    <div class="stat-label">Current BE</div>
+    <div class="stat-val {% if be_so_far and be_so_far >= 60 %}g{% endif %}">{% if be_so_far %}{{ be_so_far }}%{% else %}—{% endif %}</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Lifetime Yield</div>
+    <div class="stat-val g">{{ batch.total_yield_g|int }}g</div>
+  </div>
+  <div class="stat a">
+    <div class="stat-label">{{ 'Editing Flush' if editing else 'This Flush' }}</div>
+    <div class="stat-val">#{{ next_flush }}</div>
+  </div>
+</div>
+
+<div class="card form-wrap">
+  <form method="POST"
+        action="{{ url_for('flush_edit', flush_id=flush.id) if editing else url_for('flush_add', batch_id=batch.id) }}">
+    <div class="fg-grid">
+      <div class="fg">
+        <label>Flush Number</label>
+        <input type="number" name="flush_number"
+               value="{{ flush.flush_number if editing else next_flush }}" min="1" required>
+      </div>
+      <div class="fg">
+        <label>Harvest Date</label>
+        <input type="date" name="harvest_date"
+               value="{{ flush.harvest_date if editing and flush.harvest_date else today }}">
+      </div>
+      <div class="fg">
+        <label>Pinning / Initiation Date (optional)</label>
+        <input type="date" name="pinning_date"
+               value="{{ flush.pinning_date if editing and flush.pinning_date else default_pinning_date }}">
+        <span class="form-hint">Pre-filled from when status was set to Pinning — adjust if needed</span>
+      </div>
+      <div class="fg">
+        <label>Fresh Weight (grams) *</label>
+        <input type="number" name="weight_g" step="0.1" placeholder="e.g. 145" required
+               id="weight_input" oninput="updatePreview()"
+               value="{{ flush.fresh_weight_g if editing else '' }}">
+        <span class="form-hint" id="weight_hint">&nbsp;</span>
+      </div>
+
+      <div class="fg full">
+        <label>Quality Rating (1 = poor / 5 = excellent)</label>
+        <div style="display:flex;gap:8px;margin-top:4px" id="qualityBtns">
+          {% for i in range(1,6) %}
+          <button type="button" class="q-btn" id="qb{{ i }}" onclick="setQuality({{ i }})">{{ i }}</button>
+          {% endfor %}
+        </div>
+        <input type="hidden" name="quality_rating" id="quality_val"
+               value="{{ flush.quality_rating if editing and flush.quality_rating else '' }}">
+        <span class="form-hint">Rate the visual quality and pin density of this flush</span>
+      </div>
+
+      <div class="fg full">
+        <label>Notes (optional)</label>
+        <textarea name="notes" placeholder="Pin density, cluster size, aborts, any anomalies...">{{ flush.notes if editing and flush.notes else '' }}</textarea>
+      </div>
+    </div>
+
+    <div id="flush-preview" style="display:none;margin:12px 0;padding:12px 16px;background:var(--green-bg);border:1px solid var(--green-border);border-radius:var(--r)">
+      <span style="color:var(--green);font-weight:700;font-size:14px" id="preview_text"></span>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">{{ 'Save Changes' if editing else 'Save Flush' }}</button>
+      <a href="{{ url_for('batch_detail', batch_id=batch.id) }}" class="btn btn-ghost">Cancel</a>
+    </div>
+  </form>
+</div>
+
+<script>
+// For edit mode, exclude the current flush weight from prevYield so preview reflects change
+const prevYield  = {{ (batch.total_yield_g - flush.fresh_weight_g) if editing else batch.total_yield_g }};
+const dryWeight  = {{ batch.dry_weight_g or 'null' }};
+
+function setQuality(n) {
+  document.getElementById('quality_val').value = n;
+  for (let i=1; i<=5; i++) {
+    document.getElementById('qb'+i).classList.toggle('active', i<=n);
+  }
+}
+
+function updatePreview() {
+  const w = parseFloat(document.getElementById('weight_input').value);
+  const preview = document.getElementById('flush-preview');
+  const hint = document.getElementById('weight_hint');
+  if (!isNaN(w) && w > 0) {
+    const newTotal = prevYield + w;
+    let txt = `${w.toFixed(0)}g this flush — new total: ${newTotal.toFixed(0)}g`;
+    if (dryWeight) {
+      const be = (newTotal / dryWeight * 100).toFixed(1);
+      txt += ` — BE: ${be}%`;
+    }
+    document.getElementById('preview_text').textContent = txt;
+    preview.style.display = 'block';
+    hint.textContent = w > 300 ? 'Great flush!' : (w > 100 ? 'Solid harvest' : 'Small flush');
+    hint.style.color = w > 300 ? 'var(--green)' : (w > 100 ? 'var(--blue)' : 'var(--text-muted)');
+  } else {
+    preview.style.display = 'none';
+    hint.textContent = ' ';
+  }
+}
+
+// Restore quality state if editing
+{% if editing and flush.quality_rating %}
+setQuality({{ flush.quality_rating }});
+{% endif %}
+// Trigger preview if editing with existing weight
+updatePreview();
+</script>
+{% endblock %}

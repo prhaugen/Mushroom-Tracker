@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Setup — Mushroom Tracker{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div class="page-title">Set Up Your Chamber</div>
+  <div class="page-sub">Configure your shotgun fruiting chamber to start tracking.</div>
+</div>
+
+<div class="card form-card">
+  <form method="POST" action="{{ url_for('setup') }}">
+    <div class="form-grid">
+      <div class="fg">
+        <label>Chamber Name</label>
+        <input type="text" name="name" value="SGFC-1" placeholder="SGFC-1" required>
+      </div>
+      <div class="fg">
+        <label>Location</label>
+        <input type="text" name="location" value="Basement" placeholder="Basement">
+      </div>
+      <div class="fg full">
+        <label>Chamber Type</label>
+        <select name="chamber_type">
+          <option value="">— select type —</option>
+          {% for ct in chamber_types %}
+          <option value="{{ ct }}">{{ ct }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="fg">
+        <label>Default Target Temperature (F)</label>
+        <input type="number" name="target_temp" value="72" step="0.5" min="60" max="90">
+        <span class="form-hint">Pre-fills new batches — override per species on each batch</span>
+      </div>
+      <div class="fg">
+        <label>Default Target Humidity (% RH)</label>
+        <input type="number" name="target_humidity" value="90" step="1" min="50" max="100">
+        <span class="form-hint">Pre-fills new batches — override per species on each batch</span>
+      </div>
+      <div class="fg full">
+        <label>Notes (optional)</label>
+        <textarea name="notes" placeholder="e.g. 4 holes/sq ft perlite substrate, 6-inch sides..."></textarea>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">Create Chamber</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

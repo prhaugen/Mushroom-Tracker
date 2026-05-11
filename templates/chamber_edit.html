@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Edit Chamber — Mushroom Tracker{% endblock %}
+{% block content %}
+<div class="page-head-row">
+  <div class="page-head">
+    <div class="page-title">Chamber Settings</div>
+    <div class="page-sub">Edit your fruiting environment configuration</div>
+  </div>
+  <a href="{{ url_for('dashboard') }}" class="btn btn-ghost btn-sm">Back</a>
+</div>
+
+<div class="card form-wrap">
+  <form method="POST" action="{{ url_for('chamber_edit') }}">
+    <div class="fg-grid">
+      <div class="fg">
+        <label>Chamber Name *</label>
+        <input type="text" name="name" value="{{ chamber.name }}" required>
+      </div>
+      <div class="fg">
+        <label>Location</label>
+        <input type="text" name="location" value="{{ chamber.location or '' }}" placeholder="e.g. Basement">
+      </div>
+      <div class="fg full">
+        <label>Chamber Type</label>
+        <select name="chamber_type">
+          <option value="">— select type —</option>
+          {% for ct in chamber_types %}
+          <option value="{{ ct }}" {{ 'selected' if chamber.chamber_type == ct }}>{{ ct }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="fg">
+        <label>Default Target Temperature (F)</label>
+        <input type="number" name="target_temp" step="0.5"
+               value="{{ chamber.target_temp_f }}">
+        <span class="form-hint">Pre-fills new batches — override per species on each batch</span>
+      </div>
+      <div class="fg">
+        <label>Default Target Humidity (% RH)</label>
+        <input type="number" name="target_humidity" step="0.5"
+               value="{{ chamber.target_humidity_rh }}">
+        <span class="form-hint">Pre-fills new batches — override per species on each batch</span>
+      </div>
+      <div class="fg full">
+        <label>Notes (optional)</label>
+        <textarea name="notes">{{ chamber.notes or '' }}</textarea>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">Save Changes</button>
+      <a href="{{ url_for('dashboard') }}" class="btn btn-ghost">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

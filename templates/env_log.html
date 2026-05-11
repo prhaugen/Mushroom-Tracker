@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if log else 'Log' }} Environment — Mushroom Tracker{% endblock %}
+{% block content %}
+{% set editing = log is not none %}
+<div class="page-head-row">
+  <div class="page-head">
+    <div class="page-title">{{ 'Edit Environment Reading' if editing else 'Log Environment Reading' }}</div>
+    <div class="page-sub">{{ chamber.name }} &nbsp;·&nbsp; Target {{ chamber.target_temp_f|int }}F / {{ chamber.target_humidity_rh|int }}% RH</div>
+  </div>
+  {% if editing %}
+  <a href="{{ url_for('env_history') }}" class="btn btn-ghost btn-sm">Back</a>
+  {% else %}
+  <a href="{{ url_for('dashboard') }}" class="btn btn-ghost btn-sm">Back</a>
+  {% endif %}
+</div>
+
+<div class="card form-wrap">
+  <form method="POST"
+        action="{{ url_for('env_edit', log_id=log.id) if editing else url_for('env_log') }}">
+    <div class="form-section">
+      <div class="section-label">Conditions</div>
+      <div class="fg-grid">
+        <div class="fg">
+          <label>Phase</label>
+          <select name="phase">
+            {% set cur_phase = log.phase if editing and log.phase else 'fruiting' %}
+            <option value="fruiting" {{ 'selected' if cur_phase == 'fruiting' }}>Fruiting</option>
+            <option value="colonization" {{ 'selected' if cur_phase == 'colonization' }}>Colonization</option>
+            <option value="ambient" {{ 'selected' if cur_phase == 'ambient' }}>Ambient / Baseline</option>
+          </select>
+          <span class="form-hint">Phase helps segment your environment history by lifecycle stage</span>
+        </div>
+        <div class="fg">
+          <label>Linked Batch (optional)</label>
+          <select name="batch_id">
+            <option value="">— chamber-wide reading —</option>
+            {% for b in active_batches %}
+            <option value="{{ b.id }}" {{ 'selected' if editing and log.batch_id == b.id }}>
+              {{ b.label }} — {{ b.species }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="fg">
+          <label>Temperature (F) *</label>
+          <input type="number" name="temp_f" id="temp_f" step="0.1"
+                 placeholder="{{ chamber.target_temp_f }}" required oninput="updateFeedback()"
+                 value="{{ '%.1f'|format(log.temp_f) if editing else '' }}">
+          <span class="form-hint" id="temp_hint">&nbsp;</span>
+        </div>
+        <div class="fg">
+          <label>Humidity (% RH) *</label>
+          <input type="number" name="humidity_rh" id="humidity_rh" step="0.1"
+                 placeholder="{{ chamber.target_humidity_rh }}" required oninput="updateFeedback()"
+                 value="{{ '%.1f'|format(log.humidity_rh) if editing else '' }}">
+          <span class="form-hint" id="hum_hint">&nbsp;</span>
+        </div>
+        <div class="fg">
+          <label>CO2 (ppm)</label>
+          <input type="number" name="co2_ppm" step="1" placeholder="e.g. 800"
+                 value="{{ log.co2_ppm|int if editing and log.co2_ppm else '' }}">
+          <span class="form-hint">Fresh air ~400 ppm. Above ~1000 may slow pinning.</span>
+        </div>
+        <div class="fg">
+          <label>FAE Fan Cycles / Day</label>
+          <input type="number" name="fae_fan_cycles_day" step="1" placeholder="e.g. 4"
+                 value="{{ log.fae_fan_cycles_day if editing and log.fae_fan_cycles_day else '' }}">
+          <span class="form-hint">Proxy for CO2 if no meter. Aim 4–6x/day for fruiting.</span>
+        </div>
+        <div class="fg">
+          <label>Light Hours</label>
+          <input type="number" name="light_hours" step="0.5" min="0" max="24" placeholder="e.g. 12"
+                 value="{{ log.light_hours if editing and log.light_hours else '' }}">
+        </div>
+        <div class="fg">
+          <label>Misting Count Today</label>
+          <input type="number" name="misting_count" step="1" min="0" placeholder="e.g. 3"
+                 value="{{ log.misting_count if editing and log.misting_count else '' }}">
+        </div>
+        <div class="fg full">
+          <label>Notes (optional)</label>
+          <textarea name="notes" placeholder="FAE adjustments, equipment changes, observations...">{{ log.notes if editing and log.notes else '' }}</textarea>
+        </div>
+      </div>
+    </div>
+
+    <div id="reading-preview" style="display:none;margin:12px 0 16px;padding:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r)">
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:.06em">Preview</div>
+      <div style="display:flex;gap:24px;align-items:center">
+        <span id="prev-temp" style="font-size:22px;font-weight:700"></span>
+        <span id="prev-hum"  style="font-size:22px;font-weight:700"></span>
+        <span id="prev-status" style="font-size:13px"></span>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">{{ 'Save Changes' if editing else 'Save Reading' }}</button>
+      {% if editing %}
+      <a href="{{ url_for('env_history') }}" class="btn btn-ghost">Cancel</a>
+      {% else %}
+      <a href="{{ url_for('dashboard') }}" class="btn btn-ghost">Cancel</a>
+      {% endif %}
+    </div>
+  </form>
+</div>
+
+<script>
+const TGT_TEMP = {{ chamber.target_temp_f }};
+const TGT_HUM  = {{ chamber.target_humidity_rh }};
+function updateFeedback() {
+  const t = parseFloat(document.getElementById('temp_f').value);
+  const h = parseFloat(document.getElementById('humidity_rh').value);
+  const tHint = document.getElementById('temp_hint');
+  const hHint = document.getElementById('hum_hint');
+  const preview = document.getElementById('reading-preview');
+  if (!isNaN(t)) {
+    const d = Math.abs(t - TGT_TEMP);
+    if (d<=2) { tHint.textContent='Perfect range'; tHint.className='form-hint ok'; }
+    else if (d<=4) { tHint.textContent='Slightly off target'; tHint.className='form-hint warn'; }
+    else { tHint.textContent='Far from target'; tHint.className='form-hint err'; }
+  }
+  if (!isNaN(h)) {
+    if (h>=85) { hHint.textContent='Excellent'; hHint.className='form-hint ok'; }
+    else if (h>=75) { hHint.textContent='Acceptable — consider misting'; hHint.className='form-hint warn'; }
+    else { hHint.textContent='Too low — mist now!'; hHint.className='form-hint err'; }
+  }
+  if (!isNaN(t) && !isNaN(h)) {
+    preview.style.display = 'block';
+    const tok = Math.abs(t-TGT_TEMP)<=3, hok = h>=80;
+    document.getElementById('prev-temp').textContent = t.toFixed(1)+'F';
+    document.getElementById('prev-temp').style.color = tok ? 'var(--green)' : 'var(--amber)';
+    document.getElementById('prev-hum').textContent  = h.toFixed(0)+'% RH';
+    document.getElementById('prev-hum').style.color  = hok ? 'var(--green)' : 'var(--red)';
+    const ok = tok && hok;
+    document.getElementById('prev-status').textContent = ok ? 'All good' : (tok ? 'Humidity low' : (hok ? 'Temp off' : 'Both need attention'));
+    document.getElementById('prev-status').style.color = ok ? 'var(--green)' : 'var(--amber)';
+  } else { preview.style.display = 'none'; }
+}
+// Trigger on load for edit mode
+updateFeedback();
+</script>
+{% endblock %}

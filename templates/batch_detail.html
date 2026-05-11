@@ -1,0 +1,278 @@
+{% extends "base.html" %}
+{% block title %}{{ batch.label }} — Mushroom Tracker{% endblock %}
+{% block content %}
+{% set be = bio_efficiency(batch.total_yield_g, batch.dry_weight_g) %}
+
+<div class="page-head-row">
+  <div class="page-head">
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">
+      <a href="{{ url_for('batches') }}" style="color:var(--text-muted);text-decoration:none">Batches</a> / {{ batch.label }}
+    </div>
+    <div class="page-title" style="display:flex;align-items:center;gap:12px">
+      {{ batch.label }} <span class="badge badge-{{ batch.status }}">{{ batch.status }}</span>
+      {% if batch.contamination_flag %}<span class="badge badge-contaminated">contaminated</span>{% endif %}
+      {% if batch.abort_flag %}<span class="badge badge-aborted">aborted</span>{% endif %}
+    </div>
+    <div class="page-sub">{{ batch.species }}{% if batch.strain %} · {{ batch.strain }}{% endif %}</div>
+  </div>
+  <div class="gap-row">
+    {% if batch.status not in ('done','contaminated','aborted') %}
+    <a href="{{ url_for('flush_add', batch_id=batch.id) }}" class="btn btn-primary btn-sm">+ Log Flush</a>
+    {% endif %}
+    <a href="{{ url_for('sales_add', batch_id=batch.id) }}" class="btn btn-secondary btn-sm">+ Log Sale</a>
+    <a href="{{ url_for('batch_edit', batch_id=batch.id) }}" class="btn btn-ghost btn-sm">Edit Batch</a>
+    <form method="POST" action="{{ url_for('batch_delete', batch_id=batch.id) }}" style="display:inline"
+          onsubmit="return confirm('Delete batch {{ batch.label }}? This will also delete {{ flushes|length }} flush(es) and all associated sales. This cannot be undone.')">
+      <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+    </form>
+  </div>
+</div>
+
+<!-- Stats -->
+<div class="stats" style="grid-template-columns:repeat(5,1fr)">
+  <div class="stat g">
+    <div class="stat-label">Bio Efficiency</div>
+    <div class="stat-val">{% if be %}{{ be }}%{% else %}—{% endif %}</div>
+    <div class="stat-sub">{% if not batch.dry_weight_g %}add dry weight{% else %}fresh / dry sub{% endif %}</div>
+  </div>
+  <div class="stat g">
+    <div class="stat-label">Total Yield</div>
+    <div class="stat-val">{{ batch.total_yield_g|int }}g</div>
+    <div class="stat-sub">{{ batch.total_flushes }} flush{% if batch.total_flushes != 1 %}es{% endif %}</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Dry Substrate</div>
+    <div class="stat-val" style="font-size:18px">{% if batch.dry_weight_g %}{{ batch.dry_weight_g|int }}g{% else %}—{% endif %}</div>
+    <div class="stat-sub">pre-hydration</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Days Active</div>
+    <div class="stat-val">{% if days_since(batch.inoculation_date) is not none %}{{ days_since(batch.inoculation_date) }}{% else %}—{% endif %}</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Avg / Flush</div>
+    <div class="stat-val">{% if batch.total_flushes > 0 %}{{ (batch.total_yield_g / batch.total_flushes)|int }}g{% else %}—{% endif %}</div>
+  </div>
+</div>
+
+{% if be %}
+{% set be_class = 'callout-green' if be >= 60 else ('callout-amber' if be >= 30 else 'callout-red') %}
+{% set be_msg = 'Excellent — above 60% is strong performance for most species.' if be >= 60
+                else ('Average range. Check substrate composition and FAE.' if be >= 30
+                      else 'Below target. Review substrate moisture, spawn rate, and contamination risk.') %}
+<div class="callout {{ be_class }}">
+  <b>BE {{ be }}%</b> &nbsp;—&nbsp; {{ be_msg }}
+</div>
+{% endif %}
+
+<!-- Lifecycle timeline -->
+<div class="card mb-16 mt-16">
+  <div class="card-title">Lifecycle</div>
+  {% set lc = ['colonizing','colonized','pinning','fruiting','resting'] %}
+  {% set ci = lc.index(batch.status) if batch.status in lc else -1 %}
+  <div class="timeline mt-12">
+    {% for step in lc %}
+    {% set si = loop.index0 %}
+    <div class="tl-step {{ 'tl-done' if si < ci else ('tl-active' if si == ci else '') }}">
+      <div class="tl-dot">{{ loop.index }}</div>
+      <div class="tl-lbl">{{ step }}</div>
+      {% if step == 'colonized' and batch.colonization_end_date %}
+      <div style="font-size:9px;color:var(--text-muted);margin-top:2px">{{ batch.colonization_end_date }}</div>
+      {% elif step == 'pinning' and batch.first_pin_date %}
+      <div style="font-size:9px;color:var(--text-muted);margin-top:2px">{{ batch.first_pin_date }}</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="g2 mb-16">
+
+  <!-- Substrate & Spawn card -->
+  <div class="card">
+    <div class="card-title" style="margin-bottom:14px">Substrate & Spawn</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      {% if batch.dry_weight_g %}
+      <div><div class="detail-lbl">Dry Weight</div><div class="detail-val">{{ batch.dry_weight_g|int }}g</div></div>
+      {% endif %}
+      {% if batch.moisture_pct %}
+      <div><div class="detail-lbl">Moisture %</div><div class="detail-val">{{ batch.moisture_pct }}%</div></div>
+      {% endif %}
+      {% if batch.hardwood_pct %}
+      <div><div class="detail-lbl">Hardwood</div><div class="detail-val">{{ batch.hardwood_pct|int }}%</div></div>
+      {% endif %}
+      {% if batch.straw_pct %}
+      <div><div class="detail-lbl">Straw</div><div class="detail-val">{{ batch.straw_pct|int }}%</div></div>
+      {% endif %}
+      {% if batch.bran_pct %}
+      <div><div class="detail-lbl">Bran</div><div class="detail-val">{{ batch.bran_pct|int }}%</div></div>
+      {% endif %}
+      {% if batch.gypsum_pct %}
+      <div><div class="detail-lbl">Gypsum</div><div class="detail-val">{{ batch.gypsum_pct|int }}%</div></div>
+      {% endif %}
+      {% if batch.coco_pct %}
+      <div><div class="detail-lbl">Coco Coir</div><div class="detail-val">{{ batch.coco_pct|int }}%</div></div>
+      {% endif %}
+      {% if batch.steril_method %}
+      <div><div class="detail-lbl">Sterilization</div><div class="detail-val">{{ batch.steril_method | replace('_',' ') | title }}{% if batch.steril_duration_min %} / {{ batch.steril_duration_min }} min{% endif %}</div></div>
+      {% endif %}
+      {% if batch.spawn_type %}
+      <div><div class="detail-lbl">Spawn Type</div><div class="detail-val">{{ batch.spawn_type | replace('_',' ') | title }}</div></div>
+      {% endif %}
+      {% if batch.spawn_strain %}
+      <div><div class="detail-lbl">Spawn Strain</div><div class="detail-val">{{ batch.spawn_strain }}</div></div>
+      {% endif %}
+      {% if batch.spawn_rate_pct %}
+      <div><div class="detail-lbl">Spawn Rate</div><div class="detail-val">{{ batch.spawn_rate_pct }}%</div></div>
+      {% endif %}
+      {% if batch.spawn_source %}
+      <div><div class="detail-lbl">Supplier</div><div class="detail-val">{{ batch.spawn_source }}</div></div>
+      {% endif %}
+      {% if batch.spawn_lot %}
+      <div><div class="detail-lbl">Spawn Lot</div><div class="detail-val" style="font-family:monospace;font-size:12px">{{ batch.spawn_lot }}</div></div>
+      {% endif %}
+    </div>
+    {% if batch.substrate_other %}
+    <div class="mt-12"><div class="detail-lbl">Other</div><div class="detail-val" style="font-weight:400;color:var(--text-muted)">{{ batch.substrate_other }}</div></div>
+    {% endif %}
+  </div>
+
+  <!-- Update status -->
+  <div class="card">
+    <div class="card-title" style="margin-bottom:14px">Update Status</div>
+    <form method="POST" action="{{ url_for('batch_update', batch_id=batch.id) }}">
+      <div class="fg-grid" style="grid-template-columns:1fr">
+        <div class="fg">
+          <label>Status</label>
+          <select name="status" id="statusSelect" onchange="toggleContamField()">
+            {% for s in STATUSES %}
+            <option value="{{ s }}" {{ 'selected' if s == batch.status }}>{{ s | capitalize }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="fg" id="contamField" style="display:none">
+          <label>Contamination Type</label>
+          <input type="text" name="contamination_type" placeholder="trich / wet_rot / bacterial_blotch / other"
+                 value="{{ batch.contamination_type or '' }}">
+        </div>
+        <div class="fg">
+          <label>Notes (optional)</label>
+          <textarea name="notes" rows="2">{{ batch.notes or '' }}</textarea>
+        </div>
+      </div>
+      <div class="form-actions"><button type="submit" class="btn btn-primary">Update</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- Flush history -->
+<div class="card mb-16">
+  <div class="card-head">
+    <span class="card-title">Flush Log</span>
+    {% if batch.status not in ('done','contaminated','aborted') %}
+    <a href="{{ url_for('flush_add', batch_id=batch.id) }}" class="btn btn-primary btn-sm">+ Log Flush</a>
+    {% endif %}
+  </div>
+  {% if flushes %}
+  {% if flushes|length > 1 %}
+  <div style="height:180px;margin-bottom:16px">
+    <canvas id="yieldChart"></canvas>
+  </div>
+  {% endif %}
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Flush</th><th>Pinning</th><th>Harvest</th><th>Weight</th><th>Quality</th><th>Notes</th><th></th></tr></thead>
+      <tbody>
+        {% for f in flushes %}
+        <tr>
+          <td class="fw-600">#{{ f.flush_number }}</td>
+          <td class="td-m">{{ f.pinning_date or '—' }}</td>
+          <td class="td-m">{{ f.harvest_date or f.created_at[:10] }}</td>
+          <td class="text-green fw-600">{{ f.fresh_weight_g|int }}g</td>
+          <td class="td-m">{% if f.quality_rating %}{{ '★' * f.quality_rating }}{{ '☆' * (5 - f.quality_rating) }}{% else %}—{% endif %}</td>
+          <td class="td-m">{{ f.notes or '' }}</td>
+          <td style="white-space:nowrap">
+            <a href="{{ url_for('flush_edit', flush_id=f.id) }}" class="btn btn-ghost btn-sm" style="font-size:11px;padding:2px 8px">Edit</a>
+            <form method="POST" action="{{ url_for('flush_delete', flush_id=f.id) }}" style="display:inline"
+                  onsubmit="return confirm('Delete Flush #{{ f.flush_number }} ({{ f.fresh_weight_g|int }}g)?')">
+              <button type="submit" class="btn btn-danger btn-sm" style="font-size:11px;padding:2px 8px">Del</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty">
+    <div class="empty-title">No flushes yet</div>
+    {% if batch.status not in ('done','contaminated','aborted') %}
+    <a href="{{ url_for('flush_add', batch_id=batch.id) }}" class="btn btn-primary">Log First Flush</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<!-- Sales -->
+{% if sales %}
+<div class="card">
+  <div class="card-head">
+    <span class="card-title">Sales</span>
+    <a href="{{ url_for('sales_add', batch_id=batch.id) }}" class="btn btn-ghost btn-sm">+ Log Sale</a>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Date</th><th>Flush</th><th>Fresh Sold</th><th>Dried Sold</th><th>Destination</th><th>$/lb</th><th>Revenue</th><th></th></tr></thead>
+      <tbody>
+        {% for s in sales %}
+        {% set rev = (s.price_per_lb or 0) * (s.fresh_weight_sold_g or 0) / 453.592 %}
+        <tr>
+          <td class="td-m">{{ s.sale_date or '' }}</td>
+          <td class="td-m">{% if s.flush_number %}#{{ s.flush_number }}{% else %}—{% endif %}</td>
+          <td>{% if s.fresh_weight_sold_g %}{{ s.fresh_weight_sold_g|int }}g{% else %}—{% endif %}</td>
+          <td>{% if s.dried_weight_sold_g %}{{ s.dried_weight_sold_g|int }}g{% else %}—{% endif %}</td>
+          <td class="td-m">{{ s.destination or '—' }}</td>
+          <td class="td-m">{% if s.price_per_lb %}${{ "%.2f"|format(s.price_per_lb) }}{% else %}—{% endif %}</td>
+          <td class="text-green fw-600">{% if rev > 0 %}${{ "%.2f"|format(rev) }}{% else %}—{% endif %}</td>
+          <td style="white-space:nowrap">
+            <a href="{{ url_for('sale_edit', sale_id=s.id) }}" class="btn btn-ghost btn-sm" style="font-size:11px;padding:2px 8px">Edit</a>
+            <form method="POST" action="{{ url_for('sale_delete', sale_id=s.id) }}" style="display:inline"
+                  onsubmit="return confirm('Delete this sale record?')">
+              <button type="submit" class="btn btn-danger btn-sm" style="font-size:11px;padding:2px 8px">Del</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{% if flushes|length > 1 %}
+<script>
+const yd = {{ yield_chart | tojson }};
+new Chart(document.getElementById('yieldChart').getContext('2d'), {
+  type:'bar',
+  data:{labels:yd.map(d=>'#'+d.flush),datasets:[{
+    label:'Weight (g)',data:yd.map(d=>d.weight),
+    backgroundColor:'rgba(63,185,80,.25)',borderColor:'#3fb950',borderWidth:1,borderRadius:4
+  }]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{backgroundColor:'#1c2128',borderColor:'#30363d',borderWidth:1,titleColor:'#e6edf3',bodyColor:'#8b949e'}},
+    scales:{
+      x:{ticks:{color:'#8b949e',font:{size:11}},grid:{color:'rgba(48,54,61,.4)'}},
+      y:{ticks:{color:'#8b949e',font:{size:11},callback:v=>v+'g'},grid:{color:'rgba(48,54,61,.4)'}}
+    }}
+});
+</script>
+{% endif %}
+
+<script>
+function toggleContamField() {
+  const s = document.getElementById('statusSelect').value;
+  document.getElementById('contamField').style.display = s === 'contaminated' ? 'block' : 'none';
+}
+toggleContamField();
+</script>
+{% endblock %}

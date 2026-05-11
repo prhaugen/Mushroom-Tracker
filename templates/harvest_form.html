@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Log Harvest — Mushroom Tracker{% endblock %}
+
+{% block content %}
+<div class="page-head-row">
+  <div class="page-head">
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">
+      <a href="{{ url_for('block_detail', block_id=block.id) }}" style="color:var(--text-muted);text-decoration:none">{{ block.label }}</a>
+      &nbsp;/&nbsp; Log Harvest
+    </div>
+    <div class="page-title">Log Harvest</div>
+    <div class="page-sub">{{ block.label }} &nbsp;·&nbsp; {{ block.species }}</div>
+  </div>
+  <a href="{{ url_for('block_detail', block_id=block.id) }}" class="btn btn-ghost btn-sm">Back</a>
+</div>
+
+<div style="display:flex;gap:16px;margin-bottom:20px">
+  <div class="stat" style="flex:1">
+    <div class="stat-label">Lifetime Yield</div>
+    <div class="stat-val accent-green" style="color:var(--green)">{{ block.total_yield_g|int }}g</div>
+  </div>
+  <div class="stat" style="flex:1">
+    <div class="stat-label">Flushes So Far</div>
+    <div class="stat-val">{{ block.total_flushes }}</div>
+  </div>
+  <div class="stat" style="flex:1">
+    <div class="stat-label">This Flush</div>
+    <div class="stat-val" style="color:var(--amber)">#{{ next_flush }}</div>
+  </div>
+</div>
+
+<div class="card form-card">
+  <form method="POST" action="{{ url_for('harvest_log', block_id=block.id) }}">
+    <div class="form-grid">
+      <div class="fg">
+        <label>Flush Number</label>
+        <input type="number" name="flush_number" value="{{ next_flush }}" min="1" required>
+      </div>
+      <div class="fg">
+        <label>Weight (grams)</label>
+        <input type="number" name="weight_g" step="0.1" placeholder="e.g. 125" required id="weight_input" oninput="updatePreview()">
+        <span class="form-hint" id="weight-hint">&nbsp;</span>
+      </div>
+      <div class="fg full">
+        <label>Notes (optional)</label>
+        <textarea name="notes" placeholder="e.g. Great pins, dense clusters, slightly aborted on edges..."></textarea>
+      </div>
+    </div>
+    <div id="harvest-preview" style="display:none;margin:12px 0;padding:12px 16px;background:var(--green-bg);border:1px solid var(--green-border);border-radius:var(--r)">
+      <span style="color:var(--green);font-weight:700;font-size:15px" id="preview-text"></span>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">Save Harvest</button>
+      <a href="{{ url_for('block_detail', block_id=block.id) }}" class="btn btn-ghost">Cancel</a>
+    </div>
+  </form>
+</div>
+
+<script>
+const prevYield = {{ block.total_yield_g }};
+function updatePreview() {
+  const w = parseFloat(document.getElementById('weight_input').value);
+  const preview = document.getElementById('harvest-preview');
+  const hint = document.getElementById('weight-hint');
+  if (!isNaN(w) && w > 0) {
+    const newTotal = prevYield + w;
+    document.getElementById('preview-text').textContent =
+      w.toFixed(0) + 'g this flush — new lifetime total: ' + newTotal.toFixed(0) + 'g';
+    preview.style.display = 'block';
+    hint.textContent = w > 300 ? 'Great flush!' : (w > 100 ? 'Solid harvest' : 'Small flush');
+    hint.style.color = w > 300 ? 'var(--green)' : (w > 100 ? 'var(--blue)' : 'var(--text-muted)');
+  } else {
+    preview.style.display = 'none';
+    hint.textContent = ' ';
+  }
+}
+</script>
+{% endblock %}

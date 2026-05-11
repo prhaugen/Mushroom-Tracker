@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+{% block title %}Daily Briefing — Mushroom Tracker{% endblock %}
+{% block content %}
+
+<div class="page-head-row">
+  <div class="page-head">
+    <div class="page-title">AI Daily Briefing</div>
+    <div class="page-sub">
+      {% if record %}
+        Generated {{ record.generated_at[:16] }} &nbsp;·&nbsp;
+        {{ record.triggered_by | capitalize }}
+      {% else %}
+        No briefing for {{ target_date }}
+      {% endif %}
+    </div>
+  </div>
+  <form method="POST" action="{{ url_for('briefing_run') }}" style="margin:0">
+    <button type="submit" class="btn btn-secondary btn-sm">&#9733; Run Briefing Now</button>
+  </form>
+</div>
+
+<!-- 7-day history nav -->
+{% if history %}
+<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px">
+  {% for h in history %}
+  {% set is_active = h.briefing_date == target_date %}
+  <a href="{{ url_for('briefing', briefing_date=h.briefing_date) }}"
+     style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;
+            font-size:12px;font-weight:600;text-decoration:none;transition:all .15s;
+            {% if is_active %}
+              background:var(--card-hover);border:1px solid var(--green-border);color:var(--green);
+            {% else %}
+              background:var(--card);border:1px solid var(--border);color:var(--text-muted);
+            {% endif %}">
+    {{ h.briefing_date }}
+    {% if h.critical_count > 0 %}
+    <span style="background:var(--red-bg);color:var(--red);border:1px solid var(--red-border);
+                 padding:1px 6px;border-radius:10px;font-size:10px;">{{ h.critical_count }}</span>
+    {% elif h.attention_count > 0 %}
+    <span style="background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-border);
+                 padding:1px 6px;border-radius:10px;font-size:10px;">{{ h.attention_count }}</span>
+    {% else %}
+    <span style="background:var(--green-bg);color:var(--green);border:1px solid var(--green-border);
+                 padding:1px 6px;border-radius:10px;font-size:10px;">&#10003;</span>
+    {% endif %}
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if not briefing %}
+<div class="card">
+  <div class="empty">
+    <div class="empty-title">No briefing for {{ target_date }}</div>
+    <div class="empty-sub">Run a briefing to get an AI-generated status report on all active batches.</div>
+    <form method="POST" action="{{ url_for('briefing_run') }}" style="margin:0">
+      <button type="submit" class="btn btn-primary">&#9733; Generate Briefing</button>
+    </form>
+  </div>
+</div>
+
+{% else %}
+
+<!-- Summary + stats -->
+<div class="card" style="margin-bottom:16px">
+  <div class="card-head">
+    <div class="card-title">Summary — {{ target_date }}</div>
+  </div>
+  <p style="font-size:14px;color:var(--text);line-height:1.6">{{ briefing.summary }}</p>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px">
+    <div style="text-align:center;padding:14px;background:var(--surface);border-radius:var(--r);border:1px solid var(--red-border)">
+      <div style="font-size:28px;font-weight:700;color:var(--red)">
+        {{ briefing.attention_required | selectattr('severity','equalto','critical') | list | length }}
+      </div>
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-top:4px">Critical</div>
+    </div>
+    <div style="text-align:center;padding:14px;background:var(--surface);border-radius:var(--r);border:1px solid var(--amber-border)">
+      <div style="font-size:28px;font-weight:700;color:var(--amber)">
+        {{ briefing.attention_required | length }}
+      </div>
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-top:4px">Need Attention</div>
+    </div>
+    <div style="text-align:center;padding:14px;background:var(--surface);border-radius:var(--r);border:1px solid var(--green-border)">
+      <div style="font-size:28px;font-weight:700;color:var(--green)">
+        {{ briefing.on_track | length }}
+      </div>
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-top:4px">On Track</div>
+    </div>
+  </div>
+</div>
+
+<!-- Attention required -->
+{% if briefing.attention_required %}
+<div class="card" style="margin-bottom:16px">
+  <div class="card-head">
+    <div class="card-title">Attention Required</div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:10px">
+    {% for item in briefing.attention_required %}
+    {% if item.severity == 'critical' %}
+      {% set bg='var(--red-bg)' %}{% set border='var(--red-border)' %}{% set col='var(--red)' %}{% set dot='🔴' %}
+    {% elif item.severity == 'warning' %}
+      {% set bg='var(--amber-bg)' %}{% set border='var(--amber-border)' %}{% set col='var(--amber)' %}{% set dot='🟡' %}
+    {% else %}
+      {% set bg='var(--blue-bg)' %}{% set border='var(--blue-border)' %}{% set col='var(--blue)' %}{% set dot='🔵' %}
+    {% endif %}
+    <div style="padding:14px 16px;background:{{ bg }};border:1px solid {{ border }};border-radius:var(--r)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-weight:700;font-size:13px;color:{{ col }}">
+            {{ item.batch_label }} &mdash; {{ item.species }}
+          </span>
+          <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;
+                       padding:2px 7px;border-radius:10px;background:{{ bg }};border:1px solid {{ border }};color:{{ col }}">
+            {{ item.severity }}
+          </span>
+        </div>
+        <a href="{{ url_for('batch_detail', batch_id=item.batch_id) }}"
+           style="font-size:11px;color:{{ col }};text-decoration:none;opacity:.8">View Batch &rarr;</a>
+      </div>
+      <div style="font-size:13px;color:var(--text);margin-bottom:8px">{{ item.issue }}</div>
+      <div style="font-size:12px;color:var(--text-muted)">
+        <b style="color:{{ col }}">Action:</b> {{ item.suggested_action }}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Environmental alerts -->
+{% if briefing.environmental_alerts %}
+<div class="card" style="margin-bottom:16px">
+  <div class="card-head">
+    <div class="card-title">Environmental Alerts</div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Batch</th>
+          <th>Parameter</th>
+          <th>Observed</th>
+          <th>Expected Range</th>
+          <th>Duration</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for alert in briefing.environmental_alerts %}
+        <tr>
+          <td>
+            <a href="{{ url_for('batch_detail', batch_id=alert.batch_id) }}"
+               style="color:var(--amber);text-decoration:none;font-weight:600">
+              #{{ alert.batch_id }}
+            </a>
+          </td>
+          <td class="td-mono">{{ alert.parameter }}</td>
+          <td style="color:var(--amber);font-weight:600">{{ alert.observed }}</td>
+          <td class="td-m">{{ alert.expected_range }}</td>
+          <td class="td-m">{{ alert.duration_hours }}h</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- On track -->
+{% if briefing.on_track %}
+<div class="card" style="margin-bottom:16px">
+  <div class="card-head">
+    <div class="card-title">On Track</div>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:8px">
+    {% for item in briefing.on_track %}
+    <a href="{{ url_for('batch_detail', batch_id=item.batch_id) }}"
+       style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;
+              background:var(--green-bg);border:1px solid var(--green-border);
+              border-radius:20px;text-decoration:none;color:var(--green);font-size:12px;font-weight:600">
+      &#10003; {{ item.batch_label }} &mdash; {{ item.species }}
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Pattern observations -->
+{% if briefing.pattern_observations %}
+<div class="card">
+  <div class="card-head">
+    <div class="card-title">Pattern Observations</div>
+  </div>
+  <ul style="list-style:none;display:flex;flex-direction:column;gap:8px">
+    {% for obs in briefing.pattern_observations %}
+    <li style="display:flex;gap:10px;align-items:flex-start;font-size:13px;color:var(--text)">
+      <span style="color:var(--blue);flex-shrink:0;margin-top:1px">&#8227;</span>
+      {{ obs }}
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+{% endif %}{# end briefing exists #}
+{% endblock %}

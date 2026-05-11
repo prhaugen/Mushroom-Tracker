@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Batches — Mushroom Tracker{% endblock %}
+{% block content %}
+<div class="page-head-row">
+  <div class="page-head">
+    <div class="page-title">Fruiting Batches</div>
+    <div class="page-sub">{{ batches|length }} batch{% if batches|length != 1 %}es{% endif %} tracked</div>
+  </div>
+  <a href="{{ url_for('batch_add') }}" class="btn btn-primary">+ Add Batch</a>
+</div>
+
+{% if batches %}
+<div class="batch-grid">
+  {% for b in batches %}
+  {% set be = bio_efficiency(b.total_yield_g, b.dry_weight_g) %}
+  <a href="{{ url_for('batch_detail', batch_id=b.id) }}" class="batch-card">
+    <div class="batch-card-top">
+      <div>
+        <div class="batch-label">{{ b.label }}</div>
+        <div class="batch-species">{{ b.species }}{% if b.strain %} · {{ b.strain }}{% endif %}</div>
+      </div>
+      <span class="badge badge-{{ b.status }}">{{ b.status }}</span>
+    </div>
+
+    {% if b.substrate_other or b.hardwood_pct or b.straw_pct %}
+    <div class="mt-8" style="font-size:11px;color:var(--text-muted)">
+      {% set parts = [] %}
+      {% if b.straw_pct %}{% set _ = parts.append("Straw " ~ b.straw_pct|int ~ "%") %}{% endif %}
+      {% if b.hardwood_pct %}{% set _ = parts.append("HW " ~ b.hardwood_pct|int ~ "%") %}{% endif %}
+      {% if b.bran_pct %}{% set _ = parts.append("Bran " ~ b.bran_pct|int ~ "%") %}{% endif %}
+      {{ parts | join(" / ") or b.substrate_other or "" }}
+    </div>
+    {% endif %}
+
+    {% if b.spawn_strain %}
+    <div style="font-size:11px;color:var(--text-muted);margin-top:3px">Strain: {{ b.spawn_strain }}</div>
+    {% endif %}
+
+    <div class="batch-nums">
+      <div>
+        <div class="bnum-val">{% if days_since(b.inoculation_date) is not none %}{{ days_since(b.inoculation_date) }}{% else %}—{% endif %}</div>
+        <div class="bnum-lbl">Days</div>
+      </div>
+      <div>
+        <div class="bnum-val">{{ b.total_flushes }}</div>
+        <div class="bnum-lbl">Flushes</div>
+      </div>
+      <div>
+        <div class="bnum-val">{{ b.total_yield_g|int }}g</div>
+        <div class="bnum-lbl">Yield</div>
+      </div>
+      <div>
+        {% if be %}
+        {% set be_class = 'be-excellent' if be >= 100 else ('be-good' if be >= 60 else ('be-avg' if be >= 30 else 'be-low')) %}
+        <div class="bnum-val"><span class="be-pill {{ be_class }}">{{ be|int }}%</span></div>
+        {% else %}
+        <div class="bnum-val">—</div>
+        {% endif %}
+        <div class="bnum-lbl">BE</div>
+      </div>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card">
+  <div class="empty">
+    <div class="empty-title">No batches yet</div>
+    <div class="empty-sub">Add a batch to start tracking substrate, spawn, colonization, and yield data.</div>
+    <a href="{{ url_for('batch_add') }}" class="btn btn-primary">Add First Batch</a>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

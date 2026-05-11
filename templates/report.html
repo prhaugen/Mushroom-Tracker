@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% block title %}Report — Mushroom Tracker{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="page-title">Performance Report</div>
+  <div class="page-sub">Biological efficiency, yield, environment, and sales summary</div>
+</div>
+
+<!-- Top stats -->
+<div class="stats mb-20">
+  <div class="stat g">
+    <div class="stat-label">Total Yield</div>
+    <div class="stat-val">{{ total_yield|int }}g</div>
+    <div class="stat-sub">all batches</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Total Batches</div>
+    <div class="stat-val">{{ batches|length }}</div>
+    <div class="stat-sub">{{ batches|selectattr('status','equalto','contaminated')|list|length }} contaminated</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Total Flushes</div>
+    <div class="stat-val">{{ batches|sum(attribute='total_flushes') }}</div>
+  </div>
+  <div class="stat {% if total_revenue > 0 %}g{% endif %}">
+    <div class="stat-label">Total Revenue</div>
+    <div class="stat-val">{% if total_revenue > 0 %}${{ "%.2f"|format(total_revenue) }}{% else %}—{% endif %}</div>
+  </div>
+</div>
+
+<!-- BE Ranking (most important table) -->
+<div class="card mb-16">
+  <div class="card-head">
+    <span class="card-title">Biological Efficiency Ranking</span>
+    <span style="font-size:11px;color:var(--text-muted)">BE = fresh weight / dry substrate weight &times; 100%</span>
+  </div>
+  <div class="callout callout-green" style="margin-bottom:14px;font-size:12px">
+    BE% is your primary cross-batch KPI. It normalises yield against substrate invested, letting you compare strains, recipes, and seasons with one number.
+    Excellent &ge;100% &nbsp;|&nbsp; Good 60–100% &nbsp;|&nbsp; Average 30–60% &nbsp;|&nbsp; Poor &lt;30%
+  </div>
+  {% if be_ranking %}
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>#</th><th>Batch</th><th>Species</th><th>Strain</th><th>Substrate</th><th>Dry Wt</th><th>Total Yield</th><th>BE %</th><th>Flushes</th><th>Status</th></tr></thead>
+      <tbody>
+        {% for b, be in be_ranking %}
+        <tr>
+          <td class="td-m">{{ loop.index }}</td>
+          <td class="fw-600"><a href="{{ url_for('batch_detail', batch_id=b.id) }}" style="color:var(--blue);text-decoration:none">{{ b.label }}</a></td>
+          <td>{{ b.species }}</td>
+          <td class="td-m">{{ b.strain or '—' }}</td>
+          <td class="td-m" style="font-size:11px">
+            {% set parts = [] %}
+            {% if b.hardwood_pct %}{% set _ = parts.append("HW " ~ b.hardwood_pct|int ~ "%") %}{% endif %}
+            {% if b.straw_pct %}{% set _ = parts.append("Straw " ~ b.straw_pct|int ~ "%") %}{% endif %}
+            {% if b.bran_pct %}{% set _ = parts.append("Bran " ~ b.bran_pct|int ~ "%") %}{% endif %}
+            {{ parts|join(" / ") or '—' }}
+          </td>
+          <td class="td-m">{% if b.dry_weight_g %}{{ b.dry_weight_g|int }}g{% else %}—{% endif %}</td>
+          <td class="text-green fw-600">{{ b.total_yield_g|int }}g</td>
+          <td>
+            {% if be %}
+            {% set bc = 'be-excellent' if be >= 100 else ('be-good' if be >= 60 else ('be-avg' if be >= 30 else 'be-low')) %}
+            <span class="be-pill {{ bc }}">{{ be|int }}%</span>
+            {% else %}
+            <span class="td-m">—</span>
+            {% endif %}
+          </td>
+          <td class="td-m">{{ b.total_flushes }}</td>
+          <td><span class="badge badge-{{ b.status }}">{{ b.status }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty"><div class="empty-sub">No batch data yet.</div></div>
+  {% endif %}
+</div>
+
+<!-- Charts row -->
+{% if degradation_chart.datasets or bar_chart.datasets %}
+<div class="g2 mb-16">
+  <div class="card">
+    <div class="card-title" style="margin-bottom:12px">Flush Degradation Curve</div>
+    <div class="chart-wrap"><canvas id="degradChart"></canvas></div>
+    <div style="font-size:11px;color:var(--text-muted);margin-top:8px">Yield per flush per batch — steeper drop = faster exhaustion</div>
+  </div>
+  <div class="card">
+    <div class="card-title" style="margin-bottom:12px">Yield by Batch &amp; Flush</div>
+    <div class="chart-wrap"><canvas id="barChart"></canvas></div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Environment summary -->
+<div class="g2 mb-16">
+  <div class="card">
+    <div class="card-title" style="margin-bottom:14px">Environment Summary</div>
+    {% if env_stats and env_stats.cnt > 0 %}
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div>
+        <div class="detail-lbl">Temperature (F)</div>
+        <div style="display:flex;gap:24px;margin-top:6px">
+          <div><div style="font-size:22px;font-weight:700;color:var(--amber)">{{ "%.1f"|format(env_stats.at) }}</div><div style="font-size:10px;text-transform:uppercase;color:var(--text-muted)">Avg</div></div>
+          <div><div style="font-size:22px;font-weight:700;color:var(--text-muted)">{{ "%.1f"|format(env_stats.nt) }}</div><div style="font-size:10px;text-transform:uppercase;color:var(--text-muted)">Min</div></div>
+          <div><div style="font-size:22px;font-weight:700;color:var(--text-muted)">{{ "%.1f"|format(env_stats.xt) }}</div><div style="font-size:10px;text-transform:uppercase;color:var(--text-muted)">Max</div></div>
+        </div>
+      </div>
+      <div class="divider" style="margin:0"></div>
+      <div>
+        <div class="detail-lbl">Humidity (% RH)</div>
+        <div style="display:flex;gap:24px;margin-top:6px">
+          <div><div style="font-size:22px;font-weight:700;color:var(--blue)">{{ "%.1f"|format(env_stats.ah) }}</div><div style="font-size:10px;text-transform:uppercase;color:var(--text-muted)">Avg</div></div>
+          <div><div style="font-size:22px;font-weight:700;color:var(--text-muted)">{{ "%.1f"|format(env_stats.nh) }}</div><div style="font-size:10px;text-transform:uppercase;color:var(--text-muted)">Min</div></div>
+          <div><div style="font-size:22px;font-weight:700;color:var(--text-muted)">{{ "%.1f"|format(env_stats.xh) }}</div><div style="font-size:10px;text-transform:uppercase;color:var(--text-muted)">Max</div></div>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--text-muted)">{{ env_stats.cnt }} readings total</div>
+    </div>
+    {% else %}
+    <div class="empty"><div class="empty-sub">No environment data yet.</div></div>
+    {% endif %}
+  </div>
+
+  <!-- Sales summary -->
+  <div class="card">
+    <div class="card-head">
+      <span class="card-title">Sales Summary</span>
+      <a href="{{ url_for('sales_list') }}" class="btn btn-ghost btn-sm">View All</a>
+    </div>
+    {% if sales %}
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;gap:24px">
+        <div><div style="font-size:24px;font-weight:700;color:var(--green)">${{ "%.2f"|format(total_revenue) }}</div><div style="font-size:10px;text-transform:uppercase;color:var(--text-muted)">Total Revenue</div></div>
+        <div><div style="font-size:24px;font-weight:700">{{ total_sold_fresh|int }}g</div><div style="font-size:10px;text-transform:uppercase;color:var(--text-muted)">Fresh Sold</div></div>
+        <div><div style="font-size:24px;font-weight:700">{{ total_sold_dried|int }}g</div><div style="font-size:10px;text-transform:uppercase;color:var(--text-muted)">Dried Sold</div></div>
+      </div>
+      <div class="divider" style="margin:4px 0"></div>
+      {% set dest_counts = {} %}
+      {% for s in sales %}{% set _ = dest_counts.update({(s.destination or 'other'): dest_counts.get(s.destination or 'other', 0) + 1}) %}{% endfor %}
+      <div style="font-size:12px;color:var(--text-muted)">
+        By destination:
+        {% for dest, cnt in dest_counts.items() %}
+        <span style="margin-right:10px">{{ dest | replace('_',' ') | title }} ({{ cnt }})</span>
+        {% endfor %}
+      </div>
+    </div>
+    {% else %}
+    <div class="empty"><div class="empty-sub">No sales data yet. <a href="{{ url_for('sales_add') }}" style="color:var(--blue)">Log a sale</a></div></div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Charts JS -->
+<script>
+const CHART_DEFAULTS = {
+  responsive:true, maintainAspectRatio:false,
+  plugins:{
+    legend:{labels:{color:'#8b949e',boxWidth:10,font:{size:11}}},
+    tooltip:{backgroundColor:'#1c2128',borderColor:'#30363d',borderWidth:1,titleColor:'#e6edf3',bodyColor:'#8b949e'}
+  },
+  scales:{
+    x:{ticks:{color:'#8b949e',font:{size:11}},grid:{color:'rgba(48,54,61,.4)'}},
+    y:{ticks:{color:'#8b949e',font:{size:11},callback:v=>v+'g'},grid:{color:'rgba(48,54,61,.4)'}}
+  }
+};
+
+{% if degradation_chart.datasets %}
+const dgData = {{ degradation_chart | tojson }};
+new Chart(document.getElementById('degradChart').getContext('2d'), {
+  type:'line',
+  data:{labels:dgData.labels, datasets:dgData.datasets},
+  options:{...CHART_DEFAULTS, scales:{
+    x:{...CHART_DEFAULTS.scales.x, title:{display:true,text:'Flush Number',color:'#8b949e',font:{size:11}}},
+    y:{...CHART_DEFAULTS.scales.y}
+  }}
+});
+{% endif %}
+
+{% if bar_chart.datasets %}
+const barData = {{ bar_chart | tojson }};
+new Chart(document.getElementById('barChart').getContext('2d'), {
+  type:'bar',
+  data:{labels:barData.labels, datasets:barData.datasets},
+  options:{...CHART_DEFAULTS, scales:{
+    x:{...CHART_DEFAULTS.scales.x, stacked:true},
+    y:{...CHART_DEFAULTS.scales.y, stacked:true}
+  }}
+});
+{% endif %}
+</script>
+{% endblock %}

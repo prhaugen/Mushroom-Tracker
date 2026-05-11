@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Add Block — Mushroom Tracker{% endblock %}
+
+{% block content %}
+<div class="page-head-row">
+  <div class="page-head">
+    <div class="page-title">Add Fruiting Block</div>
+    <div class="page-sub">{{ chamber.name }}</div>
+  </div>
+  <a href="{{ url_for('blocks') }}" class="btn btn-ghost btn-sm">Back</a>
+</div>
+
+<div class="card form-card">
+  <form method="POST" action="{{ url_for('block_add') }}">
+    <div class="form-grid">
+      <div class="fg">
+        <label>Block Label</label>
+        <input type="text" name="label" placeholder="Block-1" required>
+        <span class="form-hint">A short name to identify this block</span>
+      </div>
+      <div class="fg">
+        <label>Species</label>
+        <input type="text" name="species" placeholder="e.g. Blue Oyster, Lions Mane, Shiitake" required>
+      </div>
+      <div class="fg full">
+        <label>Substrate</label>
+        <input type="text" name="substrate" placeholder="e.g. Hardwood sawdust + wheat bran, Straw, Coco coir/vermiculite">
+      </div>
+      <div class="fg">
+        <label>Inoculation Date</label>
+        <input type="date" name="inoculation_date" value="{{ today }}">
+      </div>
+      <div class="fg">
+        <label>Current Status</label>
+        <select name="status">
+          {% for s in STATUSES %}
+          <option value="{{ s }}">{{ s | capitalize }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="fg full">
+        <label>Notes (optional)</label>
+        <textarea name="notes" placeholder="e.g. Grain spawn from local supplier, 1:4 spawn:substrate ratio..."></textarea>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">Add Block</button>
+      <a href="{{ url_for('blocks') }}" class="btn btn-ghost">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

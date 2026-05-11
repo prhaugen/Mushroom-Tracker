@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+{% block title %}{{ block.label }} — Mushroom Tracker{% endblock %}
+
+{% block content %}
+<div class="page-head-row">
+  <div class="page-head">
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">
+      <a href="{{ url_for('blocks') }}" style="color:var(--text-muted);text-decoration:none">Blocks</a>
+      &nbsp;/&nbsp; {{ block.label }}
+    </div>
+    <div class="page-title" style="display:flex;align-items:center;gap:12px">
+      {{ block.label }}
+      <span class="badge badge-{{ block.status }}">{{ block.status }}</span>
+    </div>
+    <div class="page-sub">{{ block.species }}{% if block.substrate %} &nbsp;·&nbsp; {{ block.substrate }}{% endif %}</div>
+  </div>
+  <div class="gap-row">
+    {% if block.status not in ('done', 'contaminated') %}
+    <a href="{{ url_for('harvest_log', block_id=block.id) }}" class="btn btn-primary btn-sm">+ Log Harvest</a>
+    {% endif %}
+  </div>
+</div>
+
+{# ── Stats ── #}
+<div class="stats" style="grid-template-columns:repeat(4,1fr)">
+  <div class="stat">
+    <div class="stat-label">Inoculated</div>
+    <div class="stat-val" style="font-size:18px">{{ block.inoculation_date or '—' }}</div>
+    <div class="stat-sub">{% if days_since(block.inoculation_date) is not none %}{{ days_since(block.inoculation_date) }} days ago{% endif %}</div>
+  </div>
+  <div class="stat accent-green">
+    <div class="stat-label">Total Yield</div>
+    <div class="stat-val">{{ block.total_yield_g|int }}g</div>
+    <div class="stat-sub">{{ block.total_flushes }} flush{% if block.total_flushes != 1 %}es{% endif %}</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Avg per Flush</div>
+    <div class="stat-val">{% if block.total_flushes > 0 %}{{ (block.total_yield_g / block.total_flushes)|int }}g{% else %}—{% endif %}</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Days Active</div>
+    <div class="stat-val">{% if days_since(block.inoculation_date) is not none %}{{ days_since(block.inoculation_date) }}{% else %}—{% endif %}</div>
+  </div>
+</div>
+
+{# ── Lifecycle timeline ── #}
+<div class="card mb-16">
+  <div class="card-title">Lifecycle</div>
+  {% set lc_order = ['colonizing','colonized','pinning','fruiting','resting'] %}
+  {% set cur_idx = lc_order.index(block.status) if block.status in lc_order else -1 %}
+  <div class="timeline mt-12">
+    {% for step in lc_order %}
+    {% set si = loop.index0 %}
+    <div class="tl-step {{ 'tl-done' if si < cur_idx else ('tl-active' if si == cur_idx else '') }}">
+      <div class="tl-dot">{{ loop.index }}</div>
+      <div class="tl-lbl">{{ step }}</div>
+      {% if step == 'colonized' and block.colonization_date %}
+      <div style="font-size:10px;color:var(--text-muted);margin-top:2px">{{ block.colonization_date }}</div>
+      {% elif step == 'pinning' and block.first_pin_date %}
+      <div style="font-size:10px;color:var(--text-muted);margin-top:2px">{{ block.first_pin_date }}</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% if block.status == 'contaminated' %}
+  <div style="margin-top:10px;padding:10px 14px;background:var(--red-bg);border:1px solid var(--red-border);border-radius:var(--r);color:var(--red);font-size:13px">
+    This block is marked as contaminated.
+  </div>
+  {% elif block.status == 'done' %}
+  <div style="margin-top:10px;padding:10px 14px;background:var(--gray-bg);border:1px solid var(--gray-border);border-radius:var(--r);color:var(--gray);font-size:13px">
+    This block has completed its run.
+  </div>
+  {% endif %}
+</div>
+
+<div class="grid-2 mb-16">
+
+  {# ── Update status ── #}
+  <div class="card">
+    <div class="card-title">Update Status</div>
+    <form method="POST" action="{{ url_for('block_update', block_id=block.id) }}" style="margin-top:14px">
+      <div class="form-grid" style="grid-template-columns:1fr">
+        <div class="fg">
+          <label>New Status</label>
+          <select name="status">
+            {% for s in STATUSES %}
+            <option value="{{ s }}" {{ 'selected' if s == block.status }}>{{ s | capitalize }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="fg">
+          <label>Notes (optional)</label>
+          <textarea name="notes" rows="2" placeholder="Any observations...">{{ block.notes or '' }}</textarea>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Update</button>
+      </div>
+    </form>
+  </div>
+
+  {# ── Block details ── #}
+  <div class="card">
+    <div class="card-title">Details</div>
+    <div style="margin-top:14px;display:flex;flex-direction:column;gap:12px">
+      <div>
+        <div class="detail-lbl">Species</div>
+        <div class="detail-val">{{ block.species }}</div>
+      </div>
+      <div>
+        <div class="detail-lbl">Substrate</div>
+        <div class="detail-val">{{ block.substrate or '—' }}</div>
+      </div>
+      <div>
+        <div class="detail-lbl">Inoculated</div>
+        <div class="detail-val">{{ block.inoculation_date or '—' }}</div>
+      </div>
+      {% if block.colonization_date %}
+      <div>
+        <div class="detail-lbl">Colonized</div>
+        <div class="detail-val">{{ block.colonization_date }}</div>
+      </div>
+      {% endif %}
+      {% if block.first_pin_date %}
+      <div>
+        <div class="detail-lbl">First Pins</div>
+        <div class="detail-val">{{ block.first_pin_date }}</div>
+      </div>
+      {% endif %}
+      {% if block.notes %}
+      <div>
+        <div class="detail-lbl">Notes</div>
+        <div class="detail-val" style="font-weight:400;color:var(--text-muted)">{{ block.notes }}</div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{# ── Harvest history ── #}
+<div class="card">
+  <div class="card-head">
+    <span class="card-title">Harvest Log</span>
+    {% if block.status not in ('done', 'contaminated') %}
+    <a href="{{ url_for('harvest_log', block_id=block.id) }}" class="btn btn-primary btn-sm">+ Log Harvest</a>
+    {% endif %}
+  </div>
+  {% if harvests %}
+
+  {% if harvests|length > 1 %}
+  <div style="height:180px;margin-bottom:16px">
+    <canvas id="yieldChart"></canvas>
+  </div>
+  {% endif %}
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Flush</th>
+          <th>Date</th>
+          <th>Weight</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for h in harvests %}
+        <tr>
+          <td class="fw-600">#{{ h.flush_number }}</td>
+          <td class="td-muted">{{ h.harvested_at[:10] }}</td>
+          <td class="text-green fw-600">{{ h.weight_g|int }}g</td>
+          <td class="td-muted">{{ h.notes or '' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty">
+    <div class="empty-title">No harvests yet</div>
+    <div class="empty-sub">Log your first harvest when the fruiting bodies are ready to pick.</div>
+    {% if block.status not in ('done', 'contaminated') %}
+    <a href="{{ url_for('harvest_log', block_id=block.id) }}" class="btn btn-primary">Log Harvest</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+{% if harvests|length > 1 %}
+<script>
+const yieldData = {{ yield_by_flush | tojson }};
+const ctx2 = document.getElementById('yieldChart').getContext('2d');
+new Chart(ctx2, {
+  type: 'bar',
+  data: {
+    labels: yieldData.map(d => 'Flush #' + d.flush),
+    datasets: [{
+      label: 'Weight (g)',
+      data: yieldData.map(d => d.weight),
+      backgroundColor: 'rgba(63,185,80,.25)',
+      borderColor: '#3fb950',
+      borderWidth: 1,
+      borderRadius: 4,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: { backgroundColor: '#1c2128', borderColor: '#30363d', borderWidth: 1, titleColor: '#e6edf3', bodyColor: '#8b949e' }
+    },
+    scales: {
+      x: { ticks: { color: '#8b949e', font: { size: 11 } }, grid: { color: 'rgba(48,54,61,.4)' } },
+      y: {
+        ticks: { color: '#8b949e', font: { size: 11 }, callback: v => v + 'g' },
+        grid: { color: 'rgba(48,54,61,.4)' }
+      }
+    }
+  }
+});
+</script>
+{% endif %}
+
+{% endblock %}

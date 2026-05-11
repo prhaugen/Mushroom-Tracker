@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Blocks — Mushroom Tracker{% endblock %}
+
+{% block content %}
+<div class="page-head-row">
+  <div class="page-head">
+    <div class="page-title">Fruiting Blocks</div>
+    <div class="page-sub">{{ blocks|length }} block{% if blocks|length != 1 %}s{% endif %} tracked</div>
+  </div>
+  <a href="{{ url_for('block_add') }}" class="btn btn-primary">+ Add Block</a>
+</div>
+
+{% if blocks %}
+<div class="block-grid">
+  {% for b in blocks %}
+  <a href="{{ url_for('block_detail', block_id=b.id) }}" class="block-card">
+    <div class="block-card-top">
+      <div>
+        <div class="block-label">{{ b.label }}</div>
+        <div class="block-species">{{ b.species }}</div>
+      </div>
+      <span class="badge badge-{{ b.status }}">{{ b.status }}</span>
+    </div>
+
+    {% if b.substrate %}
+    <div class="mt-8" style="font-size:12px;color:var(--text-muted)">{{ b.substrate }}</div>
+    {% endif %}
+
+    <div class="block-nums">
+      <div>
+        <div class="block-num-val">{% if days_since(b.inoculation_date) is not none %}{{ days_since(b.inoculation_date) }}{% else %}—{% endif %}</div>
+        <div class="block-num-lbl">Days</div>
+      </div>
+      <div>
+        <div class="block-num-val">{{ b.total_flushes }}</div>
+        <div class="block-num-lbl">Flushes</div>
+      </div>
+      <div>
+        <div class="block-num-val">{{ b.total_yield_g|int }}g</div>
+        <div class="block-num-lbl">Yield</div>
+      </div>
+      <div>
+        <div class="block-num-val" style="font-size:13px">
+          {% if b.total_flushes > 0 %}{{ (b.total_yield_g / b.total_flushes)|int }}g{% else %}—{% endif %}
+        </div>
+        <div class="block-num-lbl">g/Flush</div>
+      </div>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card">
+  <div class="empty">
+    <div class="empty-title">No blocks yet</div>
+    <div class="empty-sub">Add your fruiting blocks to start tracking colonization, pinning, and harvests.</div>
+    <a href="{{ url_for('block_add') }}" class="btn btn-primary">Add First Block</a>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

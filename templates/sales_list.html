@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Sales — Mushroom Tracker{% endblock %}
+{% block content %}
+<div class="page-head-row">
+  <div class="page-head">
+    <div class="page-title">Sales</div>
+    <div class="page-sub">{{ sales|length }} transaction{% if sales|length != 1 %}s{% endif %}</div>
+  </div>
+  <a href="{{ url_for('sales_add') }}" class="btn btn-primary">+ Log Sale</a>
+</div>
+
+{% if sales %}
+<div class="stats mb-20" style="grid-template-columns:repeat(3,1fr)">
+  <div class="stat g">
+    <div class="stat-label">Total Revenue</div>
+    <div class="stat-val">${{ "%.2f"|format(total_revenue) }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Fresh Sold</div>
+    <div class="stat-val">{{ sales|selectattr('fresh_weight_sold_g')|sum(attribute='fresh_weight_sold_g')|int }}g</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Dried Sold</div>
+    <div class="stat-val">{{ sales|selectattr('dried_weight_sold_g')|sum(attribute='dried_weight_sold_g')|int }}g</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Date</th><th>Batch</th><th>Flush</th><th>Destination</th><th>Customer</th><th>Fresh (g)</th><th>Dried (g)</th><th>$/lb</th><th>Revenue</th><th>Notes</th><th></th></tr></thead>
+      <tbody>
+        {% for s in sales %}
+        {% set rev = (s.price_per_lb or 0) * (s.fresh_weight_sold_g or 0) / 453.592 %}
+        <tr>
+          <td class="td-m">{{ s.sale_date or '' }}</td>
+          <td class="fw-600"><a href="{{ url_for('batch_detail', batch_id=s.batch_id) }}" style="color:var(--blue);text-decoration:none">{{ s.label }}</a></td>
+          <td class="td-m">{% if s.flush_number %}#{{ s.flush_number }}{% else %}—{% endif %}</td>
+          <td class="td-m">{{ (s.destination or '—') | replace('_',' ') | title }}</td>
+          <td class="td-m">{{ s.customer or '—' }}</td>
+          <td>{% if s.fresh_weight_sold_g %}{{ s.fresh_weight_sold_g|int }}g{% else %}—{% endif %}</td>
+          <td>{% if s.dried_weight_sold_g %}{{ s.dried_weight_sold_g|int }}g{% else %}—{% endif %}</td>
+          <td class="td-m">{% if s.price_per_lb %}${{ "%.2f"|format(s.price_per_lb) }}{% else %}—{% endif %}</td>
+          <td class="text-green fw-600">{% if rev > 0 %}${{ "%.2f"|format(rev) }}{% else %}—{% endif %}</td>
+          <td class="td-m">{{ s.notes or '' }}</td>
+          <td style="white-space:nowrap">
+            <a href="{{ url_for('sale_edit', sale_id=s.id) }}" class="btn btn-ghost btn-sm" style="font-size:11px;padding:2px 8px">Edit</a>
+            <form method="POST" action="{{ url_for('sale_delete', sale_id=s.id) }}" style="display:inline"
+                  onsubmit="return confirm('Delete this sale record?')">
+              <button type="submit" class="btn btn-danger btn-sm" style="font-size:11px;padding:2px 8px">Del</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="card">
+  <div class="empty">
+    <div class="empty-title">No sales recorded yet</div>
+    <div class="empty-sub">Log a sale to track revenue, destination, and fresh/dried weights.</div>
+    <a href="{{ url_for('sales_add') }}" class="btn btn-primary">Log First Sale</a>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

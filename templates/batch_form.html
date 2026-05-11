@@ -1,0 +1,349 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if batch else 'Add' }} Batch — Mushroom Tracker{% endblock %}
+{% block content %}
+{% set editing = batch is not none %}
+<div class="page-head-row">
+  <div class="page-head">
+    {% if editing %}
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">
+      <a href="{{ url_for('batch_detail', batch_id=batch.id) }}" style="color:var(--text-muted);text-decoration:none">{{ batch.label }}</a> / Edit
+    </div>
+    {% endif %}
+    <div class="page-title">{{ 'Edit Batch' if editing else 'Add Fruiting Batch' }}</div>
+    <div class="page-sub">{{ chamber.name }}</div>
+  </div>
+  {% if editing %}
+  <a href="{{ url_for('batch_detail', batch_id=batch.id) }}" class="btn btn-ghost btn-sm">Back</a>
+  {% else %}
+  <a href="{{ url_for('batches') }}" class="btn btn-ghost btn-sm">Back</a>
+  {% endif %}
+</div>
+
+<div class="card form-wrap">
+  <form method="POST"
+        action="{{ url_for('batch_edit', batch_id=batch.id) if editing else url_for('batch_add') }}"
+        id="batchForm">
+
+    <!-- Section 1: Identity -->
+    <div class="form-section">
+      <div class="section-label">1 — Identity</div>
+      <div class="fg-grid">
+        <div class="fg">
+          <label>Species *</label>
+          {% set custom_species = editing and batch.species not in SPECIES %}
+          <select name="species" id="speciesSelect" required
+                  onchange="handleSpeciesChange()">
+            <option value="">— select species —</option>
+            {% for sp in SPECIES %}
+            <option value="{{ sp }}"
+              {{ 'selected' if editing and batch.species == sp }}>{{ sp }}</option>
+            {% endfor %}
+            <option value="__other__" {{ 'selected' if custom_species }}>Other / Custom...</option>
+          </select>
+          <input type="text" name="species_custom" id="speciesCustom"
+                 placeholder="Enter species name..."
+                 value="{{ batch.species if custom_species else '' }}"
+                 style="margin-top:6px;{{ '' if custom_species else 'display:none' }}">
+        </div>
+        <div class="fg">
+          <label>Batch Label *</label>
+          <input type="text" name="label" id="labelInput"
+                 placeholder="Auto-filled from species — e.g. BO-001" required
+                 value="{{ batch.label if editing else '' }}">
+          <span class="form-hint">Format: [SPECIES CODE]-[NNN] &nbsp;·&nbsp; Edit if needed</span>
+        </div>
+        <div class="fg">
+          <label>Strain (optional)</label>
+          <input type="text" name="strain" placeholder="e.g. WC, POHU, LE46..."
+                 value="{{ batch.strain if editing and batch.strain else '' }}">
+          <span class="form-hint">Tracking strain enables correlation analysis later</span>
+        </div>
+        <div class="fg">
+          <label>Inoculation Date</label>
+          <input type="date" name="inoculation_date"
+                 value="{{ batch.inoculation_date if editing and batch.inoculation_date else today }}">
+        </div>
+        {% if all_chambers|length > 1 %}
+        <div class="fg">
+          <label>Colonization Chamber</label>
+          <select name="colonization_chamber_id">
+            <option value="">— same as fruiting chamber —</option>
+            {% for ch in all_chambers %}
+            {% if ch.id != chamber.id %}
+            <option value="{{ ch.id }}"
+              {{ 'selected' if editing and batch.colonization_chamber_id == ch.id }}>
+              {{ ch.name }}{% if ch.chamber_type %} ({{ ch.chamber_type }}){% endif %}
+            </option>
+            {% endif %}
+            {% endfor %}
+          </select>
+          <span class="form-hint">If colonization happened in a different setup (e.g. incubation chamber, SAB)</span>
+        </div>
+        {% endif %}
+        <div class="fg">
+          <label>Target Temperature (F)</label>
+          <input type="number" name="target_temp" step="0.5"
+                 value="{{ batch.target_temp_f if editing else chamber.target_temp_f }}">
+          <span class="form-hint">Ideal fruiting temp for this species</span>
+        </div>
+        <div class="fg">
+          <label>Target Humidity (% RH)</label>
+          <input type="number" name="target_humidity" step="0.5" min="50" max="100"
+                 value="{{ batch.target_humidity_rh if editing else chamber.target_humidity_rh }}">
+          <span class="form-hint">Ideal RH for this species</span>
+        </div>
+        {% if not editing %}
+        <div class="fg">
+          <label>Initial Status</label>
+          <select name="status">
+            {% for s in STATUSES %}
+            <option value="{{ s }}">{{ s | capitalize }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Section 2: Substrate -->
+    <div class="form-section">
+      <div class="section-label">2 — Substrate Composition</div>
+      <div class="callout callout-green" style="margin-bottom:14px;font-size:12px">
+        <b>Dry substrate weight is required to calculate Biological Efficiency (BE%)</b> — your primary performance KPI.
+        Use the dry weight <em>before</em> hydration and record it consistently.
+      </div>
+      <div class="fg-grid">
+        <div class="fg">
+          <label>Dry Weight (g) *</label>
+          <input type="number" name="dry_weight_g" step="0.1" placeholder="e.g. 1000"
+                 id="dry_weight" oninput="updateBEPreview()"
+                 value="{{ batch.dry_weight_g if editing and batch.dry_weight_g else '' }}">
+          <span class="form-hint">Pre-hydration weight of all dry ingredients</span>
+        </div>
+        <div class="fg">
+          <label>Field Capacity / Moisture %</label>
+          <input type="number" name="moisture_pct" step="0.1" min="0" max="100" placeholder="e.g. 60"
+                 value="{{ batch.moisture_pct if editing and batch.moisture_pct else '' }}">
+          <span class="form-hint">Aim for 60–65% for most hardwood substrates</span>
+        </div>
+      </div>
+
+      <div style="margin:12px 0 6px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted)">
+        Component Percentages (should sum to 100%)
+      </div>
+      <div class="fg-grid">
+        <div class="fg">
+          <label>Hardwood Sawdust %</label>
+          <input type="number" name="hardwood_pct" step="0.1" min="0" max="100"
+                 class="pct-input" oninput="updatePctSum()"
+                 value="{{ batch.hardwood_pct|int if editing and batch.hardwood_pct else 0 }}">
+        </div>
+        <div class="fg">
+          <label>Straw %</label>
+          <input type="number" name="straw_pct" step="0.1" min="0" max="100"
+                 class="pct-input" oninput="updatePctSum()"
+                 value="{{ batch.straw_pct|int if editing and batch.straw_pct else 0 }}">
+        </div>
+        <div class="fg">
+          <label>Wheat / Rice Bran %</label>
+          <input type="number" name="bran_pct" step="0.1" min="0" max="100"
+                 class="pct-input" oninput="updatePctSum()"
+                 value="{{ batch.bran_pct|int if editing and batch.bran_pct else 0 }}">
+        </div>
+        <div class="fg">
+          <label>Gypsum %</label>
+          <input type="number" name="gypsum_pct" step="0.1" min="0" max="100"
+                 class="pct-input" oninput="updatePctSum()"
+                 value="{{ batch.gypsum_pct|int if editing and batch.gypsum_pct else 0 }}">
+        </div>
+        <div class="fg">
+          <label>Coco Coir %</label>
+          <input type="number" name="coco_pct" step="0.1" min="0" max="100"
+                 class="pct-input" oninput="updatePctSum()"
+                 value="{{ batch.coco_pct|int if editing and batch.coco_pct else 0 }}">
+        </div>
+        <div class="fg">
+          <label>Other components</label>
+          <input type="text" name="substrate_other" list="substrate_other_opts"
+                 placeholder="e.g. soy hulls 5%, coffee grounds..."
+                 value="{{ batch.substrate_other if editing and batch.substrate_other else '' }}">
+          <datalist id="substrate_other_opts">
+            {% for opt in SUBSTRATE_OTHER_OPTIONS %}
+            <option value="{{ opt }}">
+            {% endfor %}
+          </datalist>
+        </div>
+      </div>
+      <div id="pct-feedback" style="margin-top:8px;font-size:12px;font-weight:600">&nbsp;</div>
+      <div class="fg" style="margin-top:10px">
+        <label>Substrate Notes</label>
+        <textarea name="substrate_notes" placeholder="Qualitative prep observations — e.g. used older bran, felt drier than usual, substrate may have been over-hydrated...">{{ batch.substrate_notes if editing and batch.substrate_notes else '' }}</textarea>
+        <span class="form-hint">For prep quality observations — keep ingredient composition in the fields above</span>
+      </div>
+    </div>
+
+    <!-- Section 3: Sterilization -->
+    <div class="form-section">
+      <div class="section-label">3 — Sterilization / Pasteurization</div>
+      <div class="fg-grid">
+        <div class="fg">
+          <label>Method</label>
+          <select name="steril_method">
+            <option value="">— select —</option>
+            {% for m in STERIL_METHODS %}
+            <option value="{{ m }}" {{ 'selected' if editing and batch.steril_method == m }}>
+              {{ m | replace('_',' ') | title }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="fg">
+          <label>Temperature (F)</label>
+          <input type="number" name="steril_temp_f" step="0.5" placeholder="e.g. 250"
+                 value="{{ batch.steril_temp_f if editing and batch.steril_temp_f else '' }}">
+          <span class="form-hint">250F / 15 PSI for autoclave / pressure cooker</span>
+        </div>
+        <div class="fg">
+          <label>Duration (minutes)</label>
+          <input type="number" name="steril_duration_min" step="1" placeholder="e.g. 150"
+                 value="{{ batch.steril_duration_min if editing and batch.steril_duration_min else '' }}">
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 4: Spawn -->
+    <div class="form-section">
+      <div class="section-label">4 — Spawn</div>
+      <div class="callout callout-amber" style="margin-bottom:14px;font-size:12px">
+        Tracking spawn lot lets you trace contamination back to a bad batch from your supplier.
+      </div>
+      <div class="fg-grid">
+        <div class="fg">
+          <label>Spawn Type</label>
+          <select name="spawn_type">
+            <option value="">— select —</option>
+            {% for t in SPAWN_TYPES %}
+            <option value="{{ t }}" {{ 'selected' if editing and batch.spawn_type == t }}>
+              {{ t | replace('_',' ') | title }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="fg">
+          <label>Spawn Strain</label>
+          <input type="text" name="spawn_strain" placeholder="e.g. POHU, WC, LE46"
+                 value="{{ batch.spawn_strain if editing and batch.spawn_strain else '' }}">
+        </div>
+        <div class="fg">
+          <label>Spawn Rate % (by dry weight)</label>
+          <input type="number" name="spawn_rate_pct" step="0.1" min="0" max="100" placeholder="e.g. 20"
+                 value="{{ batch.spawn_rate_pct if editing and batch.spawn_rate_pct else '' }}">
+          <span class="form-hint">Common range: 10–25%</span>
+        </div>
+        <div class="fg">
+          <label>Spawn Source / Supplier</label>
+          <input type="text" name="spawn_source" list="spawn_source_opts"
+                 placeholder="e.g. North Spore, local farm..."
+                 value="{{ batch.spawn_source if editing and batch.spawn_source else '' }}">
+          <datalist id="spawn_source_opts">
+            {% for opt in SPAWN_SOURCE_OPTIONS %}
+            <option value="{{ opt }}">
+            {% endfor %}
+          </datalist>
+        </div>
+        <div class="fg">
+          <label>Spawn Lot #</label>
+          <input type="text" name="spawn_lot" placeholder="e.g. NS-2026-04-B"
+                 value="{{ batch.spawn_lot if editing and batch.spawn_lot else '' }}">
+          <span class="form-hint">Critical for contamination tracing</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 5: Notes -->
+    <div class="form-section">
+      <div class="section-label">5 — Notes</div>
+      <div class="fg">
+        <label>Notes</label>
+        <textarea name="notes" placeholder="Anything else worth tracking — bag weight, prep observations, unusual materials...">{{ batch.notes if editing and batch.notes else '' }}</textarea>
+      </div>
+    </div>
+
+    <!-- BE preview -->
+    <div id="be-preview" style="display:none;margin-bottom:16px;padding:14px 16px;background:var(--green-bg);border:1px solid var(--green-border);border-radius:var(--r)">
+      <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">BE Preview</div>
+      <div style="font-size:13px;color:var(--green)">
+        To hit <b>80% BE</b> on this batch you'd need <b id="be-target-weight">—</b>g fresh yield.
+        Industry avg for oysters is 50–100%.
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">{{ 'Save Changes' if editing else 'Add Batch' }}</button>
+      {% if editing %}
+      <a href="{{ url_for('batch_detail', batch_id=batch.id) }}" class="btn btn-ghost">Cancel</a>
+      {% else %}
+      <a href="{{ url_for('batches') }}" class="btn btn-ghost">Cancel</a>
+      {% endif %}
+    </div>
+  </form>
+</div>
+
+<script>
+function updatePctSum() {
+  const inputs = document.querySelectorAll('.pct-input');
+  let sum = 0;
+  inputs.forEach(i => sum += parseFloat(i.value) || 0);
+  const fb = document.getElementById('pct-feedback');
+  if (sum === 0) { fb.textContent = ' '; return; }
+  if (Math.abs(sum - 100) < 0.1) {
+    fb.textContent = 'Total: 100% — good!';
+    fb.style.color = 'var(--green)';
+  } else if (sum < 100) {
+    fb.textContent = `Total: ${sum.toFixed(1)}% — ${(100-sum).toFixed(1)}% unaccounted`;
+    fb.style.color = 'var(--amber)';
+  } else {
+    fb.textContent = `Total: ${sum.toFixed(1)}% — exceeds 100%`;
+    fb.style.color = 'var(--red)';
+  }
+}
+function updateBEPreview() {
+  const dw = parseFloat(document.getElementById('dry_weight').value);
+  const preview = document.getElementById('be-preview');
+  if (!isNaN(dw) && dw > 0) {
+    preview.style.display = 'block';
+    document.getElementById('be-target-weight').textContent = (dw * 0.80).toFixed(0);
+  } else {
+    preview.style.display = 'none';
+  }
+}
+// Trigger on load if editing with existing dry weight
+updatePctSum();
+updateBEPreview();
+
+function handleSpeciesChange() {
+  const sel = document.getElementById('speciesSelect');
+  const custom = document.getElementById('speciesCustom');
+  if (sel.value === '__other__') {
+    custom.style.display = 'block';
+    custom.required = true;
+  } else {
+    custom.style.display = 'none';
+    custom.required = false;
+    suggestLabel(sel.value);
+  }
+}
+
+async function suggestLabel(speciesOverride) {
+  const sel = document.getElementById('speciesSelect');
+  const species = speciesOverride || (sel.value !== '__other__' ? sel.value : '');
+  const labelEl = document.getElementById('labelInput');
+  if (!species || labelEl.value.trim()) return;
+  try {
+    const res = await fetch('/api/next-label?species=' + encodeURIComponent(species));
+    const data = await res.json();
+    if (data.label && !labelEl.value.trim()) labelEl.value = data.label;
+  } catch(e) {}
+}
+</script>
+{% endblock %}

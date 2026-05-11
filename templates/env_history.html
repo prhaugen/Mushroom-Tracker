@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block title %}Environment History — Mushroom Tracker{% endblock %}
+
+{% block content %}
+<div class="page-head-row">
+  <div class="page-head">
+    <div class="page-title">Environment History</div>
+    <div class="page-sub">{{ chamber.name }} &nbsp;·&nbsp; last {{ logs|length }} readings</div>
+  </div>
+  <a href="{{ url_for('env_log') }}" class="btn btn-primary btn-sm">+ Log Reading</a>
+</div>
+
+{% if logs %}
+<div class="card mb-16">
+  <div class="card-title mb-16" style="margin-bottom:12px">
+    Temperature & Humidity Over Time
+    {% if chart_data.target_batch %}
+    <span style="font-size:11px;font-weight:400;color:var(--text-muted);margin-left:8px">— targets from {{ chart_data.target_batch }}</span>
+    {% endif %}
+  </div>
+  <div class="chart-wrap">
+    <canvas id="envChart"></canvas>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title" style="margin-bottom:14px">All Readings</div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>Temp (F)</th>
+          <th>Humidity (%)</th>
+          <th>CO2 (ppm)</th>
+          <th>Notes</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+        {% set temp_ok = (log.temp_f - chart_data.target_temp)|abs <= 3 %}
+        {% set hum_ok = log.humidity_rh >= 80 %}
+        <tr>
+          <td class="td-muted td-mono">{{ log.logged_at[:16] }}</td>
+          <td style="color:{{ 'var(--green)' if temp_ok else 'var(--amber)' }};font-weight:600">
+            {{ "%.1f"|format(log.temp_f) }}
+          </td>
+          <td style="color:{{ 'var(--green)' if hum_ok else 'var(--red)' }};font-weight:600">
+            {{ "%.1f"|format(log.humidity_rh) }}
+          </td>
+          <td class="td-muted">{{ log.co2_ppm|int if log.co2_ppm else '—' }}</td>
+          <td class="td-muted">{{ log.notes or '' }}</td>
+          <td style="white-space:nowrap">
+            <a href="{{ url_for('env_edit', log_id=log.id) }}" class="btn btn-ghost btn-sm" style="font-size:11px;padding:2px 8px">Edit</a>
+            <form method="POST" action="{{ url_for('env_delete', log_id=log.id) }}" style="display:inline"
+                  onsubmit="return confirm('Delete this environment reading from {{ log.logged_at[:16] }}?')">
+              <button type="submit" class="btn btn-danger btn-sm" style="font-size:11px;padding:2px 8px">Del</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const chartData = {{ chart_data | tojson }};
+const ctx = document.getElementById('envChart').getContext('2d');
+new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: chartData.labels,
+    datasets: [
+      {
+        label: 'Temperature (F)',
+        data: chartData.temp,
+        borderColor: '#d29922',
+        backgroundColor: 'rgba(210,153,34,.08)',
+        fill: true,
+        tension: .35,
+        pointRadius: 3,
+        pointBackgroundColor: '#d29922',
+        yAxisID: 'yTemp',
+      },
+      {
+        label: 'Humidity (%)',
+        data: chartData.humidity,
+        borderColor: '#58a6ff',
+        backgroundColor: 'rgba(88,166,255,.08)',
+        fill: true,
+        tension: .35,
+        pointRadius: 3,
+        pointBackgroundColor: '#58a6ff',
+        yAxisID: 'yHum',
+      },
+      {
+        label: 'Target Temp (F)',
+        data: chartData.labels.map(() => chartData.target_temp),
+        borderColor: 'rgba(210,153,34,.45)',
+        borderDash: [6,4],
+        borderWidth: 1.5,
+        pointRadius: 0,
+        fill: false,
+        tension: 0,
+        yAxisID: 'yTemp',
+      },
+      {
+        label: 'Target Humidity (%)',
+        data: chartData.labels.map(() => chartData.target_humidity),
+        borderColor: 'rgba(88,166,255,.45)',
+        borderDash: [6,4],
+        borderWidth: 1.5,
+        pointRadius: 0,
+        fill: false,
+        tension: 0,
+        yAxisID: 'yHum',
+      },
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { labels: { color: '#8b949e', boxWidth: 12, font: { size: 12 } } },
+      tooltip: { backgroundColor: '#1c2128', borderColor: '#30363d', borderWidth: 1, titleColor: '#e6edf3', bodyColor: '#8b949e' }
+    },
+    scales: {
+      x: {
+        ticks: { color: '#8b949e', maxTicksLimit: 8, font: { size: 11 } },
+        grid: { color: 'rgba(48,54,61,.5)' }
+      },
+      yTemp: {
+        type: 'linear', position: 'left',
+        ticks: { color: '#d29922', font: { size: 11 } },
+        grid: { color: 'rgba(48,54,61,.5)' },
+        title: { display: true, text: 'Temp (F)', color: '#d29922', font: { size: 11 } }
+      },
+      yHum: {
+        type: 'linear', position: 'right',
+        ticks: { color: '#58a6ff', font: { size: 11 } },
+        grid: { drawOnChartArea: false },
+        title: { display: true, text: 'Humidity (%)', color: '#58a6ff', font: { size: 11 } },
+        min: 50, max: 100,
+      }
+    }
+  }
+});
+</script>
+
+{% else %}
+<div class="card">
+  <div class="empty">
+    <div class="empty-title">No readings yet</div>
+    <div class="empty-sub">Start logging environment readings to see your data here.</div>
+    <a href="{{ url_for('env_log') }}" class="btn btn-primary">Log First Reading</a>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

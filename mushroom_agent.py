@@ -1,0 +1,461 @@
+"""
+Mushroom Tracker AI Monitoring Agent
+
+Queries the database, calls Claude, and writes a daily briefing.
+
+Run standalone:   python mushroom_agent.py
+Web trigger:      POST /briefing/run  (via mushroom_app.py)
+Scheduled:        daily at 06:00 via APScheduler (started in mushroom_app.py)
+"""
+
+import json
+import logging
+import os
+from datetime import date, datetime, timedelta
+from pathlib import Path
+
+logger = logging.getLogger(__name__)
+
+try:
+    import anthropic
+    _ANTHROPIC_AVAILABLE = True
+except ImportError:
+    _ANTHROPIC_AVAILABLE = False
+
+import mushroom_tracker as _mt
+from agent_config import (
+    DEFAULT_TIMELINE, ENV_GUARDRAILS, FLUSH_DEGRADATION,
+    MIN_HISTORY_BATCHES, SPECIES_TIMELINES,
+)
+
+SYSTEM_PROMPT = """\
+You are a mushroom cultivation monitoring agent. You analyze batch status data \
+and environmental conditions against defined species timelines and goals, then \
+generate a concise prioritized daily briefing for the grower.
+
+Your evaluation criteria are provided in the data snapshot under \
+'goals_and_thresholds'. Always reason against the grower's own historical \
+averages when available; fall back to species targets when history is thin \
+(fewer than 5 completed batches for that species).
+
+Output format — return JSON only, no preamble:
+{
+  "briefing_date": "YYYY-MM-DD",
+  "attention_required": [
+    {
+      "batch_id": int,
+      "batch_label": "str",
+      "species": "str",
+      "issue": "str",
+      "severity": "critical|warning|info",
+      "suggested_action": "str"
+    }
+  ],
+  "on_track": [
+    {"batch_id": int, "batch_label": "str", "species": "str"}
+  ],
+  "environmental_alerts": [
+    {
+      "batch_id": int,
+      "parameter": "str",
+      "observed": "str",
+      "expected_range": "str",
+      "duration_hours": "str"
+    }
+  ],
+  "pattern_observations": ["str"],
+  "summary": "str"
+}"""
+
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _days_between(d1_str, d2_str=None):
+    if not d1_str:
+        return None
+    try:
+        d1 = datetime.strptime(str(d1_str)[:10], "%Y-%m-%d").date()
+        d2 = (datetime.strptime(str(d2_str)[:10], "%Y-%m-%d").date()
+              if d2_str else date.today())
+        return (d2 - d1).days
+    except Exception:
+        return None
+
+
+# ── Data collection ───────────────────────────────────────────────────────────
+
+def _get_active_batches(conn) -> list:
+    rows = conn.execute("""
+        SELECT b.*, c.name AS chamber_name, c.chamber_type
+        FROM batches b
+        LEFT JOIN chambers c ON b.chamber_id = c.id
+        WHERE b.status NOT IN ('done', 'contaminated', 'aborted')
+        ORDER BY b.id
+    """).fetchall()
+
+    result = []
+    for row in rows:
+        b = dict(row)
+        b['days_since_inoculation'] = _days_between(b.get('inoculation_date'))
+
+        status = b.get('status', '')
+        if status == 'colonizing':
+            b['days_in_status'] = _days_between(b.get('inoculation_date'))
+        elif status == 'colonized':
+            b['days_in_status'] = _days_between(b.get('colonization_end_date'))
+        elif status in ('pinning', 'fruiting'):
+            b['days_in_status'] = _days_between(b.get('pinning_started_at'))
+        else:
+            b['days_in_status'] = None
+
+        result.append(b)
+    return result
+
+
+def _get_latest_flush_per_batch(conn, batch_ids: list) -> dict:
+    if not batch_ids:
+        return {}
+    ph = ','.join('?' * len(batch_ids))
+    rows = conn.execute(f"""
+        SELECT f.*,
+               b.dry_weight_g,
+               CASE WHEN b.dry_weight_g > 0
+                    THEN ROUND(f.fresh_weight_g / b.dry_weight_g * 100, 1)
+                    ELSE NULL END AS be_pct_this_flush
+        FROM flushes f
+        JOIN batches b ON f.batch_id = b.id
+        WHERE f.batch_id IN ({ph})
+          AND f.flush_number = (
+              SELECT MAX(f2.flush_number) FROM flushes f2
+              WHERE f2.batch_id = f.batch_id
+          )
+        ORDER BY f.batch_id
+    """, batch_ids).fetchall()
+    return {row['batch_id']: dict(row) for row in rows}
+
+
+def _get_all_flushes_per_batch(conn, batch_ids: list) -> dict:
+    if not batch_ids:
+        return {}
+    ph = ','.join('?' * len(batch_ids))
+    rows = conn.execute(f"""
+        SELECT f.*, b.dry_weight_g
+        FROM flushes f
+        JOIN batches b ON f.batch_id = b.id
+        WHERE f.batch_id IN ({ph})
+        ORDER BY f.batch_id, f.flush_number
+    """, batch_ids).fetchall()
+    result = {}
+    for row in rows:
+        bid = row['batch_id']
+        result.setdefault(bid, []).append(dict(row))
+    return result
+
+
+def _get_env_summary(conn, batch_ids: list):
+    if not batch_ids:
+        return {}, []
+    ph = ','.join('?' * len(batch_ids))
+
+    summary_rows = conn.execute(f"""
+        SELECT batch_id,
+               COUNT(*) AS reading_count,
+               ROUND(AVG(temp_f), 1)      AS avg_temp_f,
+               ROUND(MIN(temp_f), 1)      AS min_temp_f,
+               ROUND(MAX(temp_f), 1)      AS max_temp_f,
+               ROUND(AVG(humidity_rh), 1) AS avg_humidity_rh,
+               ROUND(MIN(humidity_rh), 1) AS min_humidity_rh,
+               ROUND(MAX(humidity_rh), 1) AS max_humidity_rh,
+               ROUND(AVG(co2_ppm), 0)     AS avg_co2_ppm,
+               ROUND(MIN(co2_ppm), 0)     AS min_co2_ppm,
+               ROUND(MAX(co2_ppm), 0)     AS max_co2_ppm
+        FROM environment_logs
+        WHERE batch_id IN ({ph})
+          AND logged_at >= datetime('now', '-24 hours')
+        GROUP BY batch_id
+    """, batch_ids).fetchall()
+    summaries = {row['batch_id']: dict(row) for row in summary_rows}
+
+    detail_rows = conn.execute(f"""
+        SELECT batch_id, logged_at, phase, temp_f, humidity_rh, co2_ppm
+        FROM environment_logs
+        WHERE batch_id IN ({ph})
+          AND logged_at >= datetime('now', '-24 hours')
+        ORDER BY batch_id, logged_at
+    """, batch_ids).fetchall()
+
+    by_batch = {}
+    for row in detail_rows:
+        by_batch.setdefault(row['batch_id'], []).append(dict(row))
+
+    flags = []
+    for batch_id, readings in by_batch.items():
+        phase = readings[-1].get('phase', 'fruiting') if readings else 'fruiting'
+        guardrails = ENV_GUARDRAILS.get(phase, ENV_GUARDRAILS.get('fruiting', {}))
+        min_hours = guardrails.get('consecutive_hours_to_flag', 2)
+
+        for param in ('temp_f', 'humidity_rh', 'co2_ppm'):
+            if param not in guardrails:
+                continue
+            lo, hi = guardrails[param]
+            streak_start_time = None
+            streak_last_val = None
+
+            for reading in readings:
+                val = reading.get(param)
+                if val is None:
+                    streak_start_time = None
+                    continue
+                out_of_range = val < lo or val > hi
+                if out_of_range:
+                    if streak_start_time is None:
+                        streak_start_time = reading['logged_at']
+                    streak_last_val = val
+                else:
+                    if streak_start_time is not None:
+                        try:
+                            t1 = datetime.strptime(streak_start_time[:19], "%Y-%m-%d %H:%M:%S")
+                            t2 = datetime.strptime(reading['logged_at'][:19], "%Y-%m-%d %H:%M:%S")
+                            hours = (t2 - t1).total_seconds() / 3600
+                            if hours >= min_hours:
+                                flags.append({
+                                    'batch_id': batch_id,
+                                    'parameter': param,
+                                    'observed': streak_last_val,
+                                    'expected_range': f"{lo}–{hi}",
+                                    'duration_hours': round(hours, 1),
+                                })
+                        except Exception:
+                            pass
+                    streak_start_time = None
+                    streak_last_val = None
+
+            # streak extends to end of window
+            if streak_start_time is not None:
+                try:
+                    t1 = datetime.strptime(streak_start_time[:19], "%Y-%m-%d %H:%M:%S")
+                    hours = (datetime.now() - t1).total_seconds() / 3600
+                    if hours >= min_hours:
+                        flags.append({
+                            'batch_id': batch_id,
+                            'parameter': param,
+                            'observed': streak_last_val,
+                            'expected_range': f"{lo}–{hi}",
+                            'duration_hours': round(hours, 1),
+                        })
+                except Exception:
+                    pass
+
+    return summaries, flags
+
+
+def _get_contamination_summary(conn) -> list:
+    rows = conn.execute("""
+        SELECT id, label, species, spawn_lot, spawn_source,
+               contamination_type, created_at
+        FROM batches
+        WHERE contamination_flag = 1
+        ORDER BY created_at DESC
+        LIMIT 20
+    """).fetchall()
+    return [dict(row) for row in rows]
+
+
+def _get_historical_averages(conn) -> dict:
+    rows = conn.execute("""
+        SELECT species,
+               COUNT(*) AS completed_batches,
+               ROUND(AVG(CASE WHEN dry_weight_g > 0
+                   THEN total_yield_g / dry_weight_g * 100 END), 1) AS avg_be_pct,
+               ROUND(AVG(CASE WHEN colonization_end_date IS NOT NULL
+                   THEN julianday(colonization_end_date) - julianday(inoculation_date)
+                   END), 1) AS avg_colonization_days,
+               ROUND(AVG(total_flushes), 1) AS avg_flushes
+        FROM batches
+        WHERE status = 'done'
+        GROUP BY species
+    """).fetchall()
+    hist = {row['species']: dict(row) for row in rows}
+
+    pin_rows = conn.execute("""
+        SELECT b.species,
+               ROUND(AVG(julianday(f.pinning_date) - julianday(b.inoculation_date)), 1)
+                   AS avg_days_to_first_pin,
+               ROUND(AVG(julianday(f.harvest_date) - julianday(f.pinning_date)), 1)
+                   AS avg_days_to_harvest
+        FROM batches b
+        JOIN flushes f ON b.id = f.batch_id AND f.flush_number = 1
+        WHERE f.pinning_date IS NOT NULL AND b.inoculation_date IS NOT NULL
+          AND f.harvest_date IS NOT NULL
+        GROUP BY b.species
+    """).fetchall()
+    for row in pin_rows:
+        sp = row['species']
+        d = dict(row)
+        if sp in hist:
+            hist[sp].update(d)
+        else:
+            hist[sp] = d
+
+    return hist
+
+
+def get_snapshot(conn) -> dict:
+    active_batches = _get_active_batches(conn)
+    batch_ids = [b['id'] for b in active_batches]
+
+    latest_flushes  = _get_latest_flush_per_batch(conn, batch_ids)
+    all_flushes     = _get_all_flushes_per_batch(conn, batch_ids)
+    env_summaries, env_flags = _get_env_summary(conn, batch_ids)
+    contamination   = _get_contamination_summary(conn)
+    historical      = _get_historical_averages(conn)
+
+    for b in active_batches:
+        sp_key = b['species'].lower()
+        timeline = SPECIES_TIMELINES.get(sp_key, DEFAULT_TIMELINE)
+        b['latest_flush'] = latest_flushes.get(b['id'])
+        b['all_flushes']  = all_flushes.get(b['id'], [])
+        b['env_24h']      = env_summaries.get(b['id'])
+        b['species_targets'] = timeline
+        b['use_historical'] = (
+            historical.get(b['species'], {}).get('completed_batches', 0) >= MIN_HISTORY_BATCHES
+        )
+
+    return {
+        'snapshot_date':         str(date.today()),
+        'active_batches':        active_batches,
+        'env_flags':             env_flags,
+        'contamination_recent':  contamination,
+        'historical_averages':   historical,
+        'goals_and_thresholds': {
+            'species_timelines':    SPECIES_TIMELINES,
+            'default_timeline':     DEFAULT_TIMELINE,
+            'env_guardrails':       ENV_GUARDRAILS,
+            'flush_degradation':    FLUSH_DEGRADATION,
+            'min_history_batches':  MIN_HISTORY_BATCHES,
+        },
+    }
+
+
+# ── Claude API ────────────────────────────────────────────────────────────────
+
+def _get_api_key() -> str | None:
+    key = os.environ.get('ANTHROPIC_API_KEY')
+    if key:
+        return key
+    try:
+        import winreg
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, 'Environment') as reg:
+            value, _ = winreg.QueryValueEx(reg, 'ANTHROPIC_API_KEY')
+            return value
+    except Exception:
+        return None
+
+
+def call_claude(snapshot: dict) -> dict:
+    if not _ANTHROPIC_AVAILABLE:
+        raise RuntimeError("anthropic package not installed — run: pip install anthropic")
+    api_key = _get_api_key()
+    if not api_key:
+        raise RuntimeError("ANTHROPIC_API_KEY environment variable not set")
+
+    client = anthropic.Anthropic(api_key=api_key)
+    message = client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=2048,
+        system=SYSTEM_PROMPT,
+        messages=[{"role": "user", "content": json.dumps(snapshot, default=str)}],
+    )
+
+    raw = message.content[0].text.strip()
+    if raw.startswith("```"):
+        lines = raw.split('\n')
+        raw = '\n'.join(lines[1:-1] if lines[-1].strip() == '```' else lines[1:])
+
+    return json.loads(raw)
+
+
+# ── Persistence ───────────────────────────────────────────────────────────────
+
+def save_briefing(conn, briefing_date: str, result: dict,
+                  triggered_by: str = 'scheduler'):
+    raw_json       = json.dumps(result)
+    attention_count = len(result.get('attention_required', []))
+    critical_count  = sum(
+        1 for i in result.get('attention_required', [])
+        if i.get('severity') == 'critical'
+    )
+    generated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    conn.execute("DELETE FROM daily_briefings WHERE briefing_date = ?", (briefing_date,))
+    conn.execute("""
+        INSERT INTO daily_briefings
+            (briefing_date, raw_json, attention_count, critical_count,
+             triggered_by, generated_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+    """, (briefing_date, raw_json, attention_count, critical_count,
+          triggered_by, generated_at))
+    conn.commit()
+
+
+# ── Orchestrator ──────────────────────────────────────────────────────────────
+
+def run_briefing(triggered_by: str = 'scheduler') -> dict:
+    conn = _mt.get_db()
+    try:
+        snapshot = get_snapshot(conn)
+        result   = call_claude(snapshot)
+        result.setdefault('briefing_date', str(date.today()))
+        save_briefing(conn, result['briefing_date'], result, triggered_by)
+        logger.info(
+            "Briefing generated for %s — %d items (%d critical), triggered_by=%s",
+            result['briefing_date'],
+            len(result.get('attention_required', [])),
+            sum(1 for i in result.get('attention_required', []) if i.get('severity') == 'critical'),
+            triggered_by,
+        )
+        return result
+    finally:
+        conn.close()
+
+
+# ── Scheduler ─────────────────────────────────────────────────────────────────
+
+def init_scheduler(app):
+    try:
+        from apscheduler.schedulers.background import BackgroundScheduler
+        import atexit
+
+        def _job():
+            with app.app_context():
+                try:
+                    run_briefing(triggered_by='scheduler')
+                except Exception as exc:
+                    logger.error("Scheduled briefing failed: %s", exc)
+
+        scheduler = BackgroundScheduler(daemon=True)
+        scheduler.add_job(_job, trigger='cron', hour=6, minute=0,
+                          id='daily_briefing', replace_existing=True)
+        scheduler.start()
+        atexit.register(scheduler.shutdown)
+        logger.info("Briefing scheduler started — daily at 06:00")
+        return scheduler
+    except ImportError:
+        logger.warning(
+            "apscheduler not installed — scheduled briefings disabled. "
+            "Run: pip install apscheduler"
+        )
+        return None
+
+
+# ── CLI entry point ───────────────────────────────────────────────────────────
+
+if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO,
+                        format='%(asctime)s %(levelname)s %(message)s')
+    print("Running briefing...")
+    result = run_briefing(triggered_by='manual')
+    print(f"\nBriefing date: {result.get('briefing_date')}")
+    print(f"Summary: {result.get('summary')}")
+    print(f"Attention items: {len(result.get('attention_required', []))}")
+    for item in result.get('attention_required', []):
+        print(f"  [{item['severity'].upper()}] {item['batch_label']} — {item['issue']}")

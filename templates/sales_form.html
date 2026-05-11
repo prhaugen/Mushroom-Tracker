@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if sale else 'Log' }} Sale — Mushroom Tracker{% endblock %}
+{% block content %}
+{% set editing = sale is not none %}
+<div class="page-head-row">
+  <div class="page-head">
+    <div class="page-title">{{ 'Edit Sale' if editing else 'Log Sale' }}</div>
+    <div class="page-sub">{{ 'Update sale details' if editing else 'Record fresh or dried mushroom sales' }}</div>
+  </div>
+  <a href="{{ url_for('sales_list') }}" class="btn btn-ghost btn-sm">Back</a>
+</div>
+
+<div class="card form-wrap">
+  <form method="POST"
+        action="{{ url_for('sale_edit', sale_id=sale.id) if editing else url_for('sales_add') }}">
+    <div class="fg-grid">
+      <div class="fg">
+        <label>Batch *</label>
+        <select name="batch_id" required id="batchSelect" onchange="loadFlushes()">
+          <option value="">— select batch —</option>
+          {% for b in all_batches %}
+          <option value="{{ b.id }}"
+            {{ 'selected' if editing and sale.batch_id == b.id }}
+            {{ 'selected' if not editing and selected_batch and b.id == selected_batch.id }}>
+            {{ b.label }} — {{ b.species }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="fg">
+        <label>Flush (optional)</label>
+        <select name="flush_id" id="flushSelect">
+          <option value="">— all / not flush-specific —</option>
+          {% for f in flushes_for_batch %}
+          <option value="{{ f.id }}" {{ 'selected' if editing and sale.flush_id == f.id }}>
+            Flush #{{ f.flush_number }} ({{ f.harvest_date or '' }})
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="fg">
+        <label>Sale Date</label>
+        <input type="date" name="sale_date"
+               value="{{ sale.sale_date if editing and sale.sale_date else today }}">
+      </div>
+      <div class="fg">
+        <label>Destination</label>
+        <select name="destination">
+          <option value="">— select —</option>
+          {% for d in DESTINATIONS %}
+          <option value="{{ d }}" {{ 'selected' if editing and sale.destination == d }}>
+            {{ d | replace('_',' ') | title }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="fg">
+        <label>Customer (optional)</label>
+        <input type="text" name="customer" placeholder="e.g. Green Acres Restaurant, John Smith..."
+               value="{{ sale.customer if editing and sale.customer else '' }}">
+      </div>
+      <div class="fg">
+        <label>Fresh Weight Sold (g)</label>
+        <input type="number" name="fresh_weight_sold_g" step="0.1" placeholder="e.g. 500"
+               id="fresh_wt" oninput="updateRevenue()"
+               value="{{ sale.fresh_weight_sold_g if editing and sale.fresh_weight_sold_g else '' }}">
+      </div>
+      <div class="fg">
+        <label>Dried Weight Sold (g)</label>
+        <input type="number" name="dried_weight_sold_g" step="0.1" placeholder="e.g. 50"
+               value="{{ sale.dried_weight_sold_g if editing and sale.dried_weight_sold_g else '' }}">
+        <span class="form-hint">Fresh-to-dry conversion ~8–12:1 for most species</span>
+      </div>
+      <div class="fg">
+        <label>Price per lb (USD)</label>
+        <input type="number" name="price_per_lb" step="0.01" placeholder="e.g. 12.00"
+               id="price_lb" oninput="updateRevenue()"
+               value="{{ '%.2f'|format(sale.price_per_lb) if editing and sale.price_per_lb else '' }}">
+        <span class="form-hint">Typical retail: $8–20/lb fresh oysters</span>
+      </div>
+      <div class="fg">
+        <label>Estimated Revenue</label>
+        <div id="rev_preview" style="padding:9px 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);font-size:14px;font-weight:600;color:var(--green)">—</div>
+      </div>
+      <div class="fg full">
+        <label>Notes (optional)</label>
+        <textarea name="notes" placeholder="Market location, quality feedback, special requests...">{{ sale.notes if editing and sale.notes else '' }}</textarea>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">{{ 'Save Changes' if editing else 'Save Sale' }}</button>
+      <a href="{{ url_for('sales_list') }}" class="btn btn-ghost">Cancel</a>
+    </div>
+  </form>
+</div>
+
+<script>
+function updateRevenue() {
+  const fw = parseFloat(document.getElementById('fresh_wt').value);
+  const price = parseFloat(document.getElementById('price_lb').value);
+  const el = document.getElementById('rev_preview');
+  if (!isNaN(fw) && !isNaN(price) && fw > 0 && price > 0) {
+    const rev = (fw / 453.592) * price;
+    el.textContent = '$' + rev.toFixed(2);
+  } else {
+    el.textContent = '—';
+  }
+}
+function loadFlushes() {
+  const sel = document.getElementById('flushSelect');
+  sel.innerHTML = '<option value="">— select batch first, then reload —</option>';
+}
+// Trigger on load to show revenue for edit mode
+updateRevenue();
+</script>
+{% endblock %}

@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}Mushroom Tracker{% endblock %}</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  /* Earthy mushroom palette */
+  --bg:#0c0a08;
+  --surface:#151109;
+  --card:#1c1610;
+  --card-hover:#241e17;
+  --border:#3a2f21;
+  --border-muted:#251e14;
+  --green:#74c27a;
+  --green-bg:rgba(116,194,122,.13);
+  --green-border:rgba(116,194,122,.32);
+  --amber:#d4a843;
+  --amber-bg:rgba(212,168,67,.13);
+  --amber-border:rgba(212,168,67,.32);
+  --red:#d96b5a;
+  --red-bg:rgba(217,107,90,.13);
+  --red-border:rgba(217,107,90,.32);
+  --blue:#6aadcc;
+  --blue-bg:rgba(106,173,204,.13);
+  --blue-border:rgba(106,173,204,.32);
+  --purple:#b899d0;
+  --purple-bg:rgba(184,153,208,.13);
+  --purple-border:rgba(184,153,208,.32);
+  --gray:#8a7a65;
+  --gray-bg:rgba(138,122,101,.11);
+  --gray-border:rgba(138,122,101,.28);
+  --text:#ede4d4;
+  --text-muted:#9a8a72;
+  --text-dim:#5a4e3a;
+  --tan:#c4a87a;
+  --tan-bg:rgba(196,168,122,.1);
+  --r:8px;--r-lg:12px;
+  --font:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+}
+
+body{
+  background:var(--bg);
+  background-image:
+    radial-gradient(ellipse 70% 50% at 0% 100%, rgba(116,194,122,.04) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 100% 0%, rgba(212,168,67,.03) 0%, transparent 55%);
+  color:var(--text);font-family:var(--font);font-size:14px;line-height:1.5;min-height:100vh
+}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+/* ── Navbar ────────────────────────────────────────────────────────────── */
+.navbar{
+  position:sticky;top:0;z-index:100;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 20px;height:54px;
+  background:rgba(12,10,8,.97);
+  border-bottom:1px solid var(--border);
+  backdrop-filter:blur(12px);
+  background-image:
+    radial-gradient(ellipse 30% 100% at 5% 50%, rgba(116,194,122,.05) 0%, transparent 100%),
+    radial-gradient(ellipse 20% 100% at 95% 50%, rgba(212,168,67,.03) 0%, transparent 100%);
+}
+/* thin green accent on top of navbar */
+.navbar::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(to right, transparent 0%, var(--green) 20%, var(--amber) 60%, transparent 100%);
+  opacity:.45;
+}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--text)}
+.brand-icon{width:32px;height:32px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.brand-name{font-weight:700;font-size:14px;letter-spacing:-.01em}
+.brand-sub{font-size:10px;color:var(--text-dim);font-weight:400;margin-top:1px}
+
+.nav-links{display:flex;align-items:center;gap:2px}
+.nav-link{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:5px 11px;border-radius:var(--r);
+  text-decoration:none;color:var(--text-muted);
+  font-size:13px;font-weight:500;transition:all .15s
+}
+.nav-link:hover{color:var(--text);background:var(--card)}
+.nav-link.active{color:var(--text);background:var(--card-hover);border:1px solid var(--border)}
+.nav-link svg{opacity:.7;flex-shrink:0}
+.nav-link:hover svg,.nav-link.active svg{opacity:1}
+
+.nav-cta{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:5px 13px;border-radius:var(--r);
+  background:var(--green);color:#0c0a08;
+  font-size:13px;font-weight:700;text-decoration:none;
+  margin-left:6px;transition:all .15s;
+  box-shadow:0 0 10px rgba(116,194,122,.2)
+}
+.nav-cta:hover{background:#86d48c;box-shadow:0 0 14px rgba(116,194,122,.35)}
+
+/* ── Layout ───────────────────────────────────────────────────────────── */
+.main{max-width:1200px;margin:0 auto;padding:28px 20px 60px}
+
+/* ── Flash messages ───────────────────────────────────────────────────── */
+.flashes{margin-bottom:18px}
+.flash{display:flex;align-items:center;justify-content:space-between;padding:11px 16px;border-radius:var(--r);margin-bottom:8px;font-size:13px}
+.flash-success{background:var(--green-bg);border:1px solid var(--green-border);color:var(--green)}
+.flash-error{background:var(--red-bg);border:1px solid var(--red-border);color:var(--red)}
+.flash-close{background:none;border:none;cursor:pointer;color:inherit;opacity:.5;font-size:18px;line-height:1;padding:0 2px}
+.flash-close:hover{opacity:1}
+
+/* ── Page header ──────────────────────────────────────────────────────── */
+.page-head{margin-bottom:22px}
+.page-title{font-size:20px;font-weight:700;letter-spacing:-.02em}
+.page-sub{font-size:13px;color:var(--text-muted);margin-top:3px}
+.page-head-row{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:22px}
+
+/* ── Stats ────────────────────────────────────────────────────────────── */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.stat{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:var(--r-lg);
+  padding:18px 20px;
+  position:relative;overflow:hidden;
+}
+/* subtle top accent line on stat cards */
+.stat::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:var(--border);border-radius:var(--r-lg) var(--r-lg) 0 0;
+}
+.stat.g::before{background:linear-gradient(to right,var(--green),rgba(116,194,122,.3))}
+.stat.a::before{background:linear-gradient(to right,var(--amber),rgba(212,168,67,.3))}
+.stat.b::before{background:linear-gradient(to right,var(--blue),rgba(106,173,204,.3))}
+
+.stat-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:6px}
+.stat-val{font-size:26px;font-weight:700;line-height:1;color:var(--text)}
+.stat-sub{font-size:11px;color:var(--text-muted);margin-top:4px}
+.stat.g .stat-val{color:var(--green)}
+.stat.a .stat-val{color:var(--amber)}
+.stat.b .stat-val{color:var(--blue)}
+
+/* ── Cards ────────────────────────────────────────────────────────────── */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px}
+.card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.card-title{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted)}
+
+/* ── Grid layouts ─────────────────────────────────────────────────────── */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.g2-1{display:grid;grid-template-columns:2fr 1fr;gap:16px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+
+/* ── Badges ───────────────────────────────────────────────────────────── */
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase}
+.badge::before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor}
+.badge-colonizing{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-border)}
+.badge-colonized{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)}
+.badge-pinning{background:var(--purple-bg);color:var(--purple);border:1px solid var(--purple-border)}
+.badge-fruiting{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.badge-resting{background:var(--gray-bg);color:var(--gray);border:1px solid var(--gray-border)}
+.badge-done{background:rgba(90,78,58,.15);color:var(--text-dim);border:1px solid rgba(90,78,58,.3)}
+.badge-contaminated,.badge-aborted{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
+
+/* ── BE pill ──────────────────────────────────────────────────────────── */
+.be-pill{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700}
+.be-excellent{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)}
+.be-good{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.be-avg{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-border)}
+.be-low{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
+
+/* ── Batch cards ──────────────────────────────────────────────────────── */
+.batch-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+.batch-card{
+  display:block;
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:var(--r-lg);
+  padding:18px;
+  text-decoration:none;color:var(--text);
+  transition:border-color .2s,background .2s,transform .2s,box-shadow .2s;
+  position:relative;overflow:hidden;
+}
+/* subtle mycelium-vein gradient on batch card hover */
+.batch-card::after{
+  content:'';position:absolute;inset:0;border-radius:var(--r-lg);
+  background:radial-gradient(ellipse 80% 60% at 50% 100%, rgba(116,194,122,.06) 0%, transparent 70%);
+  opacity:0;transition:opacity .2s;pointer-events:none;
+}
+.batch-card:hover{
+  background:var(--card-hover);
+  border-color:rgba(116,194,122,.4);
+  transform:translateY(-2px);
+  box-shadow:0 6px 20px rgba(0,0,0,.5),0 0 0 1px rgba(116,194,122,.1);
+}
+.batch-card:hover::after{opacity:1}
+
+.batch-card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
+.batch-label{font-size:15px;font-weight:700}
+.batch-species{font-size:12px;color:var(--text-muted);margin-top:2px}
+.batch-nums{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:6px;
+  margin-top:14px;padding-top:14px;
+  border-top:1px solid var(--border-muted)
+}
+.bnum-val{font-size:16px;font-weight:700;line-height:1}
+.bnum-lbl{font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-top:2px}
+
+/* ── Environment display ──────────────────────────────────────────────── */
+.env-pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.env-val-card{text-align:center;padding:18px 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r)}
+.env-big{font-size:38px;font-weight:700;line-height:1}
+.env-unit{font-size:17px;color:var(--text-muted);font-weight:400}
+.env-lbl{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-top:6px}
+.env-status{font-size:11px;font-weight:600;margin-top:5px}
+.env-ok .env-big,.env-ok .env-status{color:var(--green)}
+.env-warn .env-big,.env-warn .env-status{color:var(--amber)}
+.env-bad .env-big,.env-bad .env-status{color:var(--red)}
+
+/* ── Table ────────────────────────────────────────────────────────────── */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);padding:9px 14px;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:11px 14px;border-bottom:1px solid var(--border-muted);font-size:13px;color:var(--text)}
+tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:rgba(196,168,122,.04)}
+.td-m{color:var(--text-muted)}
+.td-mono{font-family:Consolas,Monaco,monospace;font-size:12px}
+
+/* ── Forms ────────────────────────────────────────────────────────────── */
+.form-wrap{max-width:680px}
+.form-section{margin-bottom:28px}
+.section-label{
+  font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;
+  color:var(--green);margin-bottom:14px;padding-bottom:6px;
+  border-bottom:1px solid var(--green-border);
+  display:flex;align-items:center;gap:7px;
+}
+.section-label::before{
+  content:'';display:inline-block;width:6px;height:6px;border-radius:50%;
+  background:var(--green);flex-shrink:0;box-shadow:0 0 5px rgba(116,194,122,.5);
+}
+.fg-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fg{display:flex;flex-direction:column;gap:5px}
+.fg.full{grid-column:1/-1}
+.fg label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted)}
+.fg input,.fg select,.fg textarea{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
+  padding:9px 12px;color:var(--text);font-family:var(--font);font-size:14px;
+  outline:none;transition:border-color .15s,box-shadow .15s;width:100%
+}
+.fg input:focus,.fg select:focus,.fg textarea:focus{
+  border-color:var(--green);
+  box-shadow:0 0 0 3px rgba(116,194,122,.12)
+}
+.fg input::placeholder,.fg textarea::placeholder{color:var(--text-dim)}
+select option{background:var(--card)}
+textarea{resize:vertical;min-height:76px}
+.form-hint{font-size:11px;color:var(--text-muted);margin-top:2px}
+.form-hint.warn{color:var(--amber)}
+.form-hint.ok{color:var(--green)}
+.form-hint.err{color:var(--red)}
+.form-actions{display:flex;gap:10px;margin-top:24px;align-items:center}
+
+/* ── Buttons ──────────────────────────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:var(--r);font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;border:none;font-family:var(--font);transition:all .15s;line-height:1;white-space:nowrap}
+.btn-primary{background:var(--green);color:#0c0a08;box-shadow:0 0 8px rgba(116,194,122,.18)}
+.btn-primary:hover{background:#86d48c;box-shadow:0 0 14px rgba(116,194,122,.3)}
+.btn-secondary{background:var(--card);color:var(--text);border:1px solid var(--border)}
+.btn-secondary:hover{background:var(--card-hover)}
+.btn-ghost{background:none;color:var(--text-muted);border:1px solid var(--border)}
+.btn-ghost:hover{color:var(--text);background:var(--card)}
+.btn-amber{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-border)}
+.btn-danger{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
+.btn-danger:hover{background:rgba(217,107,90,.25);border-color:var(--red)}
+.btn-sm{padding:5px 11px;font-size:12px}
+
+/* ── Sandbox / DB toggle ────────────────────────────────────────────── */
+.sandbox-bar{
+  background:linear-gradient(135deg,#211800 0%,#1a1200 100%);
+  border-bottom:1px solid rgba(210,153,34,.35);
+  padding:7px 20px;display:flex;align-items:center;justify-content:space-between;
+  font-size:11px;font-weight:600;color:var(--amber);letter-spacing:.04em;
+}
+.sandbox-bar a{
+  color:var(--amber);border:1px solid rgba(210,153,34,.5);
+  padding:3px 11px;border-radius:8px;text-decoration:none;font-size:10px;
+  transition:background .15s;
+}
+.sandbox-bar a:hover{background:rgba(210,153,34,.12)}
+.db-pill{
+  font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  padding:3px 9px;border-radius:10px;text-decoration:none;transition:opacity .15s;
+  margin-left:6px;white-space:nowrap;
+}
+.db-pill.prod{background:rgba(116,194,122,.1);color:var(--green);border:1px solid rgba(116,194,122,.22)}
+.db-pill.prod:hover{background:rgba(116,194,122,.2)}
+.db-pill.sandbox{background:rgba(210,153,34,.15);color:var(--amber);border:1px solid rgba(210,153,34,.38)}
+.db-pill.sandbox:hover{background:rgba(210,153,34,.25)}
+
+/* ── Timeline ─────────────────────────────────────────────────────────── */
+.timeline{display:flex;margin:16px 0}
+.tl-step{flex:1;text-align:center;position:relative}
+.tl-step+.tl-step::before{content:'';position:absolute;top:13px;right:50%;left:-50%;height:2px;background:var(--border)}
+.tl-step.tl-done+.tl-step::before,.tl-step.tl-active+.tl-step::before{background:var(--green)}
+.tl-dot{width:26px;height:26px;border-radius:50%;background:var(--surface);border:2px solid var(--border);margin:0 auto 5px;display:flex;align-items:center;justify-content:center;position:relative;z-index:1;font-size:11px;font-weight:700;color:var(--text-dim)}
+.tl-step.tl-done .tl-dot{background:var(--green-bg);border-color:var(--green);color:var(--green)}
+.tl-step.tl-active .tl-dot{background:var(--green);border-color:var(--green);color:#0c0a08;box-shadow:0 0 0 3px var(--green-bg),0 0 8px rgba(116,194,122,.3)}
+.tl-lbl{font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted)}
+.tl-step.tl-active .tl-lbl{color:var(--green);font-weight:700}
+
+/* ── Chart ────────────────────────────────────────────────────────────── */
+.chart-wrap{position:relative;height:260px}
+
+/* ── Empty states ─────────────────────────────────────────────────────── */
+.empty{text-align:center;padding:44px 20px}
+.empty::before{
+  content:'';display:block;width:64px;height:64px;margin:0 auto 18px;
+  background:url("data:image/svg+xml,%3Csvg viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M22 38L22 54Q22 57 26 57L38 57Q42 57 42 54L42 38Z' fill='%233a2f21'/%3E%3Cpath d='M5 38Q5 9 32 9Q59 9 59 38Z' fill='%233a5240'/%3E%3Ccircle cx='19' cy='24' r='4.5' fill='rgba(255,255,255,.13)'/%3E%3Ccircle cx='33' cy='18' r='6' fill='rgba(255,255,255,.13)'/%3E%3Ccircle cx='46' cy='26' r='3.5' fill='rgba(255,255,255,.13)'/%3E%3C/svg%3E") center/contain no-repeat;
+  opacity:.45;
+}
+.empty-title{font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px}
+.empty-sub{font-size:13px;color:var(--text-muted);margin-bottom:16px}
+
+/* ── Detail rows ──────────────────────────────────────────────────────── */
+.detail-lbl{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:3px}
+.detail-val{font-size:14px;font-weight:600;color:var(--text)}
+
+/* ── Quality buttons ──────────────────────────────────────────────────── */
+.quality-stars{display:flex;gap:2px}
+.q-btn{width:32px;height:32px;border-radius:var(--r);background:var(--surface);border:1px solid var(--border);color:var(--text-muted);font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.q-btn.active{background:var(--amber-bg);border-color:var(--amber-border);color:var(--amber)}
+input[name="quality_rating"]{display:none}
+
+/* ── Callouts ─────────────────────────────────────────────────────────── */
+.callout{padding:12px 16px;border-radius:var(--r);font-size:13px;margin:12px 0;display:flex;gap:10px;align-items:flex-start}
+.callout::before{
+  content:'';display:block;width:3px;flex-shrink:0;border-radius:2px;
+  align-self:stretch;min-height:16px;
+}
+.callout-green{background:var(--green-bg);border:1px solid var(--green-border);color:var(--green)}
+.callout-green::before{background:var(--green)}
+.callout-amber{background:var(--amber-bg);border:1px solid var(--amber-border);color:var(--amber)}
+.callout-amber::before{background:var(--amber)}
+.callout-red{background:var(--red-bg);border:1px solid var(--red-border);color:var(--red)}
+.callout-red::before{background:var(--red)}
+
+/* ── Misc ─────────────────────────────────────────────────────────────── */
+.divider{height:1px;background:var(--border);margin:18px 0}
+.gap-row{display:flex;gap:10px;align-items:center}
+.mt-8{margin-top:8px}.mt-12{margin-top:12px}.mt-16{margin-top:16px}.mt-20{margin-top:20px}
+.mb-16{margin-bottom:16px}.mb-20{margin-bottom:20px}
+.text-muted{color:var(--text-muted)}.text-green{color:var(--green)}.fw-600{font-weight:600}
+
+@media(max-width:768px){
+  .stats{grid-template-columns:1fr 1fr}
+  .g2,.g2-1,.g3{grid-template-columns:1fr}
+  .fg-grid{grid-template-columns:1fr}
+  .main{padding:16px 14px 40px}
+}
+@media(max-width:480px){
+  .stats{grid-template-columns:1fr}
+  .nav-links .nav-link:not(.nav-cta){display:none}
+}
+</style>
+</head>
+<body>
+{% if db_mode == 'sandbox' %}
+<div class="sandbox-bar">
+  <span>&#9888; SANDBOX MODE &mdash; changes here won't affect your production data</span>
+  <a href="{{ url_for('switch_db', mode='prod') }}">Exit to Production</a>
+</div>
+{% endif %}
+<nav class="navbar">
+  <a href="{{ url_for('dashboard') }}" class="brand">
+    <!-- Mushroom logo -->
+    <div class="brand-icon">
+      <svg viewBox="0 0 32 32" width="32" height="32" xmlns="http://www.w3.org/2000/svg">
+        <!-- stem -->
+        <path d="M12 20 L12 28 Q12 30 14.5 30 L17.5 30 Q20 30 20 28 L20 20 Z" fill="#c4a87a"/>
+        <!-- gill line under cap -->
+        <path d="M8 20 Q11 23 16 23 Q21 23 24 20" stroke="#a8906a" stroke-width="1.2" fill="none" opacity=".6"/>
+        <!-- cap -->
+        <path d="M3 20 Q3 5 16 5 Q29 5 29 20 Z" fill="#74c27a"/>
+        <!-- cap inner highlight -->
+        <path d="M6 20 Q6 9 16 9 Q26 9 26 20" fill="rgba(255,255,255,.06)"/>
+        <!-- spots -->
+        <circle cx="10" cy="14" r="2.2" fill="rgba(255,255,255,.22)"/>
+        <circle cx="18" cy="10.5" r="2.8" fill="rgba(255,255,255,.22)"/>
+        <circle cx="23" cy="15" r="1.8" fill="rgba(255,255,255,.22)"/>
+      </svg>
+    </div>
+    <div>
+      <div class="brand-name">Mushroom Tracker</div>
+    </div>
+  </a>
+  <div class="nav-links">
+    <!-- Dashboard icon: grid squares -->
+    <a href="{{ url_for('dashboard') }}"
+       class="nav-link{% if request.endpoint=='dashboard' %} active{% endif %}">
+      <svg viewBox="0 0 14 14" width="13" height="13" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+        <rect x="1" y="1" width="5" height="5" rx="1.2"/>
+        <rect x="8" y="1" width="5" height="5" rx="1.2"/>
+        <rect x="1" y="8" width="5" height="5" rx="1.2" opacity=".7"/>
+        <rect x="8" y="8" width="5" height="5" rx="1.2" opacity=".7"/>
+      </svg>
+      Dashboard
+    </a>
+    <!-- Batches icon: mushroom silhouette -->
+    <a href="{{ url_for('batches') }}"
+       class="nav-link{% if request.endpoint in ('batches','batch_add','batch_detail') %} active{% endif %}">
+      <svg viewBox="0 0 14 14" width="13" height="13" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+        <path d="M1.5 9.5 Q1.5 2.5 7 2.5 Q12.5 2.5 12.5 9.5 Z"/>
+        <rect x="5" y="9.5" width="4" height="4" rx="1.5" opacity=".75"/>
+      </svg>
+      Batches
+    </a>
+    <!-- Environment icon: thermometer -->
+    <a href="{{ url_for('env_history') }}"
+       class="nav-link{% if request.endpoint=='env_history' %} active{% endif %}">
+      <svg viewBox="0 0 14 14" width="13" height="13" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+        <rect x="5.5" y="1" width="3" height="7.5" rx="1.5" opacity=".65"/>
+        <circle cx="7" cy="11" r="2.5"/>
+        <rect x="6.3" y="5.5" width="1.4" height="3.5" rx=".7" opacity=".4"/>
+      </svg>
+      Environment
+    </a>
+    <!-- Sales icon: stacked leaves / harvest -->
+    <a href="{{ url_for('sales_list') }}"
+       class="nav-link{% if request.endpoint in ('sales_list','sales_add') %} active{% endif %}">
+      <svg viewBox="0 0 14 14" width="13" height="13" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+        <path d="M7 1 Q12.5 3.5 12.5 8.5 Q12.5 13 7 13 Q1.5 13 1.5 8.5 Q1.5 3.5 7 1Z" opacity=".7"/>
+        <path d="M7 13 L7 5.5" stroke="var(--bg)" stroke-width="1.3" stroke-linecap="round" fill="none"/>
+        <path d="M4.5 9 Q6 7 7 7 Q8 7 9.5 9" stroke="var(--bg)" stroke-width="1.1" stroke-linecap="round" fill="none"/>
+      </svg>
+      Sales
+    </a>
+    <!-- Report icon: bar chart ascending -->
+    <a href="{{ url_for('report') }}"
+       class="nav-link{% if request.endpoint=='report' %} active{% endif %}">
+      <svg viewBox="0 0 14 14" width="13" height="13" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+        <rect x="1" y="7" width="3" height="6" rx="1" opacity=".6"/>
+        <rect x="5.5" y="4" width="3" height="9" rx="1" opacity=".85"/>
+        <rect x="10" y="1" width="3" height="12" rx="1" opacity=".6"/>
+      </svg>
+      Report
+    </a>
+    <!-- Briefing icon: sparkle / AI -->
+    <a href="{{ url_for('briefing') }}"
+       class="nav-link{% if request.endpoint in ('briefing','briefing_run') %} active{% endif %}">
+      <svg viewBox="0 0 14 14" width="13" height="13" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+        <path d="M7 1 L8 5.5 L12.5 5.5 L9 8.5 L10.5 13 L7 10.5 L3.5 13 L5 8.5 L1.5 5.5 L6 5.5 Z" opacity=".85"/>
+      </svg>
+      Briefing
+    </a>
+    <!-- Log Reading CTA: plus + leaf -->
+    <a href="{{ url_for('env_log') }}" class="nav-cta">
+      <svg viewBox="0 0 12 12" width="12" height="12" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+        <line x1="6" y1="1" x2="6" y2="11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <line x1="1" y1="6" x2="11" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      Log Reading
+    </a>
+    {% if db_mode == 'prod' %}
+    <a href="{{ url_for('switch_db', mode='sandbox') }}" class="db-pill prod" title="Switch to sandbox database">PROD</a>
+    {% else %}
+    <a href="{{ url_for('switch_db', mode='prod') }}" class="db-pill sandbox" title="Switch to production database">SANDBOX</a>
+    {% endif %}
+  </div>
+</nav>
+<main class="main">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  <div class="flashes">
+    {% for cat,msg in messages %}
+    <div class="flash flash-{{ cat }}">
+      <span>{{ msg }}</span>
+      <button class="flash-close" onclick="this.parentElement.remove()">&times;</button>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</main>
+</body>
+</html>
