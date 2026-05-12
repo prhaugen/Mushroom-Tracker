@@ -44,10 +44,13 @@ Do NOT flag missing dry_weight_g, substrate percentages, sterilization method, \
 spawn type, or spawn lot — these fields are not applicable and their absence is \
 expected. Focus monitoring for sourced blocks on lifecycle timing, environmental \
 conditions, and flush performance only. \
-A sourced block with status "colonized" is likely in cold shock (pre-fruiting \
-refrigerator treatment) and has NOT yet been placed in the fruiting chamber — \
-do not evaluate it against fruiting environment standards or flag missing chamber \
-readings. It will move to "fruiting" once it enters the chamber.
+For any batch (sourced or not), use "fruiting_start_date" to determine whether \
+the block is in the fruiting chamber: if fruiting_start_date is set, the block \
+is in the chamber and should be evaluated against fruiting environment standards \
+even if its status is still "colonized". If fruiting_start_date is absent and \
+status is "colonized", the block has not yet entered the chamber — it may be in \
+cold shock or simply awaiting chamber placement — and should not be flagged for \
+missing fruiting-chamber readings or evaluated against fruiting guardrails.
 
 Output format — return JSON only, no preamble:
 {
@@ -93,15 +96,18 @@ def _days_between(d1_str, d2_str=None):
         return None
 
 
-def _batch_guardrails(status: str, species_key: str):
+def _batch_guardrails(status: str, species_key: str, in_chamber: bool = False):
     """
     Return (temp_range, hum_range, co2_range, min_hours) for one batch.
-    Uses the batch's actual lifecycle status (not the env log phase field)
-    and overlays species-specific targets from SPECIES_TIMELINES when available.
-    Status is the source of truth — set it to Colonized for cold shock,
-    Fruiting once the block is in the chamber.
+    Uses the batch's actual lifecycle status and overlays species-specific targets.
+    If in_chamber=True (fruiting_start_date is set) and status is still colonized,
+    fruiting guardrails are used — the block is in the chamber regardless of status label.
     """
-    phase_key  = status if status in ENV_GUARDRAILS else 'fruiting'
+    effective_status = status
+    if in_chamber and status in ('colonizing', 'colonized'):
+        effective_status = 'fruiting'
+
+    phase_key  = effective_status if effective_status in ENV_GUARDRAILS else 'fruiting'
     base       = ENV_GUARDRAILS.get(phase_key, ENV_GUARDRAILS['fruiting'])
 
     temp_range = base.get('temp_f',      (60, 85))
@@ -110,10 +116,10 @@ def _batch_guardrails(status: str, species_key: str):
     min_hours  = base.get('consecutive_hours_to_flag', 2)
 
     sp = SPECIES_TIMELINES.get(species_key or '', {})
-    if status in ('pinning', 'fruiting'):
+    if effective_status in ('pinning', 'fruiting'):
         if 'fruiting_temp_f'      in sp: temp_range = sp['fruiting_temp_f']
         if 'fruiting_humidity_rh' in sp: hum_range  = sp['fruiting_humidity_rh']
-    elif status in ('colonizing', 'colonized'):
+    elif effective_status in ('colonizing', 'colonized'):
         if 'colonization_temp_f'  in sp: temp_range = sp['colonization_temp_f']
 
     return temp_range, hum_range, co2_range, min_hours
@@ -273,8 +279,11 @@ def _get_env_summary(conn, batch_info_map: dict):
         info        = batch_info_map.get(batch_id, {})
         status      = info.get('status', 'fruiting')
         species_key = (info.get('species') or '').lower()
+        in_chamber  = info.get('in_chamber', False)
 
-        temp_range, hum_range, co2_range, min_hours = _batch_guardrails(status, species_key)
+        temp_range, hum_range, co2_range, min_hours = _batch_guardrails(
+            status, species_key, in_chamber
+        )
 
         param_ranges = {'temp_f': temp_range, 'humidity_rh': hum_range}
         if co2_range:
@@ -392,10 +401,11 @@ def get_snapshot(conn) -> dict:
 
     batch_info_map = {
         b['id']: {
-            'chamber_id':   b.get('chamber_id'),
-            'status':       b.get('status', 'fruiting'),
-            'species':      b.get('species', ''),
-            'sourced_block': bool(b.get('sourced_block')),
+            'chamber_id':        b.get('chamber_id'),
+            'status':            b.get('status', 'fruiting'),
+            'species':           b.get('species', ''),
+            'sourced_block':     bool(b.get('sourced_block')),
+            'in_chamber':        bool(b.get('fruiting_start_date')),
         }
         for b in active_batches
     }

@@ -774,22 +774,24 @@ def build():
                  "rather than leaving it at Colonizing."],
                 ["Fruiting Chamber Date",     "No",
                  "The date the block was placed into the fruiting chamber (e.g. your SGFC). "
-                 "For pre-made blocks from a supplier like North Spore, this is the most "
-                 "meaningful start date — use it instead of Inoculation Date for tracking "
-                 "how long the block has been in fruiting conditions. "
+                 "This field is also used by the AI briefing agent as the definitive signal "
+                 "that a block is in the chamber: if this date is set, the agent applies "
+                 "fruiting environment guardrails regardless of the batch status; "
+                 "if it is blank, the block is treated as not yet in the chamber. "
+                 "This matters most for sourced blocks that are cold-shocking — leave this "
+                 "field blank during cold shock and set it the day the block enters the SGFC. "
                  "Displayed under the Colonizing step on the Batch Detail lifecycle timeline."],
                 ["Sourced / Pre-made Block",  "No",
                  "Check this if the block was purchased from a supplier (e.g. North Spore) "
                  "rather than prepared in-house. "
-                 "Checking this box automatically sets the Initial Status to Fruiting — "
-                 "commercial blocks arrive fully colonized and go straight into fruiting conditions. "
+                 "Checking this box automatically sets the Initial Status to Fruiting. "
                  "If you are cold-shocking the block before placing it in the chamber, "
-                 "change the status to Colonized; update it to Fruiting once the block enters the chamber. "
-                 "Status is the source of truth for environmental monitoring — "
-                 "the agent uses whatever status is set and does not override it for sourced blocks. "
-                 "A sourced block in Colonized status is treated as being in cold shock "
-                 "(pre-chamber) and is not evaluated against fruiting environment standards. "
-                 "The AI briefing agent will not flag missing substrate composition, sterilization, "
+                 "change status to Colonized and leave Fruiting Chamber Date blank — "
+                 "set the Fruiting Chamber Date the day the block enters the SGFC. "
+                 "The AI briefing agent uses the Fruiting Chamber Date (not status alone) "
+                 "to determine whether a block is in the chamber: a block with no "
+                 "Fruiting Chamber Date is treated as pre-chamber regardless of status. "
+                 "The agent will not flag missing substrate composition, sterilization, "
                  "or spawn details — those fields are not applicable for sourced blocks. "
                  "You may still enter estimated dry weight and moisture if known; they will be "
                  "used for BE% calculations without triggering missing-data alerts. "
@@ -1544,11 +1546,11 @@ def build():
                  "so a Shiitake fruiting at 83% RH is not flagged (its target is 80-90%), "
                  "while a Blue Oyster at the same reading would be (its target is 85-95%). "
                  "A colonizing batch is evaluated against colonization standards, not fruiting ones. "
-                 "Status is the source of truth for all batches including sourced blocks — "
-                 "set the status to Colonized during cold shock and Fruiting once "
-                 "the block is in the chamber. The agent also understands that a sourced "
-                 "block in Colonized status is in cold shock and will not flag it for "
-                 "missing fruiting-chamber readings."],
+                 "The Fruiting Chamber Date field is the definitive signal: if set, the block "
+                 "is in the chamber and fruiting guardrails apply even if status is still Colonized. "
+                 "If blank, the block is pre-chamber (cold shock or awaiting placement) and "
+                 "colonization guardrails apply. This allows two Colonized batches in the same "
+                 "chamber to be evaluated correctly — one in the SGFC, one in cold shock."],
                 ["On Track",
                  "Batches with no issues. Shown as green pills linking directly to each batch detail page."],
                 ["Pattern Observations",
