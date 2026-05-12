@@ -52,7 +52,12 @@ intentionally being held outside the chamber — either in cold shock or pre-cha
 staging. This is NORMAL and EXPECTED grower workflow. Do NOT flag it for missing \
 fruiting-chamber readings, do NOT prompt the grower to confirm placement or update \
 the record, and do NOT evaluate it against fruiting guardrails. The grower will \
-set fruiting_start_date when the block enters the chamber.
+set fruiting_start_date when the block enters the chamber. \
+Additionally, if the batch has "sourced_block": true AND in_chamber is false, \
+do NOT raise colonization-temperature concerns — the block is already commercially \
+colonized, so colonization conditions are irrelevant. The only temperature planning \
+that matters is whether the fruiting chamber will suit the species once the block \
+is placed; evaluate that against fruiting temperature targets, not colonization ones.
 
 Output format — return JSON only, no preamble:
 {
