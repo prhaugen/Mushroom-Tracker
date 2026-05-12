@@ -78,9 +78,10 @@
         </div>
         <div id="sourcedHint" class="fg" style="{{ '' if (editing and batch.sourced_block) else 'display:none' }}">
           <span class="form-hint" style="color:var(--blue)">
-            Substrate and sterilization fields are optional for sourced blocks.
-            Enter estimated dry weight and moisture if known — the AI briefing agent
-            will not flag them as missing.
+            Status set to <b>Fruiting</b> — sourced blocks arrive fully colonized and go
+            straight into fruiting conditions. Adjust if needed.
+            Substrate and sterilization fields are optional; the AI briefing agent
+            will not flag them as missing. Enter estimated dry weight if known for BE% tracking.
           </span>
         </div>
         {% if all_chambers|length > 1 %}
@@ -344,6 +345,9 @@ updateBEPreview();
 function toggleSourcedHint() {
   const checked = document.getElementById('sourcedBlock').checked;
   document.getElementById('sourcedHint').style.display = checked ? 'block' : 'none';
+  // Auto-set status for new batches — sourced blocks arrive fully colonized
+  const statusSel = document.querySelector('select[name="status"]');
+  if (statusSel) statusSel.value = checked ? 'fruiting' : 'colonizing';
 }
 
 function handleSpeciesChange() {

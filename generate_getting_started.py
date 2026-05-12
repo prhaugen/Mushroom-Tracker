@@ -485,10 +485,16 @@ def build():
                                        "Batch Detail lifecycle timeline."),
             ("Sourced / Pre-made Block", "Check this if the block came from a supplier (e.g. North Spore) "
                                           "rather than one you made yourself. "
+                                          "Checking this automatically sets the Status to <b>Fruiting</b> — "
+                                          "commercial blocks arrive fully colonized and go straight into "
+                                          "fruiting conditions. Adjust if the block hasn't been placed in "
+                                          "the chamber yet. "
                                           "The AI briefing agent will not flag missing substrate, "
-                                          "sterilization, or spawn fields when this is checked. "
-                                          "You can still enter estimated dry weight and moisture — "
-                                          "they will be used for BE% without triggering missing-data alerts."),
+                                          "sterilization, or spawn fields, and always applies fruiting "
+                                          "humidity and temperature guardrails to sourced blocks "
+                                          "regardless of their recorded status. "
+                                          "You can still enter estimated dry weight — "
+                                          "it will be used for BE% without triggering missing-data alerts."),
             ("Colonization Chamber",  "Only shown if you have more than one chamber. "
                                        "Select the chamber where colonization is happening "
                                        "if it differs from your fruiting chamber."),

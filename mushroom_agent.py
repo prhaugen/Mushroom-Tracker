@@ -89,13 +89,19 @@ def _days_between(d1_str, d2_str=None):
         return None
 
 
-def _batch_guardrails(status: str, species_key: str):
+def _batch_guardrails(status: str, species_key: str, sourced_block: bool = False):
     """
     Return (temp_range, hum_range, co2_range, min_hours) for one batch.
     Uses the batch's actual lifecycle status (not the env log phase field)
     and overlays species-specific targets from SPECIES_TIMELINES when available.
+    Sourced blocks skip colonization guardrails — they arrive fully colonized
+    and go straight into fruiting conditions.
     """
-    phase_key  = status if status in ENV_GUARDRAILS else 'fruiting'
+    effective_status = status
+    if sourced_block and status in ('colonizing', 'colonized'):
+        effective_status = 'fruiting'
+
+    phase_key  = effective_status if effective_status in ENV_GUARDRAILS else 'fruiting'
     base       = ENV_GUARDRAILS.get(phase_key, ENV_GUARDRAILS['fruiting'])
 
     temp_range = base.get('temp_f',      (60, 85))
@@ -104,11 +110,11 @@ def _batch_guardrails(status: str, species_key: str):
     min_hours  = base.get('consecutive_hours_to_flag', 2)
 
     sp = SPECIES_TIMELINES.get(species_key or '', {})
-    if status in ('pinning', 'fruiting'):
-        if 'fruiting_temp_f'     in sp: temp_range = sp['fruiting_temp_f']
+    if effective_status in ('pinning', 'fruiting'):
+        if 'fruiting_temp_f'      in sp: temp_range = sp['fruiting_temp_f']
         if 'fruiting_humidity_rh' in sp: hum_range  = sp['fruiting_humidity_rh']
-    elif status in ('colonizing', 'colonized'):
-        if 'colonization_temp_f' in sp: temp_range = sp['colonization_temp_f']
+    elif effective_status in ('colonizing', 'colonized'):
+        if 'colonization_temp_f'  in sp: temp_range = sp['colonization_temp_f']
 
     return temp_range, hum_range, co2_range, min_hours
 
@@ -264,11 +270,14 @@ def _get_env_summary(conn, batch_info_map: dict):
     for batch_id, readings in by_batch.items():
         readings.sort(key=lambda r: r['logged_at'])
 
-        info        = batch_info_map.get(batch_id, {})
-        status      = info.get('status', 'fruiting')
-        species_key = (info.get('species') or '').lower()
+        info          = batch_info_map.get(batch_id, {})
+        status        = info.get('status', 'fruiting')
+        species_key   = (info.get('species') or '').lower()
+        sourced_block = info.get('sourced_block', False)
 
-        temp_range, hum_range, co2_range, min_hours = _batch_guardrails(status, species_key)
+        temp_range, hum_range, co2_range, min_hours = _batch_guardrails(
+            status, species_key, sourced_block
+        )
 
         param_ranges = {'temp_f': temp_range, 'humidity_rh': hum_range}
         if co2_range:
@@ -383,9 +392,10 @@ def get_snapshot(conn) -> dict:
 
     batch_info_map = {
         b['id']: {
-            'chamber_id': b.get('chamber_id'),
-            'status':     b.get('status', 'fruiting'),
-            'species':    b.get('species', ''),
+            'chamber_id':   b.get('chamber_id'),
+            'status':       b.get('status', 'fruiting'),
+            'species':      b.get('species', ''),
+            'sourced_block': bool(b.get('sourced_block')),
         }
         for b in active_batches
     }

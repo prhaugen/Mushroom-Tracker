@@ -780,11 +780,16 @@ def build():
                  "Displayed under the Colonizing step on the Batch Detail lifecycle timeline."],
                 ["Sourced / Pre-made Block",  "No",
                  "Check this if the block was purchased from a supplier (e.g. North Spore) "
-                 "rather than prepared in-house. When checked, the AI briefing agent will not "
-                 "flag missing substrate composition, sterilization, or spawn details — those "
-                 "fields are optional for sourced blocks. You may still enter estimated dry "
-                 "weight and moisture if known; they will be used for BE% calculations "
-                 "without triggering missing-data alerts. "
+                 "rather than prepared in-house. "
+                 "Checking this box automatically sets the Initial Status to Fruiting — "
+                 "commercial blocks arrive fully colonized and go straight into fruiting conditions. "
+                 "Adjust the status manually if the block has not yet been placed in the chamber. "
+                 "The AI briefing agent will not flag missing substrate composition, sterilization, "
+                 "or spawn details — those fields are not applicable for sourced blocks. "
+                 "Even if the status is accidentally left as Colonizing, the agent always applies "
+                 "fruiting guardrails to sourced blocks for environmental alert evaluation. "
+                 "You may still enter estimated dry weight and moisture if known; they will be "
+                 "used for BE% calculations without triggering missing-data alerts. "
                  "The Batch Detail page labels the batch as 'sourced block' in the subtitle."],
                 ["Colonization Chamber",      "No",
                  "The chamber where this batch colonized, if different from the fruiting chamber. "
@@ -1526,7 +1531,9 @@ def build():
                  "(colonizing, pinning, fruiting, resting) and species-specific targets — "
                  "so a Shiitake fruiting at 83% RH is not flagged (its target is 80-90%), "
                  "while a Blue Oyster at the same reading would be (its target is 85-95%). "
-                 "A colonizing batch is evaluated against colonization standards, not fruiting ones."],
+                 "A colonizing batch is evaluated against colonization standards, not fruiting ones. "
+                 "Sourced blocks are always evaluated against fruiting standards regardless of "
+                 "their recorded status, since they arrive fully colonized."],
                 ["On Track",
                  "Batches with no issues. Shown as green pills linking directly to each batch detail page."],
                 ["Pattern Observations",
