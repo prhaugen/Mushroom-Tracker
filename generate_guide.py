@@ -1142,7 +1142,7 @@ def build():
 
     edit_rows = [
         ["Chamber settings",
-         "Dashboard → Edit Chamber button (top-right of the page header)."],
+         "Gear icon in the top navigation bar (far right, next to the PROD/SANDBOX pill)."],
         ["Batch details",
          "Batch detail page → Edit Batch and Delete buttons (top-right header). "
          "Deleting a batch removes all its flushes and sales."],
