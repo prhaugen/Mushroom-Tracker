@@ -1548,9 +1548,12 @@ def build():
                  "A colonizing batch is evaluated against colonization standards, not fruiting ones. "
                  "The Fruiting Chamber Date field is the definitive signal: if set, the block "
                  "is in the chamber and fruiting guardrails apply even if status is still Colonized. "
-                 "If blank, the block is pre-chamber (cold shock or awaiting placement) and "
-                 "colonization guardrails apply. This allows two Colonized batches in the same "
-                 "chamber to be evaluated correctly — one in the SGFC, one in cold shock."],
+                 "If blank, the block is treated as an intentional pre-chamber hold — "
+                 "either in cold shock or awaiting placement — and colonization guardrails apply. "
+                 "The agent will NOT prompt you to confirm placement or flag the missing date as a "
+                 "data gap; it understands this is normal grower workflow. "
+                 "This allows two Colonized batches to be evaluated correctly at the same time — "
+                 "one in the SGFC with fruiting guardrails, one in cold shock with colonization guardrails."],
                 ["On Track",
                  "Batches with no issues. Shown as green pills linking directly to each batch detail page."],
                 ["Pattern Observations",
