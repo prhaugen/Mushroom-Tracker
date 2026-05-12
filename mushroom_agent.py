@@ -161,45 +161,81 @@ def _get_all_flushes_per_batch(conn, batch_ids: list) -> dict:
     return result
 
 
-def _get_env_summary(conn, batch_ids: list):
-    if not batch_ids:
+def _get_env_summary(conn, batch_chamber_map: dict):
+    """
+    batch_chamber_map: {batch_id: chamber_id} for all active batches.
+    Includes chamber-level rows (batch_id IS NULL) from sensor imports and
+    attributes them to every active batch sharing that chamber.
+    """
+    if not batch_chamber_map:
         return {}, []
-    ph = ','.join('?' * len(batch_ids))
 
-    summary_rows = conn.execute(f"""
-        SELECT batch_id,
-               COUNT(*) AS reading_count,
-               ROUND(AVG(temp_f), 1)      AS avg_temp_f,
-               ROUND(MIN(temp_f), 1)      AS min_temp_f,
-               ROUND(MAX(temp_f), 1)      AS max_temp_f,
-               ROUND(AVG(humidity_rh), 1) AS avg_humidity_rh,
-               ROUND(MIN(humidity_rh), 1) AS min_humidity_rh,
-               ROUND(MAX(humidity_rh), 1) AS max_humidity_rh,
-               ROUND(AVG(co2_ppm), 0)     AS avg_co2_ppm,
-               ROUND(MIN(co2_ppm), 0)     AS min_co2_ppm,
-               ROUND(MAX(co2_ppm), 0)     AS max_co2_ppm
-        FROM environment_logs
-        WHERE batch_id IN ({ph})
-          AND logged_at >= datetime('now', '-24 hours')
-        GROUP BY batch_id
-    """, batch_ids).fetchall()
-    summaries = {row['batch_id']: dict(row) for row in summary_rows}
+    batch_ids   = list(batch_chamber_map.keys())
+    chamber_ids = list({cid for cid in batch_chamber_map.values() if cid})
 
-    detail_rows = conn.execute(f"""
-        SELECT batch_id, logged_at, phase, temp_f, humidity_rh, co2_ppm
-        FROM environment_logs
-        WHERE batch_id IN ({ph})
-          AND logged_at >= datetime('now', '-24 hours')
-        ORDER BY batch_id, logged_at
-    """, batch_ids).fetchall()
+    # chamber_id → [batch_id, ...] for attributing chamber-level rows
+    chamber_to_batches: dict = {}
+    for bid, cid in batch_chamber_map.items():
+        if cid:
+            chamber_to_batches.setdefault(cid, []).append(bid)
 
-    by_batch = {}
+    ph_b = ','.join('?' * len(batch_ids))
+
+    if chamber_ids:
+        ph_c = ','.join('?' * len(chamber_ids))
+        detail_rows = conn.execute(f"""
+            SELECT batch_id, chamber_id, logged_at, phase, temp_f, humidity_rh, co2_ppm
+            FROM environment_logs
+            WHERE (
+                (batch_id IN ({ph_b}))
+                OR (batch_id IS NULL AND chamber_id IN ({ph_c}))
+            )
+              AND logged_at >= datetime('now', '-24 hours')
+            ORDER BY logged_at
+        """, batch_ids + chamber_ids).fetchall()
+    else:
+        detail_rows = conn.execute(f"""
+            SELECT batch_id, chamber_id, logged_at, phase, temp_f, humidity_rh, co2_ppm
+            FROM environment_logs
+            WHERE batch_id IN ({ph_b})
+              AND logged_at >= datetime('now', '-24 hours')
+            ORDER BY logged_at
+        """, batch_ids).fetchall()
+
+    # Attribute each row to the appropriate batch_id(s)
+    by_batch: dict = {}
     for row in detail_rows:
-        by_batch.setdefault(row['batch_id'], []).append(dict(row))
+        d = dict(row)
+        if d['batch_id'] is not None:
+            by_batch.setdefault(d['batch_id'], []).append(d)
+        else:
+            for bid in chamber_to_batches.get(d['chamber_id'], []):
+                by_batch.setdefault(bid, []).append(d)
+
+    # Build per-batch summaries in Python (avoids re-querying)
+    summaries: dict = {}
+    for bid, readings in by_batch.items():
+        temps = [r['temp_f']      for r in readings if r['temp_f']      is not None]
+        hums  = [r['humidity_rh'] for r in readings if r['humidity_rh'] is not None]
+        co2s  = [r['co2_ppm']     for r in readings if r['co2_ppm']     is not None]
+        summaries[bid] = {
+            'batch_id':        bid,
+            'reading_count':   len(readings),
+            'avg_temp_f':      round(sum(temps) / len(temps), 1) if temps else None,
+            'min_temp_f':      round(min(temps), 1)              if temps else None,
+            'max_temp_f':      round(max(temps), 1)              if temps else None,
+            'avg_humidity_rh': round(sum(hums)  / len(hums),  1) if hums  else None,
+            'min_humidity_rh': round(min(hums),  1)              if hums  else None,
+            'max_humidity_rh': round(max(hums),  1)              if hums  else None,
+            'avg_co2_ppm':     round(sum(co2s)  / len(co2s),  0) if co2s  else None,
+            'min_co2_ppm':     round(min(co2s),  0)              if co2s  else None,
+            'max_co2_ppm':     round(max(co2s),  0)              if co2s  else None,
+        }
 
     flags = []
     for batch_id, readings in by_batch.items():
-        phase = readings[-1].get('phase', 'fruiting') if readings else 'fruiting'
+        readings.sort(key=lambda r: r['logged_at'])
+        phase = readings[-1].get('phase') or 'fruiting'
         guardrails = ENV_GUARDRAILS.get(phase, ENV_GUARDRAILS.get('fruiting', {}))
         min_hours = guardrails.get('consecutive_hours_to_flag', 2)
 
@@ -313,9 +349,11 @@ def get_snapshot(conn) -> dict:
     active_batches = _get_active_batches(conn)
     batch_ids = [b['id'] for b in active_batches]
 
+    batch_chamber_map = {b['id']: b.get('chamber_id') for b in active_batches}
+
     latest_flushes  = _get_latest_flush_per_batch(conn, batch_ids)
     all_flushes     = _get_all_flushes_per_batch(conn, batch_ids)
-    env_summaries, env_flags = _get_env_summary(conn, batch_ids)
+    env_summaries, env_flags = _get_env_summary(conn, batch_chamber_map)
     contamination   = _get_contamination_summary(conn)
     historical      = _get_historical_averages(conn)
 

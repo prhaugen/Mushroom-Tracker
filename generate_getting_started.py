@@ -567,7 +567,9 @@ def build():
           "If you use a <b>Govee H5179</b> sensor, you can bulk-import its history instead -- "
           "click <b>Import Govee CSV</b> on the Environment History page and upload "
           "your Govee app export. Both &deg;F and &deg;C exports are supported, and "
-          "re-importing the same file is safe (duplicates are skipped automatically)."),
+          "re-importing the same file is safe (duplicates are skipped automatically). "
+          "Govee-imported readings are also picked up automatically by the AI briefing agent -- "
+          "no extra steps needed."),
         sp(8),
         field_table([
             ("Phase",          "Select <b>Colonization</b> if your batch is still colonizing, "

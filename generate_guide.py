@@ -1324,6 +1324,11 @@ def build():
                 ["Phase",
                  "All imported rows are tagged with phase = fruiting. "
                  "Edit individual readings afterwards if a different phase applies."],
+                ["AI Briefing integration",
+                 "Govee-imported readings are automatically included in the AI Daily Briefing's "
+                 "environmental analysis. The agent queries sensor data by chamber, so all imported "
+                 "rows feed into daily alerts and out-of-range detection — "
+                 "no extra steps are needed after importing."],
             ],
             col_widths=[3.5*cm, 12.7*cm],
         ),
@@ -1404,7 +1409,9 @@ def build():
         sp(4),
         *bullet([
             "All active batches with their lifecycle status, days in current stage, and flush history",
-            "Last 24 hours of environmental readings per batch, with out-of-range streak detection",
+            "Last 24 hours of environmental readings per batch or chamber — including sensor imports "
+            "from the Govee CSV importer, which are linked by chamber rather than batch — "
+            "with out-of-range streak detection",
             "Your historical averages per species (used once you have 5+ completed batches)",
             "Species timelines and expected performance benchmarks",
         ]),
