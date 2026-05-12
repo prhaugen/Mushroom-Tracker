@@ -277,9 +277,18 @@ def batch_detail(batch_id):
     """, (batch_id,)).fetchall()
     yield_chart = [{'flush': f['flush_number'], 'weight': f['fresh_weight_g'],
                     'quality': f['quality_rating']} for f in flushes]
+    cycle_days = None
+    if batch['block_end_date'] and batch['inoculation_date']:
+        try:
+            d1 = date.fromisoformat(batch['inoculation_date'][:10])
+            d2 = date.fromisoformat(batch['block_end_date'][:10])
+            cycle_days = (d2 - d1).days
+        except Exception:
+            pass
     conn.close()
     return render_template('batch_detail.html',
-        batch=batch, flushes=flushes, sales=sales, yield_chart=yield_chart)
+        batch=batch, flushes=flushes, sales=sales, yield_chart=yield_chart,
+        cycle_days=cycle_days)
 
 
 @app.route('/batch/<int:batch_id>/update', methods=['POST'])
@@ -297,6 +306,8 @@ def batch_update(batch_id):
         updates['colonization_end_date'] = today
     if new_status == 'pinning':
         updates['pinning_started_at'] = today
+    if new_status == 'done' and not batch['block_end_date']:
+        updates['block_end_date'] = today
     if new_status == 'contaminated':
         updates['contamination_flag'] = 1
         if f.get('contamination_type'):

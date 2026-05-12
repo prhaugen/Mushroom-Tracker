@@ -86,6 +86,21 @@
     </div>
     {% endfor %}
   </div>
+  {% if batch.block_end_date %}
+  <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border-muted);
+              font-size:12px;color:var(--text-muted);display:flex;gap:20px;flex-wrap:wrap">
+    <span>Retired <b style="color:var(--text)">{{ batch.block_end_date }}</b></span>
+    {% if cycle_days is not none %}
+    <span>Total cycle <b style="color:var(--text)">{{ cycle_days }} days</b></span>
+    {% endif %}
+    {% if batch.total_yield_g %}
+    <span>Cumulative yield <b style="color:var(--text)">{{ batch.total_yield_g|int }}g</b></span>
+    {% endif %}
+    {% if batch.dry_weight_g and batch.total_yield_g %}
+    <span>Final BE% <b style="color:var(--green)">{{ "%.1f"|format(batch.total_yield_g / batch.dry_weight_g * 100) }}%</b></span>
+    {% endif %}
+  </div>
+  {% endif %}
 </div>
 
 <div class="g2 mb-16">

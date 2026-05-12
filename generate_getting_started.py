@@ -634,7 +634,9 @@ def build():
                           "fully opening (before the veil tears or edges curl up)."),
         ("Resting",      "Post-harvest. Reduce humidity slightly for 3-7 days then "
                           "return to fruiting conditions for the next flush."),
-        ("Done",         "Block is exhausted. Compost or discard."),
+        ("Done",         "Block is exhausted. Compost or discard. "
+                          "Sets block_end_date automatically — used to calculate total cycle length "
+                          "and feed per-species averages in the AI briefing."),
         ("Contaminated", "Mold detected. Remove from chamber immediately. "
                           "Select the contamination type when you update."),
     ]

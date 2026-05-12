@@ -356,6 +356,9 @@ def _get_historical_averages(conn) -> dict:
                ROUND(AVG(CASE WHEN colonization_end_date IS NOT NULL
                    THEN julianday(colonization_end_date) - julianday(inoculation_date)
                    END), 1) AS avg_colonization_days,
+               ROUND(AVG(CASE WHEN block_end_date IS NOT NULL AND inoculation_date IS NOT NULL
+                   THEN julianday(block_end_date) - julianday(inoculation_date)
+                   END), 1) AS avg_total_cycle_days,
                ROUND(AVG(total_flushes), 1) AS avg_flushes
         FROM batches
         WHERE status = 'done'

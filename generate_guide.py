@@ -935,7 +935,11 @@ def build():
                 ["Resting",      "Gray",
                  "Post-harvest rest. Reduce humidity slightly; allow 3-7 days recovery."],
                 ["Done",         "Dim",
-                 "The block has given all it can. Retire or compost."],
+                 "The block has given all it can. Retire or compost. "
+                 "Setting this status automatically records <b>block_end_date</b> — "
+                 "the completion date used to calculate total cycle length "
+                 "(inoculation to exhaustion). The Batch Detail lifecycle card shows "
+                 "the retirement date, total cycle days, cumulative yield, and final BE%."],
                 ["Contaminated", "Red",
                  "Mold detected. Remove from the chamber immediately in a sealed bag."],
             ],
@@ -960,7 +964,10 @@ def build():
             "The <b>Pinning date</b> works differently: each time you set status to Pinning, the date is "
             "staged internally and pre-filled into the next flush form's Pinning Date field. "
             "This means every flush — not just the first — gets its own accurate pin date, "
-            "which is stored on the flush record where it belongs for per-flush analysis.",
+            "which is stored on the flush record where it belongs for per-flush analysis. "
+            "The <b>Block end date</b> is recorded automatically when you set status to Done — "
+            "it enables total cycle time calculation (inoculation to exhaustion) and feeds "
+            "the AI agent's per-species average cycle length.",
             label="Note:"
         ),
         sp(8),
@@ -1417,7 +1424,9 @@ def build():
             "Last 24 hours of environmental readings per batch or chamber — including sensor imports "
             "from the Govee CSV importer, which are linked by chamber rather than batch — "
             "with out-of-range streak detection using per-batch, phase-aware, species-specific thresholds",
-            "Your historical averages per species (used once you have 5+ completed batches)",
+            "Your historical averages per species — average BE%, colonization days, "
+            "total cycle days (inoculation to block retirement), flush count, and "
+            "days to first pin — used once you have 5+ completed batches per species",
             "Species timelines and expected performance benchmarks",
         ]),
         sp(6),

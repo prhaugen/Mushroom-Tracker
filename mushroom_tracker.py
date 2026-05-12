@@ -204,6 +204,7 @@ def init_db():
             contamination_type      TEXT,
             abort_flag              INTEGER DEFAULT 0,
             abort_date              TEXT,
+            block_end_date          TEXT,
             total_flushes           INTEGER DEFAULT 0,
             total_yield_g           REAL DEFAULT 0.0,
             fruiting_start_date     TEXT,
@@ -307,6 +308,7 @@ def init_db():
         "pinning_started_at": "TEXT",
         "fruiting_start_date": "TEXT",
         "sourced_block": "INTEGER DEFAULT 0",
+        "block_end_date": "TEXT",
     }.items():
         if col not in existing_b:
             c.execute(f"ALTER TABLE batches ADD COLUMN {col} {typedef}")
@@ -513,6 +515,8 @@ def cmd_batch_update(args):
     if status == "contaminated":
         updates["contamination_flag"] = 1
         updates["contamination_type"] = _ask("Type (trich/wet_rot/bacterial/other)")
+    if status == "done" and not b["block_end_date"]:
+        updates["block_end_date"] = _ask("Block end date", today)
     if status == "aborted":
         updates["abort_flag"] = 1; updates["abort_date"] = _ask("Abort date",today)
     notes = _ask("Notes (optional)")
