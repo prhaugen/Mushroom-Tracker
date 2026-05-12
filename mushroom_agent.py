@@ -44,13 +44,15 @@ Do NOT flag missing dry_weight_g, substrate percentages, sterilization method, \
 spawn type, or spawn lot — these fields are not applicable and their absence is \
 expected. Focus monitoring for sourced blocks on lifecycle timing, environmental \
 conditions, and flush performance only. \
-For any batch (sourced or not), use "fruiting_start_date" to determine whether \
-the block is in the fruiting chamber: if fruiting_start_date is set, the block \
-is in the chamber and should be evaluated against fruiting environment standards \
-even if its status is still "colonized". If fruiting_start_date is absent and \
-status is "colonized", the block has not yet entered the chamber — it may be in \
-cold shock or simply awaiting chamber placement — and should not be flagged for \
-missing fruiting-chamber readings or evaluated against fruiting guardrails.
+For any batch (sourced or not), use the "in_chamber" field to determine whether \
+the block is currently in the fruiting chamber (derived from fruiting_start_date). \
+If in_chamber is true, apply fruiting environment standards even if status is still \
+"colonized". If in_chamber is false and status is "colonized", the block is \
+intentionally being held outside the chamber — either in cold shock or pre-chamber \
+staging. This is NORMAL and EXPECTED grower workflow. Do NOT flag it for missing \
+fruiting-chamber readings, do NOT prompt the grower to confirm placement or update \
+the record, and do NOT evaluate it against fruiting guardrails. The grower will \
+set fruiting_start_date when the block enters the chamber.
 
 Output format — return JSON only, no preamble:
 {
@@ -142,6 +144,7 @@ def _get_active_batches(conn) -> list:
         b['days_since_inoculation'] = _days_between(b.get('inoculation_date'))
 
         b['sourced_block'] = bool(b.get('sourced_block'))
+        b['in_chamber']    = bool(b.get('fruiting_start_date'))
 
         status = b.get('status', '')
         if status == 'colonizing':
