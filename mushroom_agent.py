@@ -43,7 +43,11 @@ commercially prepared fruiting block purchased from a supplier (e.g. North Spore
 Do NOT flag missing dry_weight_g, substrate percentages, sterilization method, \
 spawn type, or spawn lot — these fields are not applicable and their absence is \
 expected. Focus monitoring for sourced blocks on lifecycle timing, environmental \
-conditions, and flush performance only.
+conditions, and flush performance only. \
+A sourced block with status "colonized" is likely in cold shock (pre-fruiting \
+refrigerator treatment) and has NOT yet been placed in the fruiting chamber — \
+do not evaluate it against fruiting environment standards or flag missing chamber \
+readings. It will move to "fruiting" once it enters the chamber.
 
 Output format — return JSON only, no preamble:
 {
@@ -89,19 +93,15 @@ def _days_between(d1_str, d2_str=None):
         return None
 
 
-def _batch_guardrails(status: str, species_key: str, sourced_block: bool = False):
+def _batch_guardrails(status: str, species_key: str):
     """
     Return (temp_range, hum_range, co2_range, min_hours) for one batch.
     Uses the batch's actual lifecycle status (not the env log phase field)
     and overlays species-specific targets from SPECIES_TIMELINES when available.
-    Sourced blocks skip colonization guardrails — they arrive fully colonized
-    and go straight into fruiting conditions.
+    Status is the source of truth — set it to Colonized for cold shock,
+    Fruiting once the block is in the chamber.
     """
-    effective_status = status
-    if sourced_block and status in ('colonizing', 'colonized'):
-        effective_status = 'fruiting'
-
-    phase_key  = effective_status if effective_status in ENV_GUARDRAILS else 'fruiting'
+    phase_key  = status if status in ENV_GUARDRAILS else 'fruiting'
     base       = ENV_GUARDRAILS.get(phase_key, ENV_GUARDRAILS['fruiting'])
 
     temp_range = base.get('temp_f',      (60, 85))
@@ -110,10 +110,10 @@ def _batch_guardrails(status: str, species_key: str, sourced_block: bool = False
     min_hours  = base.get('consecutive_hours_to_flag', 2)
 
     sp = SPECIES_TIMELINES.get(species_key or '', {})
-    if effective_status in ('pinning', 'fruiting'):
+    if status in ('pinning', 'fruiting'):
         if 'fruiting_temp_f'      in sp: temp_range = sp['fruiting_temp_f']
         if 'fruiting_humidity_rh' in sp: hum_range  = sp['fruiting_humidity_rh']
-    elif effective_status in ('colonizing', 'colonized'):
+    elif status in ('colonizing', 'colonized'):
         if 'colonization_temp_f'  in sp: temp_range = sp['colonization_temp_f']
 
     return temp_range, hum_range, co2_range, min_hours
@@ -270,14 +270,11 @@ def _get_env_summary(conn, batch_info_map: dict):
     for batch_id, readings in by_batch.items():
         readings.sort(key=lambda r: r['logged_at'])
 
-        info          = batch_info_map.get(batch_id, {})
-        status        = info.get('status', 'fruiting')
-        species_key   = (info.get('species') or '').lower()
-        sourced_block = info.get('sourced_block', False)
+        info        = batch_info_map.get(batch_id, {})
+        status      = info.get('status', 'fruiting')
+        species_key = (info.get('species') or '').lower()
 
-        temp_range, hum_range, co2_range, min_hours = _batch_guardrails(
-            status, species_key, sourced_block
-        )
+        temp_range, hum_range, co2_range, min_hours = _batch_guardrails(status, species_key)
 
         param_ranges = {'temp_f': temp_range, 'humidity_rh': hum_range}
         if co2_range:

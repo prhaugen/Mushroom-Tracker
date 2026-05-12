@@ -783,11 +783,14 @@ def build():
                  "rather than prepared in-house. "
                  "Checking this box automatically sets the Initial Status to Fruiting — "
                  "commercial blocks arrive fully colonized and go straight into fruiting conditions. "
-                 "Adjust the status manually if the block has not yet been placed in the chamber. "
+                 "If you are cold-shocking the block before placing it in the chamber, "
+                 "change the status to Colonized; update it to Fruiting once the block enters the chamber. "
+                 "Status is the source of truth for environmental monitoring — "
+                 "the agent uses whatever status is set and does not override it for sourced blocks. "
+                 "A sourced block in Colonized status is treated as being in cold shock "
+                 "(pre-chamber) and is not evaluated against fruiting environment standards. "
                  "The AI briefing agent will not flag missing substrate composition, sterilization, "
                  "or spawn details — those fields are not applicable for sourced blocks. "
-                 "Even if the status is accidentally left as Colonizing, the agent always applies "
-                 "fruiting guardrails to sourced blocks for environmental alert evaluation. "
                  "You may still enter estimated dry weight and moisture if known; they will be "
                  "used for BE% calculations without triggering missing-data alerts. "
                  "The Batch Detail page labels the batch as 'sourced block' in the subtitle."],
@@ -1541,8 +1544,11 @@ def build():
                  "so a Shiitake fruiting at 83% RH is not flagged (its target is 80-90%), "
                  "while a Blue Oyster at the same reading would be (its target is 85-95%). "
                  "A colonizing batch is evaluated against colonization standards, not fruiting ones. "
-                 "Sourced blocks are always evaluated against fruiting standards regardless of "
-                 "their recorded status, since they arrive fully colonized."],
+                 "Status is the source of truth for all batches including sourced blocks — "
+                 "set the status to Colonized during cold shock and Fruiting once "
+                 "the block is in the chamber. The agent also understands that a sourced "
+                 "block in Colonized status is in cold shock and will not flag it for "
+                 "missing fruiting-chamber readings."],
                 ["On Track",
                  "Batches with no issues. Shown as green pills linking directly to each batch detail page."],
                 ["Pattern Observations",
