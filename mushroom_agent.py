@@ -89,6 +89,30 @@ def _days_between(d1_str, d2_str=None):
         return None
 
 
+def _batch_guardrails(status: str, species_key: str):
+    """
+    Return (temp_range, hum_range, co2_range, min_hours) for one batch.
+    Uses the batch's actual lifecycle status (not the env log phase field)
+    and overlays species-specific targets from SPECIES_TIMELINES when available.
+    """
+    phase_key  = status if status in ENV_GUARDRAILS else 'fruiting'
+    base       = ENV_GUARDRAILS.get(phase_key, ENV_GUARDRAILS['fruiting'])
+
+    temp_range = base.get('temp_f',      (60, 85))
+    hum_range  = base.get('humidity_rh', (80, 95))
+    co2_range  = base.get('co2_ppm')
+    min_hours  = base.get('consecutive_hours_to_flag', 2)
+
+    sp = SPECIES_TIMELINES.get(species_key or '', {})
+    if status in ('pinning', 'fruiting'):
+        if 'fruiting_temp_f'     in sp: temp_range = sp['fruiting_temp_f']
+        if 'fruiting_humidity_rh' in sp: hum_range  = sp['fruiting_humidity_rh']
+    elif status in ('colonizing', 'colonized'):
+        if 'colonization_temp_f' in sp: temp_range = sp['colonization_temp_f']
+
+    return temp_range, hum_range, co2_range, min_hours
+
+
 # ── Data collection ───────────────────────────────────────────────────────────
 
 def _get_active_batches(conn) -> list:
@@ -161,21 +185,25 @@ def _get_all_flushes_per_batch(conn, batch_ids: list) -> dict:
     return result
 
 
-def _get_env_summary(conn, batch_chamber_map: dict):
+def _get_env_summary(conn, batch_info_map: dict):
     """
-    batch_chamber_map: {batch_id: chamber_id} for all active batches.
+    batch_info_map: {batch_id: {'chamber_id': int, 'status': str, 'species': str}}
+
     Includes chamber-level rows (batch_id IS NULL) from sensor imports and
     attributes them to every active batch sharing that chamber.
+    Flags use each batch's actual status and species-specific thresholds.
     """
-    if not batch_chamber_map:
+    if not batch_info_map:
         return {}, []
 
-    batch_ids   = list(batch_chamber_map.keys())
-    chamber_ids = list({cid for cid in batch_chamber_map.values() if cid})
+    batch_ids   = list(batch_info_map.keys())
+    chamber_ids = list({v['chamber_id'] for v in batch_info_map.values()
+                        if v.get('chamber_id')})
 
     # chamber_id → [batch_id, ...] for attributing chamber-level rows
     chamber_to_batches: dict = {}
-    for bid, cid in batch_chamber_map.items():
+    for bid, info in batch_info_map.items():
+        cid = info.get('chamber_id')
         if cid:
             chamber_to_batches.setdefault(cid, []).append(bid)
 
@@ -184,7 +212,7 @@ def _get_env_summary(conn, batch_chamber_map: dict):
     if chamber_ids:
         ph_c = ','.join('?' * len(chamber_ids))
         detail_rows = conn.execute(f"""
-            SELECT batch_id, chamber_id, logged_at, phase, temp_f, humidity_rh, co2_ppm
+            SELECT batch_id, chamber_id, logged_at, temp_f, humidity_rh, co2_ppm
             FROM environment_logs
             WHERE (
                 (batch_id IN ({ph_b}))
@@ -195,7 +223,7 @@ def _get_env_summary(conn, batch_chamber_map: dict):
         """, batch_ids + chamber_ids).fetchall()
     else:
         detail_rows = conn.execute(f"""
-            SELECT batch_id, chamber_id, logged_at, phase, temp_f, humidity_rh, co2_ppm
+            SELECT batch_id, chamber_id, logged_at, temp_f, humidity_rh, co2_ppm
             FROM environment_logs
             WHERE batch_id IN ({ph_b})
               AND logged_at >= datetime('now', '-24 hours')
@@ -212,7 +240,7 @@ def _get_env_summary(conn, batch_chamber_map: dict):
             for bid in chamber_to_batches.get(d['chamber_id'], []):
                 by_batch.setdefault(bid, []).append(d)
 
-    # Build per-batch summaries in Python (avoids re-querying)
+    # Build per-batch summaries in Python
     summaries: dict = {}
     for bid, readings in by_batch.items():
         temps = [r['temp_f']      for r in readings if r['temp_f']      is not None]
@@ -235,16 +263,20 @@ def _get_env_summary(conn, batch_chamber_map: dict):
     flags = []
     for batch_id, readings in by_batch.items():
         readings.sort(key=lambda r: r['logged_at'])
-        phase = readings[-1].get('phase') or 'fruiting'
-        guardrails = ENV_GUARDRAILS.get(phase, ENV_GUARDRAILS.get('fruiting', {}))
-        min_hours = guardrails.get('consecutive_hours_to_flag', 2)
 
-        for param in ('temp_f', 'humidity_rh', 'co2_ppm'):
-            if param not in guardrails:
-                continue
-            lo, hi = guardrails[param]
+        info        = batch_info_map.get(batch_id, {})
+        status      = info.get('status', 'fruiting')
+        species_key = (info.get('species') or '').lower()
+
+        temp_range, hum_range, co2_range, min_hours = _batch_guardrails(status, species_key)
+
+        param_ranges = {'temp_f': temp_range, 'humidity_rh': hum_range}
+        if co2_range:
+            param_ranges['co2_ppm'] = co2_range
+
+        for param, (lo, hi) in param_ranges.items():
             streak_start_time = None
-            streak_last_val = None
+            streak_last_val   = None
 
             for reading in readings:
                 val = reading.get(param)
@@ -264,16 +296,16 @@ def _get_env_summary(conn, batch_chamber_map: dict):
                             hours = (t2 - t1).total_seconds() / 3600
                             if hours >= min_hours:
                                 flags.append({
-                                    'batch_id': batch_id,
-                                    'parameter': param,
-                                    'observed': streak_last_val,
+                                    'batch_id':       batch_id,
+                                    'parameter':      param,
+                                    'observed':       streak_last_val,
                                     'expected_range': f"{lo}–{hi}",
                                     'duration_hours': round(hours, 1),
                                 })
                         except Exception:
                             pass
                     streak_start_time = None
-                    streak_last_val = None
+                    streak_last_val   = None
 
             # streak extends to end of window
             if streak_start_time is not None:
@@ -282,9 +314,9 @@ def _get_env_summary(conn, batch_chamber_map: dict):
                     hours = (datetime.now() - t1).total_seconds() / 3600
                     if hours >= min_hours:
                         flags.append({
-                            'batch_id': batch_id,
-                            'parameter': param,
-                            'observed': streak_last_val,
+                            'batch_id':       batch_id,
+                            'parameter':      param,
+                            'observed':       streak_last_val,
                             'expected_range': f"{lo}–{hi}",
                             'duration_hours': round(hours, 1),
                         })
@@ -349,11 +381,18 @@ def get_snapshot(conn) -> dict:
     active_batches = _get_active_batches(conn)
     batch_ids = [b['id'] for b in active_batches]
 
-    batch_chamber_map = {b['id']: b.get('chamber_id') for b in active_batches}
+    batch_info_map = {
+        b['id']: {
+            'chamber_id': b.get('chamber_id'),
+            'status':     b.get('status', 'fruiting'),
+            'species':    b.get('species', ''),
+        }
+        for b in active_batches
+    }
 
     latest_flushes  = _get_latest_flush_per_batch(conn, batch_ids)
     all_flushes     = _get_all_flushes_per_batch(conn, batch_ids)
-    env_summaries, env_flags = _get_env_summary(conn, batch_chamber_map)
+    env_summaries, env_flags = _get_env_summary(conn, batch_info_map)
     contamination   = _get_contamination_summary(conn)
     historical      = _get_historical_averages(conn)
 

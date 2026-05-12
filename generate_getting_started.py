@@ -883,7 +883,10 @@ def build():
             "the navigation bar for an AI-generated daily status report. "
             "Claude analyzes all your active batches against species timelines and environmental "
             "readings, then returns a prioritized list of issues, suggested actions, and "
-            "pattern observations. Briefings run automatically every morning at 06:00 "
+            "pattern observations. Environmental alerts use species-specific and lifecycle-phase-aware "
+            "thresholds — a colonizing batch is not evaluated against fruiting humidity standards, "
+            "and a Shiitake has different acceptable ranges than an oyster. "
+            "Briefings run automatically every morning at 06:00 "
             "while the app is running, or you can trigger one manually with "
             "<b>Run Briefing Now</b>. Requires an Anthropic API key set as the "
             "ANTHROPIC_API_KEY environment variable.",

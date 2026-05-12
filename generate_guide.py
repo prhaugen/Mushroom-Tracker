@@ -1411,7 +1411,7 @@ def build():
             "All active batches with their lifecycle status, days in current stage, and flush history",
             "Last 24 hours of environmental readings per batch or chamber — including sensor imports "
             "from the Govee CSV importer, which are linked by chamber rather than batch — "
-            "with out-of-range streak detection",
+            "with out-of-range streak detection using per-batch, phase-aware, species-specific thresholds",
             "Your historical averages per species (used once you have 5+ completed batches)",
             "Species timelines and expected performance benchmarks",
         ]),
@@ -1521,7 +1521,12 @@ def build():
                 ["Environmental Alerts",
                  "Out-of-range readings that persisted for 2+ consecutive hours in the last 24 hours. "
                  "Shows the parameter, observed value, expected range, and duration. "
-                 "Temperature, humidity, and CO2 are all monitored."],
+                 "Temperature, humidity, and CO2 are all monitored. "
+                 "Thresholds are per-batch: the agent uses each batch's actual lifecycle status "
+                 "(colonizing, pinning, fruiting, resting) and species-specific targets — "
+                 "so a Shiitake fruiting at 83% RH is not flagged (its target is 80-90%), "
+                 "while a Blue Oyster at the same reading would be (its target is 85-95%). "
+                 "A colonizing batch is evaluated against colonization standards, not fruiting ones."],
                 ["On Track",
                  "Batches with no issues. Shown as green pills linking directly to each batch detail page."],
                 ["Pattern Observations",
