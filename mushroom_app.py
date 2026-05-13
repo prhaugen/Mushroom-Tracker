@@ -5,7 +5,7 @@ Run: python mushroom_app.py  →  http://localhost:5000
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
 import sqlite3, json, os, csv, io
 from pathlib import Path
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 import sys
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -448,32 +448,22 @@ def env_log():
     return render_template('env_log.html', chamber=chamber, active_batches=active_batches, log=None)
 
 
-_ENV_WINDOWS = {
-    '2h':  {'hours': 2,   'bucket_min': 1,   'label': '2h'},
-    '6h':  {'hours': 6,   'bucket_min': 5,   'label': '6h'},
-    '24h': {'hours': 24,  'bucket_min': 15,  'label': '24h'},
-    '3d':  {'hours': 72,  'bucket_min': 60,  'label': '3d'},
-    '7d':  {'hours': 168, 'bucket_min': 120, 'label': '7d'},
-    '30d': {'hours': 720, 'bucket_min': 360, 'label': '30d'},
-}
+_ENV_RESOLUTIONS = (1, 5, 10, 30, 60)
 
 def _aggregate_env_logs(rows, bucket_min):
     """Average readings into fixed-size time buckets. Returns list of dicts."""
     if bucket_min <= 1:
         return [dict(r) for r in rows]
+    from math import floor
     buckets = {}
     for row in rows:
         try:
-            dt = datetime.strptime(str(row['logged_at'])[:19], '%Y-%m-%d %H:%M:%S')
-            total_min = dt.hour * 60 + dt.minute + dt.day * 1440
-            slot = (total_min // bucket_min) * bucket_min
-            # Reconstruct a label from the bucket start
-            day_offset  = slot // 1440
-            slot_in_day = slot % 1440
-            bucket_dt   = dt.replace(hour=slot_in_day // 60,
-                                     minute=slot_in_day % 60,
-                                     second=0, microsecond=0)
-            key = bucket_dt.strftime('%Y-%m-%d %H:%M')
+            dt  = datetime.strptime(str(row['logged_at'])[:19], '%Y-%m-%d %H:%M:%S')
+            # Floor to bucket boundary using minutes-since-epoch (local, no tz needed)
+            epoch_min   = int(dt.timestamp()) // 60
+            bucket_min_ = (epoch_min // bucket_min) * bucket_min
+            bucket_dt   = datetime.fromtimestamp(bucket_min_ * 60)
+            key         = bucket_dt.strftime('%Y-%m-%d %H:%M')
         except Exception:
             continue
         if key not in buckets:
@@ -499,10 +489,30 @@ def env_history():
     chamber = get_primary_chamber()
     if not chamber: return redirect(url_for('setup'))
 
-    window_key = request.args.get('window', '24h')
-    if window_key not in _ENV_WINDOWS:
-        window_key = '24h'
-    w = _ENV_WINDOWS[window_key]
+    now = datetime.now()
+    default_start = (now - timedelta(hours=24)).strftime('%Y-%m-%dT%H:%M')
+    default_end   = now.strftime('%Y-%m-%dT%H:%M')
+
+    start_str = request.args.get('start', default_start)
+    end_str   = request.args.get('end',   default_end)
+    try:
+        res = int(request.args.get('res', 15))
+        if res not in _ENV_RESOLUTIONS:
+            res = 15
+    except (ValueError, TypeError):
+        res = 15
+
+    try:
+        start_dt = datetime.strptime(start_str[:16], '%Y-%m-%dT%H:%M')
+        end_dt   = datetime.strptime(end_str[:16],   '%Y-%m-%dT%H:%M')
+    except ValueError:
+        start_dt  = now - timedelta(hours=24)
+        end_dt    = now
+        start_str = start_dt.strftime('%Y-%m-%dT%H:%M')
+        end_str   = end_dt.strftime('%Y-%m-%dT%H:%M')
+
+    start_db = start_dt.strftime('%Y-%m-%d %H:%M:%S')
+    end_db   = end_dt.strftime('%Y-%m-%d %H:%M:%S')
 
     conn = get_db()
     logs = conn.execute("""
@@ -511,15 +521,13 @@ def env_history():
         WHERE e.chamber_id=? ORDER BY e.logged_at DESC
     """, (chamber['id'],)).fetchall()
 
-    # Chart: fetch the selected window, aggregate, pass to template
     chart_rows = conn.execute("""
         SELECT logged_at, temp_f, humidity_rh, co2_ppm
         FROM environment_logs
-        WHERE chamber_id = ?
-          AND logged_at >= datetime('now', ? )
+        WHERE chamber_id = ? AND logged_at >= ? AND logged_at <= ?
         ORDER BY logged_at ASC
-    """, (chamber['id'], f"-{w['hours']} hours")).fetchall()
-    chart_rows = _aggregate_env_logs(chart_rows, w['bucket_min'])
+    """, (chamber['id'], start_db, end_db)).fetchall()
+    chart_rows = _aggregate_env_logs([dict(r) for r in chart_rows], res)
 
     recent_batch = conn.execute("""
         SELECT b.target_temp_f, b.target_humidity_rh, b.label, b.species
@@ -539,7 +547,8 @@ def env_history():
     conn.close()
     return render_template('env_history.html', chamber=chamber, logs=logs,
                            chart_data=chart_data,
-                           window_key=window_key, window_options=list(_ENV_WINDOWS.keys()))
+                           start_str=start_str, end_str=end_str,
+                           res=res, resolutions=_ENV_RESOLUTIONS)
 
 
 # ── Report ────────────────────────────────────────────────────────────────────

@@ -15,26 +15,49 @@
 
 {% if logs %}
 <div class="card mb-16">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-    <div class="card-title" style="margin-bottom:0">
-      Temperature &amp; Humidity Over Time
-      {% if chart_data.target_batch %}
-      <span style="font-size:11px;font-weight:400;color:var(--text-muted);margin-left:8px">— targets from {{ chart_data.target_batch }}</span>
-      {% endif %}
+  <div style="margin-bottom:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:6px">
+      <div class="card-title" style="margin-bottom:0">
+        Temperature &amp; Humidity Over Time
+        {% if chart_data.target_batch %}
+        <span style="font-size:11px;font-weight:400;color:var(--text-muted);margin-left:8px">— targets from {{ chart_data.target_batch }}</span>
+        {% endif %}
+      </div>
+      <span style="font-size:11px;color:var(--text-muted)">{{ chart_data.labels|length }} data points</span>
     </div>
-    <div style="display:flex;gap:4px">
-      {% for w in window_options %}
-      <a href="{{ url_for('env_history', window=w) }}"
-         style="padding:4px 10px;border-radius:var(--r);font-size:11px;font-weight:600;text-decoration:none;border:1px solid;
-                {% if w == window_key %}
-                background:var(--green-bg);border-color:var(--green-border);color:var(--green)
-                {% else %}
-                background:var(--surface);border-color:var(--border);color:var(--text-muted)
-                {% endif %}">
-        {{ w }}
-      </a>
-      {% endfor %}
-    </div>
+
+    <form method="GET" action="{{ url_for('env_history') }}"
+          style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:6px">
+        <label style="font-size:11px;color:var(--text-muted);white-space:nowrap">From</label>
+        <input type="datetime-local" name="start" value="{{ start_str }}"
+               style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
+                      padding:5px 8px;color:var(--text);font-size:12px;outline:none;
+                      color-scheme:dark">
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <label style="font-size:11px;color:var(--text-muted);white-space:nowrap">To</label>
+        <input type="datetime-local" name="end" value="{{ end_str }}"
+               style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
+                      padding:5px 8px;color:var(--text);font-size:12px;outline:none;
+                      color-scheme:dark">
+      </div>
+      <div style="display:flex;align-items:center;gap:5px">
+        <span style="font-size:11px;color:var(--text-muted);white-space:nowrap">Res</span>
+        {% for r in resolutions %}
+        <label style="padding:4px 9px;border-radius:var(--r);font-size:11px;font-weight:600;cursor:pointer;border:1px solid;white-space:nowrap;
+                      {% if r == res %}background:var(--green-bg);border-color:var(--green-border);color:var(--green)
+                      {% else %}background:var(--surface);border-color:var(--border);color:var(--text-muted){% endif %}">
+          <input type="radio" name="res" value="{{ r }}"
+                 {% if r == res %}checked{% endif %}
+                 onchange="this.form.submit()"
+                 style="display:none">
+          {{ r }}m
+        </label>
+        {% endfor %}
+      </div>
+      <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+    </form>
   </div>
   <div class="chart-wrap">
     <canvas id="envChart"></canvas>
