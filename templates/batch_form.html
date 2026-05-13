@@ -107,15 +107,17 @@
         {% endif %}
         <div class="fg">
           <label>Target Temperature (F)</label>
-          <input type="number" name="target_temp" step="0.5"
+          <input type="number" name="target_temp" id="targetTemp" step="0.5"
+                 oninput="updateTargetHints()"
                  value="{{ batch.target_temp_f if editing else chamber.target_temp_f }}">
-          <span class="form-hint">Ideal fruiting temp for this species</span>
+          <span class="form-hint" id="target-temp-hint">Ideal fruiting temp for this species</span>
         </div>
         <div class="fg">
           <label>Target Humidity (% RH)</label>
-          <input type="number" name="target_humidity" step="0.5" min="50" max="100"
+          <input type="number" name="target_humidity" id="targetHum" step="0.5" min="50" max="100"
+                 oninput="updateTargetHints()"
                  value="{{ batch.target_humidity_rh if editing else chamber.target_humidity_rh }}">
-          <span class="form-hint">Ideal RH for this species</span>
+          <span class="form-hint" id="target-hum-hint">Ideal RH for this species</span>
         </div>
         {% if not editing %}
         <div class="fg">
@@ -315,6 +317,8 @@
 </div>
 
 <script>
+const speciesDefaults = {{ species_defaults | safe }};
+
 function updatePctSum() {
   const inputs = document.querySelectorAll('.pct-input');
   let sum = 0;
@@ -342,14 +346,12 @@ function updateBEPreview() {
     preview.style.display = 'none';
   }
 }
-// Trigger on load if editing with existing dry weight
 updatePctSum();
 updateBEPreview();
 
 function toggleSourcedHint() {
   const checked = document.getElementById('sourcedBlock').checked;
   document.getElementById('sourcedHint').style.display = checked ? 'block' : 'none';
-  // Auto-set status for new batches — sourced blocks arrive fully colonized
   const statusSel = document.querySelector('select[name="status"]');
   if (statusSel) statusSel.value = checked ? 'fruiting' : 'colonizing';
 }
@@ -360,12 +362,48 @@ function handleSpeciesChange() {
   if (sel.value === '__other__') {
     custom.style.display = 'block';
     custom.required = true;
+    updateTargetHints();
   } else {
     custom.style.display = 'none';
     custom.required = false;
     suggestLabel(sel.value);
+    applySpeciesTargets(sel.value);
   }
 }
+
+function applySpeciesTargets(species) {
+  const defaults = speciesDefaults[species ? species.toLowerCase() : ''];
+  if (!defaults) { updateTargetHints(); return; }
+  document.getElementById('targetTemp').value = defaults.temp;
+  document.getElementById('targetHum').value  = defaults.humidity;
+  updateTargetHints();
+}
+
+function updateTargetHints() {
+  const sel     = document.getElementById('speciesSelect');
+  const species = (sel.value !== '__other__') ? sel.value.toLowerCase() : '';
+  const defaults = species ? speciesDefaults[species] : null;
+  const tempHint = document.getElementById('target-temp-hint');
+  const humHint  = document.getElementById('target-hum-hint');
+
+  if (!defaults) {
+    tempHint.textContent = 'Ideal fruiting temp for this species';
+    humHint.textContent  = 'Ideal RH for this species';
+    return;
+  }
+
+  const tempVal = parseFloat(document.getElementById('targetTemp').value);
+  const humVal  = parseFloat(document.getElementById('targetHum').value);
+  const badge   = '<span style="color:var(--amber);font-weight:600">Customized</span> &nbsp;&middot;&nbsp; ';
+
+  tempHint.innerHTML = (!isNaN(tempVal) && Math.abs(tempVal - defaults.temp) > 0.1 ? badge : '')
+    + 'Species default: ' + defaults.temp + '&deg;F';
+  humHint.innerHTML  = (!isNaN(humVal) && Math.abs(humVal - defaults.humidity) > 0.1 ? badge : '')
+    + 'Species default: ' + defaults.humidity + '%';
+}
+
+// Show hints on load (for edit form with existing species + values)
+updateTargetHints();
 
 async function suggestLabel(speciesOverride) {
   const sel = document.getElementById('speciesSelect');

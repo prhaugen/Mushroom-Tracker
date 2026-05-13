@@ -152,6 +152,43 @@
     {% if batch.substrate_other %}
     <div class="mt-12"><div class="detail-lbl">Other</div><div class="detail-val" style="font-weight:400;color:var(--text-muted)">{{ batch.substrate_other }}</div></div>
     {% endif %}
+    {% if batch.target_temp_f is not none or batch.target_humidity_rh is not none %}
+    <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border-muted)">
+      <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:8px">Environment Targets</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        {% if batch.target_temp_f is not none %}
+        <div>
+          <div class="detail-lbl">Target Temp</div>
+          <div class="detail-val">{{ batch.target_temp_f }}&deg;F
+            {% if targets_customized is sameas true %}
+            <span style="font-size:10px;font-weight:600;color:var(--amber);margin-left:4px">Customized</span>
+            {% elif targets_customized is sameas false %}
+            <span style="font-size:10px;color:var(--text-muted);margin-left:4px">Species default</span>
+            {% endif %}
+          </div>
+          {% if sp_defaults %}
+          <div style="font-size:11px;color:var(--text-muted)">Species default: {{ sp_defaults.temp }}&deg;F</div>
+          {% endif %}
+        </div>
+        {% endif %}
+        {% if batch.target_humidity_rh is not none %}
+        <div>
+          <div class="detail-lbl">Target Humidity</div>
+          <div class="detail-val">{{ batch.target_humidity_rh }}% RH
+            {% if targets_customized is sameas true %}
+            <span style="font-size:10px;font-weight:600;color:var(--amber);margin-left:4px">Customized</span>
+            {% elif targets_customized is sameas false %}
+            <span style="font-size:10px;color:var(--text-muted);margin-left:4px">Species default</span>
+            {% endif %}
+          </div>
+          {% if sp_defaults %}
+          <div style="font-size:11px;color:var(--text-muted)">Species default: {{ sp_defaults.humidity }}%</div>
+          {% endif %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
   </div>
 
   <!-- Update status -->

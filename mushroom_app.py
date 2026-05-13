@@ -10,6 +10,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).parent))
 import mushroom_tracker as _mt
+from agent_config import SPECIES_TIMELINES
 from mushroom_tracker import (init_db, bio_efficiency,
                                STATUSES, LIFECYCLE, SPAWN_TYPES,
                                STERIL_METHODS, DESTINATIONS, CHAMBER_TYPES,
@@ -18,6 +19,14 @@ from mushroom_tracker import (init_db, bio_efficiency,
 
 app = Flask(__name__)
 app.secret_key = 'sgfc-mushroom-v2-2026'
+
+_SPECIES_DEFAULTS = {
+    sp: {
+        'temp':     round((v['fruiting_temp_f'][0]      + v['fruiting_temp_f'][1])      / 2, 1),
+        'humidity': round((v['fruiting_humidity_rh'][0] + v['fruiting_humidity_rh'][1]) / 2, 1),
+    }
+    for sp, v in SPECIES_TIMELINES.items()
+}
 
 DB_PATH_PROD    = Path(__file__).parent / "mushroom_data.db"
 DB_PATH_SANDBOX = Path(__file__).parent / "mushroom_data_sandbox.db"
@@ -257,7 +266,8 @@ def batch_add():
         flash(f"Batch '{f['label']}' added.", 'success')
         return redirect(url_for('batches'))
 
-    return render_template('batch_form.html', chamber=chamber, batch=None, all_chambers=all_chambers)
+    return render_template('batch_form.html', chamber=chamber, batch=None, all_chambers=all_chambers,
+                           species_defaults=json.dumps(_SPECIES_DEFAULTS))
 
 
 @app.route('/batch/<int:batch_id>')
@@ -285,10 +295,18 @@ def batch_detail(batch_id):
             cycle_days = (d2 - d1).days
         except Exception:
             pass
+    sp_key = batch['species'].lower() if batch['species'] else None
+    sp_defaults = _SPECIES_DEFAULTS.get(sp_key)
+    targets_customized = None
+    if sp_defaults and batch['target_temp_f'] is not None and batch['target_humidity_rh'] is not None:
+        targets_customized = (
+            abs(batch['target_temp_f'] - sp_defaults['temp']) > 0.1 or
+            abs(batch['target_humidity_rh'] - sp_defaults['humidity']) > 0.1
+        )
     conn.close()
     return render_template('batch_detail.html',
         batch=batch, flushes=flushes, sales=sales, yield_chart=yield_chart,
-        cycle_days=cycle_days)
+        cycle_days=cycle_days, sp_defaults=sp_defaults, targets_customized=targets_customized)
 
 
 @app.route('/batch/<int:batch_id>/update', methods=['POST'])
@@ -701,7 +719,8 @@ def batch_edit(batch_id):
         flash(f"Batch '{f['label']}' updated.", 'success')
         return redirect(url_for('batch_detail', batch_id=batch_id))
     conn.close()
-    return render_template('batch_form.html', chamber=chamber, batch=batch, all_chambers=all_chambers)
+    return render_template('batch_form.html', chamber=chamber, batch=batch, all_chambers=all_chambers,
+                           species_defaults=json.dumps(_SPECIES_DEFAULTS))
 
 
 @app.route('/batch/<int:batch_id>/delete', methods=['POST'])
