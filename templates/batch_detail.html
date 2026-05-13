@@ -103,6 +103,31 @@
   {% endif %}
 </div>
 
+<!-- Environment chart -->
+<div class="card mb-16">
+  <div class="card-head">
+    <span class="card-title">Environment</span>
+    <div style="display:flex;gap:4px;align-items:center">
+      {% for r in resolutions %}
+      <a href="?res={{ r }}"
+         style="font-size:11px;padding:2px 8px;border-radius:4px;text-decoration:none;font-weight:600;
+                {% if r == env_res %}background:var(--green);color:#000{% else %}color:var(--text-muted);border:1px solid var(--border-muted){% endif %}">
+        {{ r }}m
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% if batch_chart_data.labels %}
+  <div style="height:260px;margin-top:8px">
+    <canvas id="batchEnvChart"></canvas>
+  </div>
+  {% else %}
+  <div class="empty" style="padding:24px 0">
+    <div class="empty-title">No environment readings logged yet</div>
+  </div>
+  {% endif %}
+</div>
+
 <div class="g2 mb-16">
 
   <!-- Substrate & Spawn card -->
@@ -329,4 +354,119 @@ function toggleContamField() {
 }
 toggleContamField();
 </script>
+
+{% if batch_chart_data.labels %}
+<script>
+(function() {
+  const cd = {{ batch_chart_data | tojson }};
+  const n  = cd.labels.length;
+
+  function fill(val) { return val !== null ? Array(n).fill(val) : Array(n).fill(null); }
+
+  const tempVals = cd.temp.filter(v => v !== null);
+  const humVals  = cd.humidity.filter(v => v !== null);
+  const tempAll  = [cd.target_temp, cd.temp_lo, cd.temp_hi, ...tempVals].filter(v => v !== null);
+  const humAll   = [cd.target_hum,  cd.humidity_lo, cd.humidity_hi, ...humVals].filter(v => v !== null);
+
+  const tempMin = tempAll.length ? Math.floor(Math.min(...tempAll) - 1) : (cd.target_temp || 60) - 5;
+  const tempMax = tempAll.length ? Math.ceil(Math.max(...tempAll)  + 1) : (cd.target_temp || 60) + 5;
+  const humMin  = humAll.length  ? Math.max(0,   Math.floor(Math.min(...humAll) - 1)) : 75;
+  const humMax  = humAll.length  ? Math.min(100, Math.ceil(Math.max(...humAll)  + 1)) : 100;
+
+  const datasets = [];
+
+  if (cd.temp_lo !== null) {
+    datasets.push({
+      label: `Temp range (${cd.temp_lo}–${cd.temp_hi}°F)`,
+      data: fill(cd.temp_lo), borderWidth: 1,
+      borderColor: 'rgba(63,185,80,0.35)', borderDash: [3,3],
+      pointRadius: 0, backgroundColor: 'rgba(63,185,80,0.10)',
+      fill: '+1', yAxisID: 'yTemp',
+    });
+    datasets.push({
+      label: '_temp_hi', data: fill(cd.temp_hi),
+      borderWidth: 1, borderColor: 'rgba(63,185,80,0.35)', borderDash: [3,3],
+      pointRadius: 0, fill: false, yAxisID: 'yTemp',
+    });
+  }
+
+  if (cd.humidity_lo !== null) {
+    datasets.push({
+      label: `RH range (${cd.humidity_lo}–${cd.humidity_hi}%)`,
+      data: fill(cd.humidity_lo), borderWidth: 1,
+      borderColor: 'rgba(88,166,255,0.35)', borderDash: [3,3],
+      pointRadius: 0, backgroundColor: 'rgba(88,166,255,0.10)',
+      fill: '+1', yAxisID: 'yHum',
+    });
+    datasets.push({
+      label: '_humidity_hi', data: fill(cd.humidity_hi),
+      borderWidth: 1, borderColor: 'rgba(88,166,255,0.35)', borderDash: [3,3],
+      pointRadius: 0, fill: false, yAxisID: 'yHum',
+    });
+  }
+
+  datasets.push({
+    label: 'Temp (°F)', data: cd.temp,
+    borderColor: '#3fb950', backgroundColor: 'rgba(63,185,80,0.05)',
+    tension: 0.3, pointRadius: n > 200 ? 0 : 3, borderWidth: 1.5,
+    yAxisID: 'yTemp',
+  });
+  datasets.push({
+    label: `Target ${cd.target_temp}°F`, data: fill(cd.target_temp),
+    borderColor: 'rgba(63,185,80,0.70)', borderWidth: 2,
+    borderDash: [6,4], pointRadius: 0, fill: false, yAxisID: 'yTemp',
+  });
+  datasets.push({
+    label: 'Humidity (% RH)', data: cd.humidity,
+    borderColor: '#58a6ff', backgroundColor: 'rgba(88,166,255,0.05)',
+    tension: 0.3, pointRadius: n > 200 ? 0 : 3, borderWidth: 1.5,
+    yAxisID: 'yHum',
+  });
+  datasets.push({
+    label: `Target ${cd.target_hum}%`, data: fill(cd.target_hum),
+    borderColor: 'rgba(88,166,255,0.70)', borderWidth: 2,
+    borderDash: [6,4], pointRadius: 0, fill: false, yAxisID: 'yHum',
+  });
+
+  new Chart(document.getElementById('batchEnvChart').getContext('2d'), {
+    type: 'line',
+    data: { labels: cd.labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          position: 'top',
+          labels: { color: '#8b949e', font: { size: 11 }, boxWidth: 12, padding: 12 },
+          filter: item => !item.text.startsWith('_'),
+        },
+        tooltip: {
+          backgroundColor: '#1c2128', borderColor: '#30363d', borderWidth: 1,
+          titleColor: '#e6edf3', bodyColor: '#8b949e',
+          filter: item => !item.dataset.label.startsWith('_'),
+        },
+      },
+      scales: {
+        x: {
+          ticks: { color: '#8b949e', font: { size: 10 }, maxRotation: 30, maxTicksLimit: 10 },
+          grid:  { color: 'rgba(48,54,61,.4)' },
+        },
+        yTemp: {
+          type: 'linear', position: 'left', min: tempMin, max: tempMax,
+          ticks: { color: '#3fb950', font: { size: 11 }, callback: v => v + '°F' },
+          grid:  { color: 'rgba(48,54,61,.4)' },
+          title: { display: true, text: 'Temp (°F)', color: '#3fb950', font: { size: 11 } },
+        },
+        yHum: {
+          type: 'linear', position: 'right', min: humMin, max: humMax,
+          ticks: { color: '#58a6ff', font: { size: 11 }, callback: v => v + '%' },
+          grid:  { drawOnChartArea: false },
+          title: { display: true, text: 'Humidity (% RH)', color: '#58a6ff', font: { size: 11 } },
+        },
+      },
+    },
+  });
+})();
+</script>
+{% endif %}
 {% endblock %}

@@ -22,8 +22,12 @@ app.secret_key = 'sgfc-mushroom-v2-2026'
 
 _SPECIES_DEFAULTS = {
     sp: {
-        'temp':     round((v['fruiting_temp_f'][0]      + v['fruiting_temp_f'][1])      / 2, 1),
-        'humidity': round((v['fruiting_humidity_rh'][0] + v['fruiting_humidity_rh'][1]) / 2, 1),
+        'temp':        round((v['fruiting_temp_f'][0]      + v['fruiting_temp_f'][1])      / 2, 1),
+        'humidity':    round((v['fruiting_humidity_rh'][0] + v['fruiting_humidity_rh'][1]) / 2, 1),
+        'temp_lo':     v['fruiting_temp_f'][0],
+        'temp_hi':     v['fruiting_temp_f'][1],
+        'humidity_lo': v['fruiting_humidity_rh'][0],
+        'humidity_hi': v['fruiting_humidity_rh'][1],
     }
     for sp, v in SPECIES_TIMELINES.items()
 }
@@ -303,10 +307,58 @@ def batch_detail(batch_id):
             abs(batch['target_temp_f'] - sp_defaults['temp']) > 0.1 or
             abs(batch['target_humidity_rh'] - sp_defaults['humidity']) > 0.1
         )
+
+    # Environment chart scoped to this batch's active period
+    try:
+        env_res = int(request.args.get('res', 0))
+        if env_res not in _ENV_RESOLUTIONS:
+            env_res = 0
+    except (ValueError, TypeError):
+        env_res = 0
+
+    chart_start = batch['inoculation_date'] or batch['colonization_start_date']
+    chart_end   = batch['block_end_date'] or str(date.today())
+    try:
+        cs_dt = datetime.strptime(chart_start[:10], '%Y-%m-%d')
+        ce_dt = datetime.strptime(chart_end[:10],   '%Y-%m-%d') + timedelta(days=1)
+    except Exception:
+        cs_dt = datetime.now() - timedelta(days=7)
+        ce_dt = datetime.now()
+
+    span_days = max((ce_dt - cs_dt).days, 1)
+    if env_res == 0:
+        if   span_days <= 2:  env_res = 5
+        elif span_days <= 7:  env_res = 10
+        elif span_days <= 21: env_res = 30
+        else:                 env_res = 60
+
+    env_rows = conn.execute("""
+        SELECT logged_at, temp_f, humidity_rh
+        FROM environment_logs
+        WHERE chamber_id = ? AND logged_at >= ? AND logged_at <= ?
+        ORDER BY logged_at ASC
+    """, (batch['chamber_id'],
+          cs_dt.strftime('%Y-%m-%d %H:%M:%S'),
+          ce_dt.strftime('%Y-%m-%d %H:%M:%S'))).fetchall()
+    env_agg = _aggregate_env_logs([dict(r) for r in env_rows], env_res)
+
+    batch_chart_data = {
+        'labels':      [r['logged_at'][:16] for r in env_agg],
+        'temp':        [r['temp_f']          for r in env_agg],
+        'humidity':    [r['humidity_rh']     for r in env_agg],
+        'target_temp': batch['target_temp_f'],
+        'target_hum':  batch['target_humidity_rh'],
+        'temp_lo':     sp_defaults['temp_lo']     if sp_defaults else None,
+        'temp_hi':     sp_defaults['temp_hi']     if sp_defaults else None,
+        'humidity_lo': sp_defaults['humidity_lo'] if sp_defaults else None,
+        'humidity_hi': sp_defaults['humidity_hi'] if sp_defaults else None,
+    }
+
     conn.close()
     return render_template('batch_detail.html',
         batch=batch, flushes=flushes, sales=sales, yield_chart=yield_chart,
-        cycle_days=cycle_days, sp_defaults=sp_defaults, targets_customized=targets_customized)
+        cycle_days=cycle_days, sp_defaults=sp_defaults, targets_customized=targets_customized,
+        batch_chart_data=batch_chart_data, env_res=env_res, resolutions=_ENV_RESOLUTIONS)
 
 
 @app.route('/batch/<int:batch_id>/update', methods=['POST'])
