@@ -59,6 +59,16 @@ colonized, so colonization conditions are irrelevant. The only temperature plann
 that matters is whether the fruiting chamber will suit the species once the block \
 is placed; evaluate that against fruiting temperature targets, not colonization ones.
 
+GROWER NOTES — each active batch may include a "recent_notes" list of \
+timestamped observations the grower logged directly (last 14 days, up to 10 \
+entries). Treat these as ground truth about what the grower has already \
+noticed or acted on. Before raising an issue, check whether the grower has \
+already identified it or taken corrective action — if so, acknowledge the \
+action rather than re-flagging the problem. Use notes as context for \
+pattern observations (e.g. if the grower noted a manual humidity adjustment, \
+that explains a dip in the sensor data). Never surface a note back to the \
+grower verbatim — synthesize it into your analysis.
+
 Output format — return JSON only, no preamble:
 {
   "briefing_date": "YYYY-MM-DD",
@@ -349,6 +359,30 @@ def _get_env_summary(conn, batch_info_map: dict):
     return summaries, flags
 
 
+def _get_batch_notes(conn, batch_ids: list) -> dict:
+    """Return up to 10 most recent notes per batch from the last 14 days."""
+    if not batch_ids:
+        return {}
+    ph = ','.join('?' * len(batch_ids))
+    rows = conn.execute(f"""
+        SELECT batch_id, body, created_at
+        FROM batch_notes
+        WHERE batch_id IN ({ph})
+          AND created_at >= datetime('now', '-14 days')
+        ORDER BY batch_id, created_at DESC
+    """, batch_ids).fetchall()
+    result = {}
+    for row in rows:
+        bid = row['batch_id']
+        entries = result.setdefault(bid, [])
+        if len(entries) < 10:
+            entries.append({'note': row['body'], 'at': row['created_at'][:16]})
+    # Return in chronological order
+    for bid in result:
+        result[bid] = list(reversed(result[bid]))
+    return result
+
+
 def _get_contamination_summary(conn) -> list:
     rows = conn.execute("""
         SELECT id, label, species, spawn_lot, spawn_source,
@@ -423,15 +457,17 @@ def get_snapshot(conn) -> dict:
     env_summaries, env_flags = _get_env_summary(conn, batch_info_map)
     contamination   = _get_contamination_summary(conn)
     historical      = _get_historical_averages(conn)
+    batch_notes     = _get_batch_notes(conn, batch_ids)
 
     for b in active_batches:
         sp_key = b['species'].lower()
         timeline = SPECIES_TIMELINES.get(sp_key, DEFAULT_TIMELINE)
-        b['latest_flush'] = latest_flushes.get(b['id'])
-        b['all_flushes']  = all_flushes.get(b['id'], [])
-        b['env_24h']      = env_summaries.get(b['id'])
+        b['latest_flush']    = latest_flushes.get(b['id'])
+        b['all_flushes']     = all_flushes.get(b['id'], [])
+        b['env_24h']         = env_summaries.get(b['id'])
         b['species_targets'] = timeline
-        b['use_historical'] = (
+        b['recent_notes']    = batch_notes.get(b['id'], [])
+        b['use_historical']  = (
             historical.get(b['species'], {}).get('completed_batches', 0) >= MIN_HISTORY_BATCHES
         )
 
