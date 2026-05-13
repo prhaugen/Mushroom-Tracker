@@ -538,9 +538,9 @@ def _aggregate_env_logs(rows, bucket_min):
             continue
         if key not in buckets:
             buckets[key] = {'temp': [], 'hum': [], 'co2': []}
-        if row['temp_f']      is not None: buckets[key]['temp'].append(row['temp_f'])
-        if row['humidity_rh'] is not None: buckets[key]['hum'].append(row['humidity_rh'])
-        if row['co2_ppm']     is not None: buckets[key]['co2'].append(row['co2_ppm'])
+        if row.get('temp_f')      is not None: buckets[key]['temp'].append(row['temp_f'])
+        if row.get('humidity_rh') is not None: buckets[key]['hum'].append(row['humidity_rh'])
+        if row.get('co2_ppm')     is not None: buckets[key]['co2'].append(row['co2_ppm'])
     result = []
     for key in sorted(buckets):
         b = buckets[key]
