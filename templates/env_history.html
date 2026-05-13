@@ -5,7 +5,7 @@
 <div class="page-head-row">
   <div class="page-head">
     <div class="page-title">Environment History</div>
-    <div class="page-sub">{{ chamber.name }} &nbsp;·&nbsp; last {{ logs|length }} readings</div>
+    <div class="page-sub">{{ chamber.name }} &nbsp;·&nbsp; {{ logs|length }} total readings</div>
   </div>
   <div class="gap-row">
     <a href="{{ url_for('env_import') }}" class="btn btn-ghost btn-sm">Import Govee CSV</a>
@@ -15,11 +15,26 @@
 
 {% if logs %}
 <div class="card mb-16">
-  <div class="card-title mb-16" style="margin-bottom:12px">
-    Temperature & Humidity Over Time
-    {% if chart_data.target_batch %}
-    <span style="font-size:11px;font-weight:400;color:var(--text-muted);margin-left:8px">— targets from {{ chart_data.target_batch }}</span>
-    {% endif %}
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+    <div class="card-title" style="margin-bottom:0">
+      Temperature &amp; Humidity Over Time
+      {% if chart_data.target_batch %}
+      <span style="font-size:11px;font-weight:400;color:var(--text-muted);margin-left:8px">— targets from {{ chart_data.target_batch }}</span>
+      {% endif %}
+    </div>
+    <div style="display:flex;gap:4px">
+      {% for w in window_options %}
+      <a href="{{ url_for('env_history', window=w) }}"
+         style="padding:4px 10px;border-radius:var(--r);font-size:11px;font-weight:600;text-decoration:none;border:1px solid;
+                {% if w == window_key %}
+                background:var(--green-bg);border-color:var(--green-border);color:var(--green)
+                {% else %}
+                background:var(--surface);border-color:var(--border);color:var(--text-muted)
+                {% endif %}">
+        {{ w }}
+      </a>
+      {% endfor %}
+    </div>
   </div>
   <div class="chart-wrap">
     <canvas id="envChart"></canvas>
@@ -124,7 +139,8 @@ new Chart(ctx, {
         backgroundColor: 'rgba(210,153,34,.08)',
         fill: true,
         tension: .35,
-        pointRadius: 3,
+        pointRadius: chartData.labels.length > 100 ? 0 : 3,
+        pointHoverRadius: 4,
         pointBackgroundColor: '#d29922',
         yAxisID: 'yTemp',
       },
@@ -135,7 +151,8 @@ new Chart(ctx, {
         backgroundColor: 'rgba(88,166,255,.08)',
         fill: true,
         tension: .35,
-        pointRadius: 3,
+        pointRadius: chartData.labels.length > 100 ? 0 : 3,
+        pointHoverRadius: 4,
         pointBackgroundColor: '#58a6ff',
         yAxisID: 'yHum',
       },

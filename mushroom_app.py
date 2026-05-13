@@ -448,18 +448,79 @@ def env_log():
     return render_template('env_log.html', chamber=chamber, active_batches=active_batches, log=None)
 
 
+_ENV_WINDOWS = {
+    '2h':  {'hours': 2,   'bucket_min': 1,   'label': '2h'},
+    '6h':  {'hours': 6,   'bucket_min': 5,   'label': '6h'},
+    '24h': {'hours': 24,  'bucket_min': 15,  'label': '24h'},
+    '3d':  {'hours': 72,  'bucket_min': 60,  'label': '3d'},
+    '7d':  {'hours': 168, 'bucket_min': 120, 'label': '7d'},
+    '30d': {'hours': 720, 'bucket_min': 360, 'label': '30d'},
+}
+
+def _aggregate_env_logs(rows, bucket_min):
+    """Average readings into fixed-size time buckets. Returns list of dicts."""
+    if bucket_min <= 1:
+        return [dict(r) for r in rows]
+    buckets = {}
+    for row in rows:
+        try:
+            dt = datetime.strptime(str(row['logged_at'])[:19], '%Y-%m-%d %H:%M:%S')
+            total_min = dt.hour * 60 + dt.minute + dt.day * 1440
+            slot = (total_min // bucket_min) * bucket_min
+            # Reconstruct a label from the bucket start
+            day_offset  = slot // 1440
+            slot_in_day = slot % 1440
+            bucket_dt   = dt.replace(hour=slot_in_day // 60,
+                                     minute=slot_in_day % 60,
+                                     second=0, microsecond=0)
+            key = bucket_dt.strftime('%Y-%m-%d %H:%M')
+        except Exception:
+            continue
+        if key not in buckets:
+            buckets[key] = {'temp': [], 'hum': [], 'co2': []}
+        if row['temp_f']      is not None: buckets[key]['temp'].append(row['temp_f'])
+        if row['humidity_rh'] is not None: buckets[key]['hum'].append(row['humidity_rh'])
+        if row['co2_ppm']     is not None: buckets[key]['co2'].append(row['co2_ppm'])
+    result = []
+    for key in sorted(buckets):
+        b = buckets[key]
+        result.append({
+            'logged_at':   key,
+            'temp_f':      round(sum(b['temp']) / len(b['temp']), 1) if b['temp'] else None,
+            'humidity_rh': round(sum(b['hum'])  / len(b['hum']),  1) if b['hum']  else None,
+            'co2_ppm':     round(sum(b['co2'])  / len(b['co2']),  0) if b['co2']  else None,
+        })
+    return result
+
+
 @app.route('/env/history')
 def env_history():
     init_db()
     chamber = get_primary_chamber()
     if not chamber: return redirect(url_for('setup'))
+
+    window_key = request.args.get('window', '24h')
+    if window_key not in _ENV_WINDOWS:
+        window_key = '24h'
+    w = _ENV_WINDOWS[window_key]
+
     conn = get_db()
     logs = conn.execute("""
         SELECT e.*, b.label batch_label FROM environment_logs e
         LEFT JOIN batches b ON e.batch_id=b.id
         WHERE e.chamber_id=? ORDER BY e.logged_at DESC
     """, (chamber['id'],)).fetchall()
-    chart_logs = list(reversed(logs[:40]))
+
+    # Chart: fetch the selected window, aggregate, pass to template
+    chart_rows = conn.execute("""
+        SELECT logged_at, temp_f, humidity_rh, co2_ppm
+        FROM environment_logs
+        WHERE chamber_id = ?
+          AND logged_at >= datetime('now', ? )
+        ORDER BY logged_at ASC
+    """, (chamber['id'], f"-{w['hours']} hours")).fetchall()
+    chart_rows = _aggregate_env_logs(chart_rows, w['bucket_min'])
+
     recent_batch = conn.execute("""
         SELECT b.target_temp_f, b.target_humidity_rh, b.label, b.species
         FROM environment_logs e
@@ -468,15 +529,17 @@ def env_history():
         ORDER BY e.logged_at DESC LIMIT 1
     """, (chamber['id'],)).fetchone()
     chart_data = {
-        'labels':   [l['logged_at'][:16] for l in chart_logs],
-        'temp':     [l['temp_f'] for l in chart_logs],
-        'humidity': [l['humidity_rh'] for l in chart_logs],
-        'target_temp': recent_batch['target_temp_f'] if recent_batch else chamber['target_temp_f'],
+        'labels':          [r['logged_at'][:16] for r in chart_rows],
+        'temp':            [r['temp_f']      for r in chart_rows],
+        'humidity':        [r['humidity_rh'] for r in chart_rows],
+        'target_temp':     recent_batch['target_temp_f']      if recent_batch else chamber['target_temp_f'],
         'target_humidity': recent_batch['target_humidity_rh'] if recent_batch else chamber['target_humidity_rh'],
-        'target_batch': f"{recent_batch['label']} ({recent_batch['species']})" if recent_batch else None,
+        'target_batch':    f"{recent_batch['label']} ({recent_batch['species']})" if recent_batch else None,
     }
     conn.close()
-    return render_template('env_history.html', chamber=chamber, logs=logs, chart_data=chart_data)
+    return render_template('env_history.html', chamber=chamber, logs=logs,
+                           chart_data=chart_data,
+                           window_key=window_key, window_options=list(_ENV_WINDOWS.keys()))
 
 
 # ── Report ────────────────────────────────────────────────────────────────────
