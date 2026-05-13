@@ -289,6 +289,9 @@ def batch_detail(batch_id):
         LEFT JOIN flushes f ON s.flush_id=f.id
         WHERE s.batch_id=? ORDER BY s.sale_date DESC
     """, (batch_id,)).fetchall()
+    batch_notes = conn.execute(
+        "SELECT * FROM batch_notes WHERE batch_id=? ORDER BY created_at ASC", (batch_id,)
+    ).fetchall()
     yield_chart = [{'flush': f['flush_number'], 'weight': f['fresh_weight_g'],
                     'quality': f['quality_rating']} for f in flushes]
     cycle_days = None
@@ -358,7 +361,8 @@ def batch_detail(batch_id):
     return render_template('batch_detail.html',
         batch=batch, flushes=flushes, sales=sales, yield_chart=yield_chart,
         cycle_days=cycle_days, sp_defaults=sp_defaults, targets_customized=targets_customized,
-        batch_chart_data=batch_chart_data, env_res=env_res, resolutions=_ENV_RESOLUTIONS)
+        batch_chart_data=batch_chart_data, env_res=env_res, resolutions=_ENV_RESOLUTIONS,
+        batch_notes=batch_notes)
 
 
 @app.route('/batch/<int:batch_id>/update', methods=['POST'])
@@ -390,6 +394,17 @@ def batch_update(batch_id):
     conn.commit(); conn.close()
     flash(f"Status updated to '{new_status}'.", 'success')
     return redirect(url_for('batch_detail', batch_id=batch_id))
+
+
+@app.route('/batch/<int:batch_id>/note', methods=['POST'])
+def batch_note_add(batch_id):
+    body = request.form.get('body', '').strip()
+    if body:
+        conn = get_db()
+        conn.execute("INSERT INTO batch_notes (batch_id, body) VALUES (?, ?)", (batch_id, body))
+        conn.commit()
+        conn.close()
+    return redirect(url_for('batch_detail', batch_id=batch_id) + '#discussion')
 
 
 # ── Flushes ───────────────────────────────────────────────────────────────────
@@ -1108,4 +1123,4 @@ def env_import():
 if __name__ == '__main__':
     init_db()
     print("\n  Mushroom Tracker v2 running at http://localhost:5000\n")
-    app.run(debug=True, port=5000)
+    app.run(host='0.0.0.0', port=5000)

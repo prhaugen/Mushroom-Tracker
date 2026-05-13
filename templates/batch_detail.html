@@ -177,6 +177,9 @@
     {% if batch.substrate_other %}
     <div class="mt-12"><div class="detail-lbl">Other</div><div class="detail-val" style="font-weight:400;color:var(--text-muted)">{{ batch.substrate_other }}</div></div>
     {% endif %}
+    {% if batch.notes %}
+    <div class="mt-12"><div class="detail-lbl">Setup Notes</div><div class="detail-val" style="font-weight:400;color:var(--text-muted);white-space:pre-wrap">{{ batch.notes }}</div></div>
+    {% endif %}
     {% if batch.target_temp_f is not none or batch.target_humidity_rh is not none %}
     <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border-muted)">
       <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:8px">Environment Targets</div>
@@ -233,10 +236,6 @@
           <label>Contamination Type</label>
           <input type="text" name="contamination_type" placeholder="trich / wet_rot / bacterial_blotch / other"
                  value="{{ batch.contamination_type or '' }}">
-        </div>
-        <div class="fg">
-          <label>Notes (optional)</label>
-          <textarea name="notes" rows="2">{{ batch.notes or '' }}</textarea>
         </div>
       </div>
       <div class="form-actions"><button type="submit" class="btn btn-primary">Update</button></div>
@@ -346,6 +345,36 @@ new Chart(document.getElementById('yieldChart').getContext('2d'), {
 });
 </script>
 {% endif %}
+
+<!-- Discussion -->
+<div class="card mb-16" id="discussion">
+  <div class="card-title" style="margin-bottom:16px">Discussion</div>
+
+  {% if batch_notes %}
+  <div style="display:flex;flex-direction:column;gap:0">
+    {% for note in batch_notes %}
+    <div style="padding:12px 0;{% if not loop.last %}border-bottom:1px solid var(--border-muted){% endif %}">
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;font-family:monospace">
+        {{ note.created_at[:16] | replace('T', ' ') }}
+      </div>
+      <div style="font-size:13px;color:var(--text);white-space:pre-wrap;line-height:1.6">{{ note.body }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <form method="POST" action="{{ url_for('batch_note_add', batch_id=batch.id) }}"
+        style="margin-top:{% if batch_notes %}20px{% else %}0{% endif %}">
+    <div class="fg">
+      <textarea name="body" rows="3"
+                placeholder="Add an observation — pin set, humidity adjustment, FAE change, anything notable..."
+                style="resize:vertical"></textarea>
+    </div>
+    <div style="margin-top:8px">
+      <button type="submit" class="btn btn-primary btn-sm">Add Note</button>
+    </div>
+  </form>
+</div>
 
 <script>
 function toggleContamField() {

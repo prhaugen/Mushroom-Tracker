@@ -274,6 +274,12 @@ def init_db():
             notes                TEXT,
             created_at           TEXT DEFAULT CURRENT_TIMESTAMP
         );
+        CREATE TABLE IF NOT EXISTS batch_notes (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            batch_id   INTEGER NOT NULL REFERENCES batches(id),
+            body       TEXT NOT NULL,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
     """)
 
     # Non-destructive column additions for env_logs upgrade from v1
@@ -312,6 +318,13 @@ def init_db():
     }.items():
         if col not in existing_b:
             c.execute(f"ALTER TABLE batches ADD COLUMN {col} {typedef}")
+
+    # One-time migration: seed batch_notes from existing batch.notes fields
+    migrated = {r[0] for r in c.execute("SELECT DISTINCT batch_id FROM batch_notes")}
+    for row in c.execute("SELECT id, notes, created_at FROM batches WHERE notes IS NOT NULL AND notes != ''").fetchall():
+        if row[0] not in migrated:
+            c.execute("INSERT INTO batch_notes (batch_id, body, created_at) VALUES (?, ?, ?)",
+                      (row[0], row[1], row[2]))
 
     conn.commit()
 
