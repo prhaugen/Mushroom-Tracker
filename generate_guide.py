@@ -392,8 +392,9 @@ def build():
         ("8",    "Sales Tracking",                              "11"),
         ("9",    "Logging Environment Readings",                "12"),
         ("10",   "Environment History",                         "12"),
-        ("10.1", "All Readings Table",                          "13"),
-        ("10.2", "Importing from a Govee H5179 Sensor",         "13"),
+        ("11.1", "Chart Controls",                               "13"),
+        ("11.2", "All Readings Table",                          "13"),
+        ("11.3", "Importing from a Govee H5179 Sensor",         "13"),
         ("11",   "Reports",                                     "14"),
         ("12",   "AI Daily Briefing",                           "14"),
         ("12.1", "What It Does",                                "14"),
@@ -1255,14 +1256,17 @@ def build():
         h1("11. Environment History"),
         rule(),
         p("The Environment page shows a dual-axis line chart plotting temperature (amber) "
-          "and humidity (blue) over your last 40 readings. Dashed lines show the target "
-          "values for the most recently active batch. Below the chart, the All Readings "
-          "table lists every reading with color-coded values."),
+          "and humidity (blue) for a selectable date and time range. "
+          "Dashed lines show the target temperature and humidity for the most recently active batch -- "
+          "the y-axes automatically expand to keep the target lines visible even when the chamber "
+          "is running above or below the target. "
+          "Below the chart, the All Readings table lists every reading with color-coded values."),
         sp(8),
         *bullet([
             "Temperature values more than 3F from the batch target display in <b>amber</b>",
             "Humidity values below 80% display in <b>red</b>",
             "In-range values display in <b>green</b>",
+            "The chart header shows the number of data points currently plotted",
             "The chart title notes which batch the target lines are drawn from",
         ]),
         sp(8),
@@ -1275,11 +1279,40 @@ def build():
           "overnight, you may need to add more perlite or mist before bed. "
           "If you can see pinning events on the batch detail pages, try to correlate "
           "them with specific environmental conditions to find your personal recipe."),
+        sp(10),
+        h2("11.1  Chart Controls"),
+        p("A control bar above the chart lets you zoom into any time window and adjust "
+          "the resolution to match your sensor's data density."),
+        sp(6),
+        data_table(
+            ["Control", "Behavior"],
+            [
+                ["From / To",
+                 "Date and time pickers that define the chart window. "
+                 "Set any range -- an hour, a day, a week -- and click <b>Apply</b>. "
+                 "Defaults to the last 24 hours on page load."],
+                ["Resolution (1m / 5m / 10m / 30m / 60m)",
+                 "How readings are averaged before plotting. "
+                 "At 1-minute sensor resolution, use 1m or 5m for short windows "
+                 "and 30m or 60m for multi-day ranges to keep the chart readable. "
+                 "Clicking a resolution pill applies immediately without needing Apply."],
+                ["Apply button",
+                 "Reloads the chart with the selected From / To range and current resolution."],
+            ],
+            col_widths=[4.2*cm, 12*cm],
+        ),
+        sp(8),
+        callout(
+            "The chart and the All Readings table below it are independent. "
+            "Changing the chart range or resolution does not affect the table, "
+            "which always shows all readings paginated.",
+            label="Note:", color=BLUE_BG, border=BLUE_BORDER
+        ),
     ]
 
     story += [
         sp(10),
-        h2("11.1  All Readings Table"),
+        h2("11.2  All Readings Table"),
         p("Below the chart, the <b>All Readings</b> panel lists every stored environment reading "
           "in reverse-chronological order. The table is collapsible and paginated so it stays "
           "manageable as your reading count grows."),
@@ -1299,17 +1332,11 @@ def build():
             ],
             col_widths=[4.2*cm, 12*cm],
         ),
-        sp(8),
-        callout(
-            "The chart always shows your last 40 readings regardless of the table's "
-            "pagination setting -- changing the per-page value does not affect the chart.",
-            label="Note:", color=BLUE_BG, border=BLUE_BORDER
-        ),
     ]
 
     story += [
         sp(10),
-        h2("11.2  Importing from a Govee H5179 Sensor"),
+        h2("11.3  Importing from a Govee H5179 Sensor"),
         p("If you use a Govee H5179 WiFi temperature and humidity sensor, you can bulk-import "
           "its history directly from a CSV export rather than logging readings manually. "
           "Click the <b>Import Govee CSV</b> button on the Environment History page."),
