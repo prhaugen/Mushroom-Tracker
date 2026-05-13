@@ -496,11 +496,11 @@ def env_history():
     start_str = request.args.get('start', default_start)
     end_str   = request.args.get('end',   default_end)
     try:
-        res = int(request.args.get('res', 15))
+        res = int(request.args.get('res', 5))
         if res not in _ENV_RESOLUTIONS:
-            res = 15
+            res = 5
     except (ValueError, TypeError):
-        res = 15
+        res = 5
 
     try:
         start_dt = datetime.strptime(start_str[:16], '%Y-%m-%dT%H:%M')
