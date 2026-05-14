@@ -531,6 +531,15 @@ def batch_note_add(batch_id):
     return redirect(url_for('batch_detail', batch_id=batch_id) + '#discussion')
 
 
+@app.route('/batch/<int:batch_id>/note/<int:note_id>/delete', methods=['POST'])
+def batch_note_delete(batch_id, note_id):
+    conn = get_db()
+    conn.execute("DELETE FROM batch_notes WHERE id=? AND batch_id=?", (note_id, batch_id))
+    conn.commit()
+    conn.close()
+    return redirect(url_for('batch_detail', batch_id=batch_id) + '#discussion')
+
+
 # ── Flushes ───────────────────────────────────────────────────────────────────
 @app.route('/batch/<int:batch_id>/flush/add', methods=['GET','POST'])
 def flush_add(batch_id):
