@@ -3,7 +3,7 @@ Mushroom Tracker Web App v2
 Run: python mushroom_app.py  →  http://localhost:5000
 """
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
-import sqlite3, json, os, csv, io
+import sqlite3, json, os, csv, io, re
 from pathlib import Path
 from datetime import datetime, date, timedelta
 import sys
@@ -202,6 +202,129 @@ def api_next_label():
     return jsonify({'label': label})
 
 
+# ── Chamber Suggestion API ────────────────────────────────────────────────────
+@app.route('/api/chamber-suggest', methods=['POST'])
+def chamber_suggest():
+    """Claude AI chamber recommendation: species requirements vs actual chamber readings."""
+    try:
+        import anthropic as _anthropic
+    except ImportError:
+        return jsonify({'error': 'anthropic package not installed. Run: pip install anthropic'}), 500
+
+    api_key = os.environ.get('ANTHROPIC_API_KEY')
+    if not api_key:
+        return jsonify({'error': 'ANTHROPIC_API_KEY environment variable not set'}), 500
+
+    data = request.get_json() or {}
+    species = data.get('species', '').strip().lower()
+    if not species:
+        return jsonify({'error': 'species required'}), 400
+
+    from agent_config import DEFAULT_TIMELINE
+    sp_prefs = SPECIES_TIMELINES.get(species, DEFAULT_TIMELINE)
+    temp_lo, temp_hi = sp_prefs['fruiting_temp_f']
+    hum_lo,  hum_hi  = sp_prefs['fruiting_humidity_rh']
+
+    conn = get_db()
+    chambers = conn.execute("SELECT * FROM chambers ORDER BY id").fetchall()
+
+    chamber_info = []
+    for ch in chambers:
+        env = conn.execute("""
+            SELECT ROUND(AVG(temp_f),1) avg_temp, ROUND(AVG(humidity_rh),1) avg_hum,
+                   COUNT(*) cnt, MAX(logged_at) last_at
+            FROM environment_logs
+            WHERE chamber_id=? AND logged_at >= datetime('now','-24 hours')
+        """, (ch['id'],)).fetchone()
+
+        active = conn.execute("""
+            SELECT COUNT(*) cnt,
+                   GROUP_CONCAT(label || ' (' || species || ')', ', ') batches
+            FROM batches
+            WHERE chamber_id=? AND status NOT IN ('done','contaminated','aborted')
+        """, (ch['id'],)).fetchone()
+
+        chamber_info.append({
+            'id':           ch['id'],
+            'name':         ch['name'],
+            'type':         ch['chamber_type'] or 'chamber',
+            'location':     ch['location'] or '',
+            'avg_temp':     env['avg_temp'],
+            'avg_hum':      env['avg_hum'],
+            'readings_24h': env['cnt'],
+            'active_count': active['cnt'],
+            'active_list':  active['batches'] or 'none',
+        })
+    conn.close()
+
+    # Build chamber descriptions for the prompt
+    ch_lines = []
+    for ch in chamber_info:
+        desc = f"Chamber: {ch['name']} ({ch['type']}"
+        if ch['location']:
+            desc += f", {ch['location']}"
+        desc += f")  [id={ch['id']}]"
+        if ch['avg_temp'] is not None:
+            desc += f"\n  24h avg: {ch['avg_temp']}°F, {ch['avg_hum']}% RH ({ch['readings_24h']} readings)"
+        else:
+            desc += "\n  24h avg: no recent readings"
+        desc += f"\n  Active batches: {ch['active_count']} — {ch['active_list']}"
+        ch_lines.append(desc)
+
+    prompt = (
+        f"I am starting a new batch of {species.title()}.\n\n"
+        f"Species fruiting requirements:\n"
+        f"  Temperature: {temp_lo}–{temp_hi}°F\n"
+        f"  Humidity: {hum_lo}–{hum_hi}% RH\n\n"
+        f"Available chambers:\n" + "\n\n".join(ch_lines) +
+        "\n\nRecommend the best chamber for this new batch. "
+        "Base your recommendation on how well current actual conditions match species needs "
+        "and whether a chamber is already crowded. "
+        "If a chamber has no recent readings, note that as uncertainty.\n\n"
+        "Return ONLY valid JSON (no markdown fences, no text outside the JSON):\n"
+        "{\n"
+        '  "recommended_chamber_id": <integer>,\n'
+        '  "recommended_chamber_name": "<string>",\n'
+        '  "fit_badge": "<Ideal|Good|Marginal|Poor>",\n'
+        '  "reasoning": "<2-3 sentences: conditions match, any caveats, crowding>",\n'
+        '  "chamber_scores": [\n'
+        '    {"chamber_id": <int>, "chamber_name": "<str>", "fit": "<Ideal|Good|Marginal|Poor>", "note": "<one sentence>"}\n'
+        '  ]\n'
+        "}"
+    )
+
+    client = _anthropic.Anthropic(api_key=api_key)
+    msg = client.messages.create(
+        model='claude-haiku-4-5-20251001',
+        max_tokens=600,
+        system=(
+            "You are a mushroom cultivation advisor. "
+            "Analyze chamber environmental conditions against species fruiting requirements "
+            "and return a structured JSON recommendation. "
+            "Return only valid JSON with no surrounding text."
+        ),
+        messages=[{'role': 'user', 'content': prompt}],
+    )
+
+    raw = msg.content[0].text.strip()
+    try:
+        result = json.loads(raw)
+    except json.JSONDecodeError:
+        m = re.search(r'\{.*\}', raw, re.DOTALL)
+        if m:
+            try:
+                result = json.loads(m.group())
+            except Exception:
+                return jsonify({'error': 'Could not parse AI response'}), 500
+        else:
+            return jsonify({'error': 'Could not parse AI response'}), 500
+
+    result['chambers'] = chamber_info
+    result['species_range'] = {'temp_lo': temp_lo, 'temp_hi': temp_hi,
+                               'hum_lo': hum_lo, 'hum_hi': hum_hi}
+    return jsonify(result)
+
+
 # ── Batches ───────────────────────────────────────────────────────────────────
 @app.route('/batches')
 def batches():
@@ -236,6 +359,7 @@ def batch_add():
         spawn_source = f.get('spawn_source', '').strip() or None
         if spawn_source:
             conn.execute("INSERT OR IGNORE INTO custom_spawn_source(value) VALUES(?)", (spawn_source,))
+        fruiting_chamber_id = int(f['chamber_id']) if f.get('chamber_id') else chamber['id']
         conn.execute("""INSERT INTO batches
             (chamber_id,colonization_chamber_id,label,species,strain,
              target_temp_f,target_humidity_rh,
@@ -245,7 +369,7 @@ def batch_add():
              inoculation_date,spawn_type,spawn_strain,spawn_rate_pct,spawn_source,spawn_lot,
              colonization_start_date,fruiting_start_date,sourced_block,status,notes)
             VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-            (chamber['id'],
+            (fruiting_chamber_id,
              int(f['colonization_chamber_id']) if f.get('colonization_chamber_id') else None,
              f['label'], species, f.get('strain') or None,
              float(f.get('target_temp') or 72), float(f.get('target_humidity') or 90),
@@ -753,8 +877,9 @@ def batch_edit(batch_id):
         spawn_source = f.get('spawn_source', '').strip() or None
         if spawn_source:
             conn.execute("INSERT OR IGNORE INTO custom_spawn_source(value) VALUES(?)", (spawn_source,))
+        edit_chamber_id = int(f['chamber_id']) if f.get('chamber_id') else batch['chamber_id']
         conn.execute("""UPDATE batches SET
-            label=?,species=?,strain=?,
+            chamber_id=?,label=?,species=?,strain=?,
             colonization_chamber_id=?,
             target_temp_f=?,target_humidity_rh=?,
             dry_weight_g=?,moisture_pct=?,straw_pct=?,hardwood_pct=?,bran_pct=?,
@@ -763,7 +888,8 @@ def batch_edit(batch_id):
             inoculation_date=?,spawn_type=?,spawn_strain=?,spawn_rate_pct=?,
             spawn_source=?,spawn_lot=?,fruiting_start_date=?,sourced_block=?,notes=?
             WHERE id=?""",
-            (f['label'], species, f.get('strain') or None,
+            (edit_chamber_id,
+             f['label'], species, f.get('strain') or None,
              int(f['colonization_chamber_id']) if f.get('colonization_chamber_id') else None,
              float(f.get('target_temp') or 72), float(f.get('target_humidity') or 90),
              float(f['dry_weight_g']) if f.get('dry_weight_g') else None,

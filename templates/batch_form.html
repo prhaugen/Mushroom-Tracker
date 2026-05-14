@@ -88,7 +88,20 @@
             will not flag them as missing. Enter estimated dry weight if known for BE% tracking.
           </span>
         </div>
+        <!-- Fruiting chamber selector (always present; hidden input when only one chamber) -->
         {% if all_chambers|length > 1 %}
+        <div class="fg">
+          <label>Fruiting Chamber</label>
+          <select name="chamber_id" id="chamberSelect" onchange="clearRecCard()">
+            {% for ch in all_chambers %}
+            <option value="{{ ch.id }}"
+              {{ 'selected' if (editing and batch.chamber_id == ch.id) or (not editing and ch.id == chamber.id) }}>
+              {{ ch.name }}{% if ch.chamber_type %} ({{ ch.chamber_type }}){% endif %}
+            </option>
+            {% endfor %}
+          </select>
+          <span class="form-hint">Chamber where this batch will fruit</span>
+        </div>
         <div class="fg">
           <label>Colonization Chamber</label>
           <select name="colonization_chamber_id">
@@ -104,7 +117,24 @@
           </select>
           <span class="form-hint">If colonization happened in a different setup (e.g. incubation chamber, SAB)</span>
         </div>
+        {% else %}
+        <input type="hidden" name="chamber_id" value="{{ chamber.id }}">
         {% endif %}
+
+        <!-- Chamber fit recommendation card (filled by JS after species selection) -->
+        <div id="chamber-rec-wrap" style="display:none;grid-column:1/-1">
+          <div style="border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;background:var(--card-bg)">
+            <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:10px">
+              Chamber Fit Analysis &nbsp;<span style="font-weight:400;font-size:10px">(Claude AI)</span>
+            </div>
+            <div id="rec-loading" style="display:none;color:var(--text-muted);font-size:13px">
+              Analyzing chamber conditions…
+            </div>
+            <div id="rec-error" style="display:none;color:var(--red);font-size:12px"></div>
+            <div id="rec-result" style="display:none"></div>
+          </div>
+        </div>
+
         <div class="fg">
           <label>Target Temperature (F)</label>
           <input type="number" name="target_temp" id="targetTemp" step="0.5"
@@ -363,12 +393,138 @@ function handleSpeciesChange() {
     custom.style.display = 'block';
     custom.required = true;
     updateTargetHints();
+    hideRecCard();
   } else {
     custom.style.display = 'none';
     custom.required = false;
     suggestLabel(sel.value);
     applySpeciesTargets(sel.value);
+    fetchChamberSuggestion(sel.value);
   }
+}
+
+function clearRecCard() {
+  // When user manually changes the chamber, clear the recommendation result
+  // so they don't see a stale recommendation
+  document.getElementById('rec-result').style.display = 'none';
+  document.getElementById('rec-error').style.display = 'none';
+}
+
+function hideRecCard() {
+  document.getElementById('chamber-rec-wrap').style.display = 'none';
+}
+
+const FIT_COLORS = {
+  'Ideal':    'var(--green)',
+  'Good':     'var(--blue)',
+  'Marginal': 'var(--amber)',
+  'Poor':     'var(--red)',
+};
+const FIT_BG = {
+  'Ideal':    'var(--green-bg)',
+  'Good':     'var(--blue-bg, #dbeafe)',
+  'Marginal': 'var(--amber-bg)',
+  'Poor':     'var(--red-bg, #fde8e8)',
+};
+
+async function fetchChamberSuggestion(species) {
+  if (!species) { hideRecCard(); return; }
+
+  const wrap = document.getElementById('chamber-rec-wrap');
+  const loading = document.getElementById('rec-loading');
+  const errDiv  = document.getElementById('rec-error');
+  const result  = document.getElementById('rec-result');
+
+  wrap.style.display = 'block';
+  loading.style.display = 'block';
+  errDiv.style.display  = 'none';
+  result.style.display  = 'none';
+
+  try {
+    const res  = await fetch('/api/chamber-suggest', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({species}),
+    });
+    const data = await res.json();
+    loading.style.display = 'none';
+
+    if (data.error) {
+      errDiv.textContent = data.error;
+      errDiv.style.display = 'block';
+      return;
+    }
+
+    const badge     = data.fit_badge || 'Unknown';
+    const color     = FIT_COLORS[badge] || 'var(--text-muted)';
+    const bg        = FIT_BG[badge]    || 'var(--card-bg)';
+    const multiChamber = data.chambers && data.chambers.length > 1;
+    const sr        = data.species_range || {};
+
+    let html = `
+      <div style="display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap">
+        <div style="flex:1;min-width:200px">
+          <div style="margin-bottom:6px">
+            <span style="font-weight:700;font-size:14px;color:var(--text)">${data.recommended_chamber_name}</span>
+            &nbsp;
+            <span style="display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700;
+                         background:${bg};color:${color};border:1px solid ${color}">${badge}</span>
+          </div>
+          <div style="font-size:13px;color:var(--text-muted);line-height:1.5">${data.reasoning}</div>
+        </div>`;
+
+    if (multiChamber && data.chamber_scores && data.chamber_scores.length > 1) {
+      html += `
+        <div style="min-width:220px;flex:1">
+          <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-bottom:6px">All Chambers</div>
+          <table style="width:100%;border-collapse:collapse;font-size:12px">`;
+      for (const cs of data.chamber_scores) {
+        const c2 = FIT_COLORS[cs.fit] || 'var(--text-muted)';
+        html += `
+            <tr style="border-bottom:1px solid var(--border)">
+              <td style="padding:4px 6px 4px 0;color:var(--text);font-weight:600">${cs.chamber_name}</td>
+              <td style="padding:4px 6px 4px 0">
+                <span style="color:${c2};font-weight:700;font-size:11px">${cs.fit}</span>
+              </td>
+              <td style="padding:4px 0;color:var(--text-muted)">${cs.note}</td>
+            </tr>`;
+      }
+      html += `</table></div>`;
+    }
+
+    if (sr.temp_lo !== undefined) {
+      html += `
+        <div style="font-size:11px;color:var(--text-muted);margin-top:8px;grid-column:1/-1">
+          Species needs: ${sr.temp_lo}–${sr.temp_hi}°F · ${sr.hum_lo}–${sr.hum_hi}% RH
+        </div>`;
+    }
+
+    html += `</div>`;
+
+    // "Use this chamber" button for multi-chamber setups
+    const chamberSel = document.getElementById('chamberSelect');
+    if (multiChamber && chamberSel && data.recommended_chamber_id) {
+      html += `
+        <div style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px">
+          <button type="button" class="btn btn-sm btn-ghost"
+                  onclick="selectChamber(${data.recommended_chamber_id})">
+            Use ${data.recommended_chamber_name}
+          </button>
+        </div>`;
+    }
+
+    result.innerHTML = html;
+    result.style.display = 'block';
+  } catch (e) {
+    loading.style.display = 'none';
+    errDiv.textContent = 'Could not reach the recommendation service.';
+    errDiv.style.display = 'block';
+  }
+}
+
+function selectChamber(chamberId) {
+  const sel = document.getElementById('chamberSelect');
+  if (sel) sel.value = chamberId;
 }
 
 function applySpeciesTargets(species) {
