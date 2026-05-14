@@ -95,6 +95,16 @@ either is no, move it to pattern_observations instead. Prefer one \
 well-calibrated warning over three marginal ones — a grower who sees too \
 many low-value flags stops reading them.
 
+4. RANGE vs TARGET: The batch target_temp_f and target_humidity_rh are the \
+grower's stated preference (typically the species midpoint), not a precision \
+setpoint. Do NOT recommend nudging conditions toward the target if actual \
+conditions are already within the species' full fruiting_temp_f or \
+fruiting_humidity_rh range from species_targets. Only flag temperature or \
+humidity when readings are outside the species' acceptable range entirely. \
+A reading of 66.7°F for Blue Oyster (range 55–70°F) is normal — do not \
+suggest cooling toward 62.5°F. Apply this reasoning to all species: \
+within-range is within-range, regardless of distance from the midpoint.
+
 Output format — return JSON only, no preamble:
 {
   "briefing_date": "YYYY-MM-DD",
