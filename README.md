@@ -38,9 +38,9 @@ pip install flask rich anthropic apscheduler
 > pip install reportlab
 > ```
 
-### 3. Set your Anthropic API key *(required for AI briefing only)*
+### 3. Set your Anthropic API key *(required for AI features)*
 
-The AI daily briefing requires an API key from [console.anthropic.com](https://console.anthropic.com).
+Two features use the Claude API: the **AI daily briefing** and the **chamber fit recommendation** that appears in the batch form when you select a species. Both require an API key from [console.anthropic.com](https://console.anthropic.com).
 
 **On Windows** — set it as a user environment variable:
 
@@ -58,7 +58,7 @@ export ANTHROPIC_API_KEY="sk-ant-..."
 
 Then reload: `source ~/.zshrc`
 
-> The app and CLI read this variable automatically at startup. No config file is needed. If the key is not set, all features work normally except the AI briefing.
+> The app and CLI read this variable automatically at startup. No config file is needed. If the key is not set, all features work normally except the AI daily briefing and the chamber fit recommendation.
 
 ---
 
