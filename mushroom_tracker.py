@@ -59,6 +59,7 @@ SPECIES = [
     "Cordyceps",
     "Turkey Tail",
     "Wine Cap",
+    "Bunashimeji",
 ]
 
 SPECIES_CODES = {s.lower(): code for s, code in [
@@ -81,6 +82,7 @@ SPECIES_CODES = {s.lower(): code for s, code in [
     ("Cordyceps",     "COR"),
     ("Turkey Tail",   "TT"),
     ("Wine Cap",      "WC"),
+    ("Bunashimeji",   "BUN"),
 ]}
 
 
