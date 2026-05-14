@@ -1106,11 +1106,18 @@ def build():
           "similar to the discussion thread on a work item in project-management tools."),
         sp(6),
         *bullet([
-            "Type a note and press <b>Add Note</b> — it is saved with a timestamp and cannot be edited",
-            "A muted <b>Remove</b> link appears on the right of each note's timestamp row — "
-            "click it to delete the note after confirming the prompt. "
+            "Type a note and press <b>Add Note</b> — it is saved immediately with a timestamp",
+            "Each note's timestamp row has two muted action links: "
+            "<b>Edit</b> and <b>Remove</b>. "
+            "Clicking <b>Edit</b> replaces the note text with an inline textarea pre-filled with "
+            "the current content — no page navigation. "
+            "Press <b>Save</b> to commit the change or <b>Cancel</b> to restore the original view. "
+            "After saving, the timestamp shows the original creation time plus a smaller "
+            "<i>(edited HH:MM)</i> indicator so you always know both when the note was written "
+            "and when it was last changed.",
+            "Clicking <b>Remove</b> prompts for confirmation before permanently deleting the note. "
             "Use this to remove a note that was accidentally added to the wrong batch.",
-            "Notes appear in chronological order, oldest first, with the author timestamp on each entry",
+            "Notes appear in chronological order, oldest first, with the creation timestamp on each entry",
             "Existing text in the batch's <b>Notes</b> field (from before this feature was added) "
             "is automatically migrated into the Discussion log the first time the app starts",
             "Use discussion notes for things like: <i>first pins visible on left side</i>, "
