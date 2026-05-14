@@ -404,36 +404,7 @@ toggleContamField();
 
   const datasets = [];
 
-  if (cd.temp_lo !== null) {
-    datasets.push({
-      label: `Temp range (${cd.temp_lo}–${cd.temp_hi}°F)`,
-      data: fill(cd.temp_lo), borderWidth: 1,
-      borderColor: 'rgba(63,185,80,0.35)', borderDash: [3,3],
-      pointRadius: 0, backgroundColor: 'rgba(63,185,80,0.10)',
-      fill: '+1', yAxisID: 'yTemp',
-    });
-    datasets.push({
-      label: '_temp_hi', data: fill(cd.temp_hi),
-      borderWidth: 1, borderColor: 'rgba(63,185,80,0.35)', borderDash: [3,3],
-      pointRadius: 0, fill: false, yAxisID: 'yTemp',
-    });
-  }
-
-  if (cd.humidity_lo !== null) {
-    datasets.push({
-      label: `RH range (${cd.humidity_lo}–${cd.humidity_hi}%)`,
-      data: fill(cd.humidity_lo), borderWidth: 1,
-      borderColor: 'rgba(88,166,255,0.35)', borderDash: [3,3],
-      pointRadius: 0, backgroundColor: 'rgba(88,166,255,0.10)',
-      fill: '+1', yAxisID: 'yHum',
-    });
-    datasets.push({
-      label: '_humidity_hi', data: fill(cd.humidity_hi),
-      borderWidth: 1, borderColor: 'rgba(88,166,255,0.35)', borderDash: [3,3],
-      pointRadius: 0, fill: false, yAxisID: 'yHum',
-    });
-  }
-
+  // Actual readings
   datasets.push({
     label: 'Temp (°F)', data: cd.temp,
     borderColor: '#3fb950', backgroundColor: 'rgba(63,185,80,0.05)',
@@ -441,21 +412,51 @@ toggleContamField();
     yAxisID: 'yTemp',
   });
   datasets.push({
-    label: `Target ${cd.target_temp}°F`, data: fill(cd.target_temp),
-    borderColor: 'rgba(63,185,80,0.70)', borderWidth: 2,
-    borderDash: [6,4], pointRadius: 0, fill: false, yAxisID: 'yTemp',
-  });
-  datasets.push({
     label: 'Humidity (% RH)', data: cd.humidity,
     borderColor: '#58a6ff', backgroundColor: 'rgba(88,166,255,0.05)',
     tension: 0.3, pointRadius: n > 200 ? 0 : 3, borderWidth: 1.5,
     yAxisID: 'yHum',
   });
+
+  // Target lines — long dash
+  datasets.push({
+    label: `Target ${cd.target_temp}°F`, data: fill(cd.target_temp),
+    borderColor: 'rgba(63,185,80,0.70)', borderWidth: 1.5,
+    borderDash: [8,4], pointRadius: 0, fill: false, yAxisID: 'yTemp',
+  });
   datasets.push({
     label: `Target ${cd.target_hum}%`, data: fill(cd.target_hum),
-    borderColor: 'rgba(88,166,255,0.70)', borderWidth: 2,
-    borderDash: [6,4], pointRadius: 0, fill: false, yAxisID: 'yHum',
+    borderColor: 'rgba(88,166,255,0.70)', borderWidth: 1.5,
+    borderDash: [8,4], pointRadius: 0, fill: false, yAxisID: 'yHum',
   });
+
+  // Acceptable range boundaries — short dot, labeled lo only, hi hidden from legend
+  if (cd.temp_lo !== null) {
+    datasets.push({
+      label: `Temp range (${cd.temp_lo}–${cd.temp_hi}°F)`,
+      data: fill(cd.temp_lo),
+      borderColor: 'rgba(63,185,80,0.55)', borderWidth: 1,
+      borderDash: [3,3], pointRadius: 0, fill: false, yAxisID: 'yTemp',
+    });
+    datasets.push({
+      label: '_temp_hi', data: fill(cd.temp_hi),
+      borderColor: 'rgba(63,185,80,0.55)', borderWidth: 1,
+      borderDash: [3,3], pointRadius: 0, fill: false, yAxisID: 'yTemp',
+    });
+  }
+  if (cd.humidity_lo !== null) {
+    datasets.push({
+      label: `RH range (${cd.humidity_lo}–${cd.humidity_hi}%)`,
+      data: fill(cd.humidity_lo),
+      borderColor: 'rgba(88,166,255,0.55)', borderWidth: 1,
+      borderDash: [3,3], pointRadius: 0, fill: false, yAxisID: 'yHum',
+    });
+    datasets.push({
+      label: '_humidity_hi', data: fill(cd.humidity_hi),
+      borderColor: 'rgba(88,166,255,0.55)', borderWidth: 1,
+      borderDash: [3,3], pointRadius: 0, fill: false, yAxisID: 'yHum',
+    });
+  }
 
   new Chart(document.getElementById('batchEnvChart').getContext('2d'), {
     type: 'line',
