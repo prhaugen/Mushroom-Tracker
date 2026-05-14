@@ -388,7 +388,8 @@ def build():
         ("6.4",  "Spawn Details",                               "8"),
         ("6.5",  "Batch Lifecycle",                             "9"),
         ("6.6",  "Updating Batch Status",                       "9"),
-        ("7",    "Logging Flushes",                             "10"),
+        ("6.7",  "Batch Detail Page",                           "10"),
+        ("7",    "Logging Flushes",                             "11"),
         ("8",    "Sales Tracking",                              "11"),
         ("9",    "Logging Environment Readings",                "12"),
         ("10",   "Environment History",                         "12"),
@@ -801,11 +802,18 @@ def build():
                  "The chamber where this batch colonized, if different from the fruiting chamber. "
                  "Only shown when more than one chamber is configured."],
                 ["Target Temp (F)",           "No",
-                 "Ideal fruiting temp for this species. Pre-filled from chamber defaults. "
+                 "Ideal fruiting temp for this species. "
+                 "Auto-filled from species defaults when you select a species — "
+                 "the hint below the field shows the species default and displays a "
+                 "<b>Customized</b> badge if you change the value. "
+                 "Clearing the field and re-selecting the species restores the default. "
                  "See Growing Reference for species-specific ranges."],
                 ["Target Humidity",           "No",
-                 "Ideal RH % for this species. Pre-filled from chamber defaults. "
-                 "Drives the reference line on the Environment History chart."],
+                 "Ideal RH % for this species. "
+                 "Auto-filled from species defaults when you select a species — "
+                 "same <b>Customized</b> badge behavior as Target Temp above. "
+                 "Drives the dashed reference lines on the Environment History chart "
+                 "and on the batch-scoped environment chart on the Batch Detail page."],
                 ["Status",                    "No",  "Defaults to Colonizing"],
                 ["Notes",                     "No",  "Supplier info, intent, anything relevant"],
             ],
@@ -989,6 +997,96 @@ def build():
             "Or when setting status to <b>Pinning</b>, note: <i>initiated with cold shock on [date]</i>",
             "This preserves the information without adding a status that is only ever active for one day",
         ]),
+    ]
+
+    story.append(PageBreak())
+
+    # ══════════════════════════════════════════════════════════════════════
+    # 6.7 BATCH DETAIL PAGE
+    # ══════════════════════════════════════════════════════════════════════
+    story += [
+        h2("6.7  Batch Detail Page"),
+        p("The Batch Detail page is the main view for a single batch. "
+          "It shows the lifecycle timeline, substrate and spawn summary, flush log, sales, "
+          "a scoped environment chart, and a discussion log — "
+          "all in one place without switching screens."),
+        sp(10),
+        h3("Environment Chart"),
+        p("A dual-axis line chart shows chamber readings for the period the batch has been active, "
+          "overlaid with targets and the species' full acceptable range. "
+          "Up to six trace lines are drawn:"),
+        sp(6),
+        data_table(
+            ["Trace", "Style", "What It Shows"],
+            [
+                ["Actual Temp",       "Solid green line",
+                 "Temperature readings from the batch's chamber during the batch's active period. "
+                 "Plotted on the left y-axis (°F)."],
+                ["Actual Humidity",   "Solid blue line",
+                 "Humidity readings from the same period. Plotted on the right y-axis (% RH)."],
+                ["Target Temp",       "Dashed green line (long dash)",
+                 "The batch's saved Target Temp — the ideal fruiting temperature for this species."],
+                ["Target Humidity",   "Dashed blue line (long dash)",
+                 "The batch's saved Target Humidity — the ideal RH for this species."],
+                ["Temp range lo/hi",  "Dotted green lines (short dot, 55% opacity)",
+                 "The species' full acceptable temperature range from the Growing Reference. "
+                 "Only drawn when the batch species is recognized. "
+                 "Readings between these lines are within the acceptable window even if "
+                 "they differ from the target; the agent will not recommend adjustments."],
+                ["Humidity range lo/hi", "Dotted blue lines (short dot, 55% opacity)",
+                 "The species' full acceptable humidity range. Same logic as temp range."],
+            ],
+            col_widths=[3.2*cm, 3.8*cm, 9.2*cm],
+        ),
+        sp(8),
+        p("Resolution pills above the chart let you switch between 1-minute, 5-minute, "
+          "10-minute, 30-minute, and 60-minute averages. "
+          "The chart auto-selects a resolution based on the batch's age: "
+          "batches under 2 days default to 5m; under 7 days to 10m; otherwise 30m. "
+          "Click any pill to override."),
+        sp(8),
+        callout(
+            "The environment chart only shows readings from the batch's assigned chamber "
+            "during the batch's active period (inoculation date to today or block end date). "
+            "If a batch has no chamber assigned, the chart is hidden.",
+            label="Note:", color=BLUE_BG, border=BLUE_BORDER
+        ),
+        sp(12),
+        h3("Discussion Log"),
+        p("The Discussion section at the bottom of the Batch Detail page is an append-only "
+          "log where you can record observations about the batch over time — "
+          "similar to the discussion thread on a work item in project-management tools."),
+        sp(6),
+        *bullet([
+            "Type a note and press <b>Add Note</b> — it is saved with a timestamp and cannot be edited or deleted",
+            "Notes appear in chronological order, oldest first, with the author timestamp on each entry",
+            "Existing text in the batch's <b>Notes</b> field (from before this feature was added) "
+            "is automatically migrated into the Discussion log the first time the app starts",
+            "Use discussion notes for things like: <i>first pins visible on left side</i>, "
+            "<i>increased misting to 3x/day</i>, <i>hygiene deviation — wiped block surface</i>, "
+            "<i>contamination resolved — green spot removed</i>",
+        ]),
+        sp(8),
+        h3("Discussion Notes and the AI Agent"),
+        p("The AI Daily Briefing agent reads the last 14 days of discussion notes (up to 10 per batch) "
+          "as part of its snapshot. The agent treats these notes as grower ground truth — "
+          "they carry more weight than automated alerts:"),
+        sp(4),
+        *bullet([
+            "If a note records that an issue was resolved (e.g. <i>contamination spot removed</i>), "
+            "the agent will not re-flag it as an active concern — it moves to Pattern Observations instead",
+            "If a note explains an anomaly (e.g. <i>temp spike from opening the door</i>), "
+            "the agent factors that in before escalating to a warning",
+            "Notes documenting routine hygiene (cleaning, wiping, etc.) are treated as expected grower activity, "
+            "not contamination risk signals",
+        ]),
+        sp(8),
+        callout(
+            "The Discussion log replaces the old single Notes field on the Update Status form. "
+            "Setup notes (entered when the batch was created) still appear in the Substrate card "
+            "as read-only setup context. Only the Discussion log is append-only.",
+            label="Note:"
+        ),
     ]
 
     story.append(PageBreak())
@@ -1456,6 +1554,10 @@ def build():
             "Last 24 hours of environmental readings per batch or chamber — including sensor imports "
             "from the Govee CSV importer, which are linked by chamber rather than batch — "
             "with out-of-range streak detection using per-batch, phase-aware, species-specific thresholds",
+            "Up to 10 discussion notes per batch from the last 14 days — "
+            "grower observations logged via the Discussion panel on the Batch Detail page. "
+            "These are treated as ground truth: a note recording that an issue was resolved "
+            "prevents the agent from re-flagging it as an active concern",
             "Your historical averages per species — average BE%, colonization days, "
             "total cycle days (inoculation to block retirement), flush count, and "
             "days to first pin — used once you have 5+ completed batches per species",
@@ -1562,8 +1664,14 @@ def build():
                 ["Attention Required",
                  "Each item has a batch link, species, a plain-language description of the issue, "
                  "a severity badge, and a suggested action. "
-                 "Severity levels: Critical (red) = immediate action needed; "
-                 "Warning (amber) = monitor closely; Info (blue) = observation worth noting."],
+                 "Severity levels: <b>Critical (red)</b> = immediate action needed; "
+                 "<b>Warning (amber)</b> = monitor closely; <b>Info (blue)</b> = observation worth noting. "
+                 "Severity is calibrated to context: a hygiene event on a fruiting block (surface wipe, "
+                 "minor spot) is flagged as Warning, not Critical — the block is already producing, "
+                 "and the response is monitoring, not removal. "
+                 "A fully colonized block gets lower severity than a freshly inoculated one for similar deviations. "
+                 "The agent only flags something here if it is actionable today — "
+                 "it avoids re-raising issues that your discussion notes indicate are already resolved."],
                 ["Environmental Alerts",
                  "Out-of-range readings that persisted for 2+ consecutive hours in the last 24 hours. "
                  "Shows the parameter, observed value, expected range, and duration. "
@@ -1586,9 +1694,24 @@ def build():
                 ["Pattern Observations",
                  "Cross-batch patterns Claude noticed that do not rise to the level of an alert. "
                  "Examples: colonization times trending slower than your historical average, "
-                 "flush yields declining faster than normal across multiple batches."],
+                 "flush yields declining faster than normal across multiple batches. "
+                 "Cleared flags also appear here: if your discussion notes indicate an issue was resolved, "
+                 "the agent moves it to Pattern Observations as a historical note rather than carrying it "
+                 "forward in Attention Required."],
             ],
             col_widths=[3.5*cm, 12.7*cm],
+        ),
+        sp(8),
+        callout(
+            "The agent uses the species' <b>full acceptable range</b> — not just the midpoint target — "
+            "as its acceptable window when evaluating environmental readings. "
+            "If a reading is within the species range, the agent will not recommend adjusting "
+            "temperature or humidity even if the reading differs from the batch target. "
+            "For example: Blue Oyster's acceptable range is 55–70°F. "
+            "A chamber running at 66.7°F is well within that range, so the agent treats it as normal "
+            "and will not flag it or recommend nudging toward the 62.5°F midpoint target. "
+            "Only readings outside the full species range trigger environmental guidance.",
+            label="Range vs. target:", color=BLUE_BG, border=BLUE_BORDER
         ),
         sp(8),
         callout(
