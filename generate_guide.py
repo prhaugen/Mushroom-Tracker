@@ -798,6 +798,13 @@ def build():
                  "You may still enter estimated dry weight and moisture if known; they will be "
                  "used for BE% calculations without triggering missing-data alerts. "
                  "The Batch Detail page labels the batch as 'sourced block' in the subtitle."],
+                ["Fruiting Chamber",          "No",
+                 "Which chamber this batch will fruit in. "
+                 "When you have more than one chamber configured, a dropdown appears so you can "
+                 "assign the batch to any chamber — not just the primary one. "
+                 "If only one chamber exists, it is assigned automatically. "
+                 "The Chamber Fit Analysis card (see below) recommends the best option "
+                 "as soon as you select a species."],
                 ["Colonization Chamber",      "No",
                  "The chamber where this batch colonized, if different from the fruiting chamber. "
                  "Only shown when more than one chamber is configured."],
@@ -818,6 +825,22 @@ def build():
                 ["Notes",                     "No",  "Supplier info, intent, anything relevant"],
             ],
             col_widths=[3.5*cm, 2*cm, 10.7*cm],
+        ),
+        sp(10),
+        callout(
+            "<b>Chamber Fit Analysis</b> — When you select a species, an AI-powered fit card "
+            "appears automatically in the form. It queries each chamber's last 24 hours of "
+            "actual temperature and humidity readings, compares them to the species' fruiting "
+            "requirements, and returns a recommendation from Claude with a fit badge: "
+            "<b>Ideal</b> (conditions are within the species range), "
+            "<b>Good</b> (close and manageable), "
+            "<b>Marginal</b> (outside the preferred range but not extreme), or "
+            "<b>Poor</b> (conditions would stress this species). "
+            "The card also shows 2–3 sentences of reasoning and, when multiple chambers are "
+            "configured, a ranked table of all options plus a <b>Use this chamber</b> button "
+            "that updates the Fruiting Chamber dropdown. "
+            "The recommendation is advisory — you can always override it.",
+            label="New:", color=GREEN_BG, border=GREEN_LIGHT
         ),
         sp(10),
         h3("Species Code Reference"),
