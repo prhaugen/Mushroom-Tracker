@@ -321,6 +321,11 @@ def init_db():
         if col not in existing_b:
             c.execute(f"ALTER TABLE batches ADD COLUMN {col} {typedef}")
 
+    # Non-destructive column addition for batch_notes — edit support
+    existing_bn = {r[1] for r in c.execute("PRAGMA table_info(batch_notes)")}
+    if "updated_at" not in existing_bn:
+        c.execute("ALTER TABLE batch_notes ADD COLUMN updated_at TEXT")
+
     # One-time migration: seed batch_notes from existing batch.notes fields
     migrated = {r[0] for r in c.execute("SELECT DISTINCT batch_id FROM batch_notes")}
     for row in c.execute("SELECT id, notes, created_at FROM batches WHERE notes IS NOT NULL AND notes != ''").fetchall():

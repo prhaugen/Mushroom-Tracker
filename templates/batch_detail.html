@@ -354,21 +354,50 @@ new Chart(document.getElementById('yieldChart').getContext('2d'), {
   <div style="display:flex;flex-direction:column;gap:0">
     {% for note in batch_notes %}
     <div style="padding:12px 0;{% if not loop.last %}border-bottom:1px solid var(--border-muted){% endif %}">
+
+      <!-- Timestamp + action buttons -->
       <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:6px">
         <div style="font-size:11px;color:var(--text-muted);font-family:monospace">
           {{ note.created_at[:16] | replace('T', ' ') }}
+          {% if note.updated_at %}
+          <span style="font-style:italic;font-size:10px">&nbsp;(edited {{ note.updated_at[:16] | replace('T',' ') }})</span>
+          {% endif %}
         </div>
-        <form method="POST"
-              action="{{ url_for('batch_note_delete', batch_id=batch.id, note_id=note.id) }}"
-              style="margin:0"
-              onsubmit="return confirm('Remove this note? This cannot be undone.')">
-          <button type="submit"
+        <div id="note-btns-{{ note.id }}" style="display:flex;gap:12px;align-items:center">
+          <button type="button" onclick="editNote({{ note.id }})"
                   style="background:none;border:none;cursor:pointer;font-size:11px;color:var(--text-muted);padding:0;line-height:1"
-                  onmouseover="this.style.color='var(--red)'"
-                  onmouseout="this.style.color='var(--text-muted)'">Remove</button>
+                  onmouseover="this.style.color='var(--text)'"
+                  onmouseout="this.style.color='var(--text-muted)'">Edit</button>
+          <form method="POST"
+                action="{{ url_for('batch_note_delete', batch_id=batch.id, note_id=note.id) }}"
+                style="margin:0"
+                onsubmit="return confirm('Remove this note? This cannot be undone.')">
+            <button type="submit"
+                    style="background:none;border:none;cursor:pointer;font-size:11px;color:var(--text-muted);padding:0;line-height:1"
+                    onmouseover="this.style.color='var(--red)'"
+                    onmouseout="this.style.color='var(--text-muted)'">Remove</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Display mode -->
+      <div id="note-body-{{ note.id }}"
+           style="font-size:13px;color:var(--text);white-space:pre-wrap;line-height:1.6">{{ note.body }}</div>
+
+      <!-- Edit mode (hidden until Edit clicked) -->
+      <div id="note-edit-{{ note.id }}" style="display:none">
+        <form method="POST"
+              action="{{ url_for('batch_note_edit', batch_id=batch.id, note_id=note.id) }}">
+          <textarea name="body" rows="3"
+                    style="width:100%;resize:vertical;font-size:13px;line-height:1.6;box-sizing:border-box">{{ note.body }}</textarea>
+          <div style="margin-top:6px;display:flex;gap:8px">
+            <button type="submit" class="btn btn-primary btn-sm">Save</button>
+            <button type="button" class="btn btn-ghost btn-sm"
+                    onclick="cancelEdit({{ note.id }})">Cancel</button>
+          </div>
         </form>
       </div>
-      <div style="font-size:13px;color:var(--text);white-space:pre-wrap;line-height:1.6">{{ note.body }}</div>
+
     </div>
     {% endfor %}
   </div>
@@ -393,6 +422,19 @@ function toggleContamField() {
   document.getElementById('contamField').style.display = s === 'contaminated' ? 'block' : 'none';
 }
 toggleContamField();
+
+function editNote(id) {
+  document.getElementById('note-body-' + id).style.display = 'none';
+  document.getElementById('note-edit-' + id).style.display = 'block';
+  document.getElementById('note-btns-' + id).style.display = 'none';
+  document.getElementById('note-edit-' + id).querySelector('textarea').focus();
+}
+
+function cancelEdit(id) {
+  document.getElementById('note-body-' + id).style.display = 'block';
+  document.getElementById('note-edit-' + id).style.display = 'none';
+  document.getElementById('note-btns-' + id).style.display = 'flex';
+}
 </script>
 
 {% if batch_chart_data.labels %}

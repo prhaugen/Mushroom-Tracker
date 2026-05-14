@@ -540,6 +540,20 @@ def batch_note_delete(batch_id, note_id):
     return redirect(url_for('batch_detail', batch_id=batch_id) + '#discussion')
 
 
+@app.route('/batch/<int:batch_id>/note/<int:note_id>/edit', methods=['POST'])
+def batch_note_edit(batch_id, note_id):
+    body = request.form.get('body', '').strip()
+    if body:
+        conn = get_db()
+        conn.execute(
+            "UPDATE batch_notes SET body=?, updated_at=datetime('now') WHERE id=? AND batch_id=?",
+            (body, note_id, batch_id)
+        )
+        conn.commit()
+        conn.close()
+    return redirect(url_for('batch_detail', batch_id=batch_id) + '#discussion')
+
+
 # ── Flushes ───────────────────────────────────────────────────────────────────
 @app.route('/batch/<int:batch_id>/flush/add', methods=['GET','POST'])
 def flush_add(batch_id):
