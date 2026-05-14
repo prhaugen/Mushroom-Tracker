@@ -1101,12 +1101,15 @@ def build():
         ),
         sp(12),
         h3("Discussion Log"),
-        p("The Discussion section at the bottom of the Batch Detail page is an append-only "
+        p("The Discussion section at the bottom of the Batch Detail page is a timestamped "
           "log where you can record observations about the batch over time — "
           "similar to the discussion thread on a work item in project-management tools."),
         sp(6),
         *bullet([
-            "Type a note and press <b>Add Note</b> — it is saved with a timestamp and cannot be edited or deleted",
+            "Type a note and press <b>Add Note</b> — it is saved with a timestamp and cannot be edited",
+            "A muted <b>Remove</b> link appears on the right of each note's timestamp row — "
+            "click it to delete the note after confirming the prompt. "
+            "Use this to remove a note that was accidentally added to the wrong batch.",
             "Notes appear in chronological order, oldest first, with the author timestamp on each entry",
             "Existing text in the batch's <b>Notes</b> field (from before this feature was added) "
             "is automatically migrated into the Discussion log the first time the app starts",
@@ -1132,7 +1135,7 @@ def build():
         callout(
             "The Discussion log replaces the old single Notes field on the Update Status form. "
             "Setup notes (entered when the batch was created) still appear in the Substrate card "
-            "as read-only setup context. Only the Discussion log is append-only.",
+            "as read-only setup context.",
             label="Note:"
         ),
     ]
