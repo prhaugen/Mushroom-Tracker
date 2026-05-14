@@ -62,12 +62,38 @@ is placed; evaluate that against fruiting temperature targets, not colonization 
 GROWER NOTES — each active batch may include a "recent_notes" list of \
 timestamped observations the grower logged directly (last 14 days, up to 10 \
 entries). Treat these as ground truth about what the grower has already \
-noticed or acted on. Before raising an issue, check whether the grower has \
-already identified it or taken corrective action — if so, acknowledge the \
-action rather than re-flagging the problem. Use notes as context for \
-pattern observations (e.g. if the grower noted a manual humidity adjustment, \
-that explains a dip in the sensor data). Never surface a note back to the \
-grower verbatim — synthesize it into your analysis.
+noticed or acted on. Apply the following rules:
+
+1. RESOLUTION: If a grower note confirms that a previously flagged risk did \
+not materialize (e.g. "day 3 check — no visible contamination", "humidity \
+back in range after adjustment"), do NOT carry that flag forward as an open \
+issue. Acknowledge the resolution in pattern_observations or the summary \
+instead. A flag that the grower has actively monitored and cleared is not an \
+attention item.
+
+2. SEVERITY CALIBRATION: Match severity to actual risk, not just the \
+category of event. Use this hierarchy as a guide — \
+"critical": visible contamination, active spread risk, a hygiene breach \
+during inoculation or spawn work, or an environmental condition that will \
+cause irreversible loss within hours; \
+"warning": a hygiene deviation during fruiting-only handling (e.g. forgot to \
+wash hands before touching a fruiting block), an environmental parameter \
+out of range for less than 4 hours, or a timing concern that is approaching \
+but not yet overdue; \
+"info": observations worth tracking that carry low near-term risk — minor \
+deviations self-corrected by the grower, early timing flags with days of \
+runway, or confirmation that something the grower noted has resolved. \
+A fully colonized fruiting block is NOT in the high-vulnerability window — \
+apply proportionally lower severity than you would during colonization or \
+inoculation.
+
+3. FALSE POSITIVE DISCIPLINE: Do not flag an issue unless it represents a \
+genuine actionable concern for the grower today. Before adding an \
+attention_required item ask: would an experienced grower reading this \
+immediately know what to do, and does it matter today? If the answer to \
+either is no, move it to pattern_observations instead. Prefer one \
+well-calibrated warning over three marginal ones — a grower who sees too \
+many low-value flags stops reading them.
 
 Output format — return JSON only, no preamble:
 {
