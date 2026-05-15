@@ -35,88 +35,87 @@
   </div>
 </div>
 
-<div class="g2 mb-20">
-  <div class="card">
-    <div class="card-head">
-      <span class="card-title">Environment</span>
-      <a href="{{ url_for('env_history') }}" class="btn btn-ghost btn-sm">History</a>
+<!-- Environment strip -->
+<div class="card mb-16">
+  {% if latest_env %}
+  {% set temp_ok = (latest_env.temp_f - chamber.target_temp_f)|abs <= 3 %}
+  {% set hum_ok = latest_env.humidity_rh >= 80 %}
+  <div class="env-strip">
+    <div class="env-gauges">
+      <div class="env-val-card {{ 'env-ok' if temp_ok else 'env-warn' }}">
+        <div class="env-big">{{ "%.1f"|format(latest_env.temp_f) }}<span class="env-unit">F</span></div>
+        <div class="env-lbl">Temperature</div>
+        <div class="env-status">{{ "In range" if temp_ok else "Check temp" }}</div>
+      </div>
+      <div class="env-val-card {{ 'env-ok' if hum_ok else 'env-bad' }}">
+        <div class="env-big">{{ "%.0f"|format(latest_env.humidity_rh) }}<span class="env-unit">%</span></div>
+        <div class="env-lbl">Humidity RH</div>
+        <div class="env-status">{{ "In range" if hum_ok else "Too low!" }}</div>
+      </div>
     </div>
-    {% if latest_env %}
-      {% set temp_ok = (latest_env.temp_f - chamber.target_temp_f)|abs <= 3 %}
-      {% set hum_ok = latest_env.humidity_rh >= 80 %}
-      <div class="env-pair">
-        <div class="env-val-card {{ 'env-ok' if temp_ok else 'env-warn' }}">
-          <div class="env-big">{{ "%.1f"|format(latest_env.temp_f) }}<span class="env-unit">F</span></div>
-          <div class="env-lbl">Temperature</div>
-          <div class="env-status">{{ "In range" if temp_ok else "Check temp" }}</div>
-        </div>
-        <div class="env-val-card {{ 'env-ok' if hum_ok else 'env-bad' }}">
-          <div class="env-big">{{ "%.0f"|format(latest_env.humidity_rh) }}<span class="env-unit">%</span></div>
-          <div class="env-lbl">Humidity RH</div>
-          <div class="env-status">{{ "In range" if hum_ok else "Too low!" }}</div>
-        </div>
-      </div>
-      <div class="mt-12 text-muted text-sm">
-        {{ time_ago(latest_env.logged_at) }}
-        {% if latest_env.phase %} &nbsp;·&nbsp; {{ latest_env.phase }}{% endif %}
-        {% if latest_env.co2_ppm %} &nbsp;·&nbsp; CO2: {{ latest_env.co2_ppm|int }} ppm{% endif %}
-        {% if latest_env.misting_count %} &nbsp;·&nbsp; {{ latest_env.misting_count }}x misting{% endif %}
-      </div>
-    {% else %}
-      <div class="empty">
-        <div class="empty-title">No readings yet</div>
-        <div class="empty-sub">Log your first environment check to track conditions.</div>
-        <a href="{{ url_for('env_log') }}" class="btn btn-primary">Log Now</a>
-      </div>
-    {% endif %}
+    <div class="env-strip-meta">
+      {{ time_ago(latest_env.logged_at) }}
+      {% if latest_env.phase %} &nbsp;·&nbsp; {{ latest_env.phase }}{% endif %}
+      {% if latest_env.co2_ppm %} &nbsp;·&nbsp; CO2: {{ latest_env.co2_ppm|int }} ppm{% endif %}
+      {% if latest_env.misting_count %} &nbsp;·&nbsp; {{ latest_env.misting_count }}x misting{% endif %}
+    </div>
+    <a href="{{ url_for('env_history') }}" class="btn btn-ghost btn-sm">History</a>
   </div>
+  {% else %}
+  <div class="empty">
+    <div class="empty-title">No readings yet</div>
+    <div class="empty-sub">Log your first environment check to track conditions.</div>
+    <a href="{{ url_for('env_log') }}" class="btn btn-primary">Log Now</a>
+  </div>
+  {% endif %}
+</div>
 
-  <div class="card">
-    <div class="card-head">
-      <span class="card-title">Batches ({{ batches|length }})</span>
-      <a href="{{ url_for('batch_add') }}" class="btn btn-ghost btn-sm">+ Add</a>
-    </div>
-    {% if batches %}
-    <div class="batch-grid">
-      {% for b in batches %}
-      {% set be = bio_efficiency(b.total_yield_g, b.dry_weight_g) %}
-      <a href="{{ url_for('batch_detail', batch_id=b.id) }}" class="batch-card">
-        <div class="batch-card-top">
-          <div>
-            <div class="batch-label">{{ b.label }}</div>
-            <div class="batch-species">{{ b.species }}{% if b.strain %} · {{ b.strain }}{% endif %}</div>
-          </div>
-          <span class="badge badge-{{ b.status }}">{{ b.status }}</span>
-        </div>
-        <div class="batch-nums">
-          <div>
-            <div class="bnum-val">{% if days_since(b.inoculation_date) is not none %}{{ days_since(b.inoculation_date) }}{% else %}—{% endif %}</div>
-            <div class="bnum-lbl">Days</div>
-          </div>
-          <div>
-            <div class="bnum-val">{{ b.total_flushes }}</div>
-            <div class="bnum-lbl">Flushes</div>
-          </div>
-          <div>
-            <div class="bnum-val">{{ b.total_yield_g|int }}g</div>
-            <div class="bnum-lbl">Yield</div>
-          </div>
-          <div>
-            <div class="bnum-val {% if be and be >= 60 %}text-green{% elif be %}{% endif %}">{% if be %}{{ be|int }}%{% else %}—{% endif %}</div>
-            <div class="bnum-lbl">BE</div>
-          </div>
-        </div>
-      </a>
-      {% endfor %}
-    </div>
-    {% else %}
-    <div class="empty">
-      <div class="empty-title">No batches yet</div>
-      <div class="empty-sub">Add your first fruiting batch to start tracking.</div>
-      <a href="{{ url_for('batch_add') }}" class="btn btn-primary">Add Batch</a>
-    </div>
-    {% endif %}
+<!-- Batches — full width -->
+<div class="card mb-20">
+  <div class="card-head">
+    <span class="card-title">Batches ({{ batches|length }})</span>
+    <a href="{{ url_for('batch_add') }}" class="btn btn-ghost btn-sm">+ Add</a>
   </div>
+  {% if batches %}
+  <div class="batch-grid">
+    {% for b in batches %}
+    {% set be = bio_efficiency(b.total_yield_g, b.dry_weight_g) %}
+    <a href="{{ url_for('batch_detail', batch_id=b.id) }}" class="batch-card">
+      <div class="batch-card-top">
+        <div>
+          <div class="batch-label">{{ b.label }}</div>
+          <div class="batch-species">{{ b.species }}{% if b.strain %} · {{ b.strain }}{% endif %}</div>
+        </div>
+        <span class="badge badge-{{ b.status }}">{{ b.status }}</span>
+      </div>
+      <div class="batch-nums">
+        <div>
+          <div class="bnum-val">{% if days_since(b.inoculation_date) is not none %}{{ days_since(b.inoculation_date) }}{% else %}—{% endif %}</div>
+          <div class="bnum-lbl">Days</div>
+        </div>
+        <div>
+          <div class="bnum-val">{{ b.total_flushes }}</div>
+          <div class="bnum-lbl">Flushes</div>
+        </div>
+        <div>
+          <div class="bnum-val">{{ b.total_yield_g|int }}g</div>
+          <div class="bnum-lbl">Yield</div>
+        </div>
+        <div>
+          <div class="bnum-val {% if be and be >= 60 %}text-green{% endif %}">{% if be %}{{ be|int }}%{% else %}—{% endif %}</div>
+          <div class="bnum-lbl">BE</div>
+        </div>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty">
+    <div class="empty-title">No batches yet</div>
+    <div class="empty-sub">Add your first fruiting batch to start tracking.</div>
+    <a href="{{ url_for('batch_add') }}" class="btn btn-primary">Add Batch</a>
+  </div>
+  {% endif %}
 </div>
 
 {% if harvest_forecast %}
