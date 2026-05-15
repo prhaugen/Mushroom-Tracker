@@ -761,7 +761,6 @@ input[name="quality_rating"]{display:none}
 <script>
 (function () {
   var batchId = document.body.dataset.batchId || null;
-  if (!batchId) return;
 
   var fab    = document.getElementById('chat-fab');
   var panel  = document.getElementById('chat-panel');
@@ -793,13 +792,23 @@ input[name="quality_rating"]{display:none}
   };
 
   function appendWelcome() {
-    appendMsg('ai',
-      'Hi! I can answer questions about batch #' + batchId + ' or any of your cultivation data.\n\n' +
-      'Try asking:\n' +
-      '• "What is the yield so far for this batch?"\n' +
-      '• "What is my overall contamination rate?"\n' +
-      '• "How does this batch compare to others of the same species?"'
-    );
+    if (batchId) {
+      appendMsg('ai',
+        'Hi! I can answer questions about batch #' + batchId + ' or any of your cultivation data.\n\n' +
+        'Try asking:\n' +
+        '• "What is the yield so far for this batch?"\n' +
+        '• "What is my overall contamination rate?"\n' +
+        '• "How does this batch compare to others of the same species?"'
+      );
+    } else {
+      appendMsg('ai',
+        'Hi! I can answer questions about your cultivation data.\n\n' +
+        'Try asking:\n' +
+        '• "What are my active batches?"\n' +
+        '• "What is my overall contamination rate this month?"\n' +
+        '• "Which batch has the highest yield?"'
+      );
+    }
   }
 
   function appendMsg(role, text) {
@@ -843,7 +852,7 @@ input[name="quality_rating"]{display:none}
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
         question: q,
-        context:  {batch_id: parseInt(batchId, 10), page: 'batch_detail'},
+        context:  batchId ? {batch_id: parseInt(batchId, 10), page: 'batch_detail'} : {page: 'dashboard'},
         history:  history.slice(-10),
       }),
     })
