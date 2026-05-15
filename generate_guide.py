@@ -1849,7 +1849,7 @@ def build():
           "This section documents the first piece of that chain: LC syringe lots."),
         sp(8),
         h2("13.1  LC Syringe Lots"),
-        p("Navigate to <b>Culture</b> in the top navigation bar to view and manage your "
+        p("Navigate to <b>Supply &rarr; Culture</b> in the top navigation bar to view and manage your "
           "LC syringe lot records. Each record represents one order from a vendor — a "
           "distinct lot of liquid culture for a specific species."),
         sp(6),
@@ -1917,7 +1917,7 @@ def build():
         p("A substrate batch is one preparation run — a specific mix of ingredients "
           "sterilized together at the same time. Multiple fruiting blocks inoculated "
           "from the same substrate run share a substrate batch record. "
-          "Navigate to <b>Substrate</b> in the top navigation bar to log and manage runs."),
+          "Navigate to <b>Supply &rarr; Substrate</b> in the top navigation bar to log and manage runs."),
         sp(6),
         callout(
             "The most important contamination diagnostic this enables: "
@@ -2011,7 +2011,7 @@ def build():
         sp(8),
 
         h2("15.1  Logging a Grain Jar"),
-        p("Navigate to <b>Grain</b> in the nav bar and click <b>+ Add Jar</b>. "
+        p("Navigate to <b>Supply &rarr; Grain</b> in the nav bar and click <b>+ Add Jar</b>. "
           "Each jar record captures:"),
         sp(4),
         data_table(
