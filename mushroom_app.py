@@ -10,6 +10,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).parent))
 import mushroom_tracker as _mt
+from roadmap_gates import evaluate_gates
 from agent_config import SPECIES_TIMELINES
 from mushroom_tracker import (init_db, bio_efficiency,
                                STATUSES, LIFECYCLE, SPAWN_TYPES,
@@ -1553,9 +1554,33 @@ def briefing(briefing_date=None):
             briefing_data = json.loads(record['raw_json'])
         except Exception:
             pass
+    roadmap_data = None
+    try:
+        _gate_res = evaluate_gates(db_path=active_db_path())
+        _rconn = get_db()
+        _ms_rows = _rconn.execute(
+            "SELECT * FROM roadmap_milestones ORDER BY target_date, id"
+        ).fetchall()
+        _rconn.close()
+        _today = date.today()
+        _milestones = []
+        for _r in _ms_rows:
+            _m = dict(_r)
+            _m['display_status'], _m['gate_result'] = _roadmap_display_status(
+                _m, _gate_res, _today)
+            _milestones.append(_m)
+        roadmap_data = {
+            'milestones':     _milestones,
+            'gate_results':   _gate_res,
+            'days_to_market': (date(2027, 5, 24) - _today).days,
+        }
+    except Exception:
+        pass
+
     return render_template('briefing.html',
         briefing=briefing_data, record=record,
-        history=history, target_date=target_date)
+        history=history, target_date=target_date,
+        roadmap_data=roadmap_data)
 
 
 @app.route('/briefing/run', methods=['POST'])
@@ -1701,6 +1726,94 @@ def env_import():
         return redirect(url_for('env_history'))
 
     return render_template('env_import.html', chambers=chambers)
+
+
+# ── Roadmap ───────────────────────────────────────────────────────────────────
+
+def _roadmap_display_status(m: dict, gate_results: dict, today: date) -> tuple:
+    """Return (display_status, gate_result) for one milestone row."""
+    if m['gate_type'] == 'auto' and m['gate_key']:
+        gate = gate_results.get(m['gate_key'], {})
+        gs = gate.get('status', 'pending')
+        try:
+            target = date.fromisoformat(m['target_date'])
+        except Exception:
+            target = today
+        if gs == 'complete':
+            return 'complete', gate
+        elif gs == 'on_track':
+            return ('on_track' if target >= today else 'at_risk'), gate
+        else:
+            days_out = (target - today).days
+            return ('at_risk' if days_out <= 30 else 'pending'), gate
+    return m['status'], None
+
+
+@app.route('/roadmap')
+def roadmap():
+    init_db()
+    conn = get_db()
+    milestones = conn.execute(
+        "SELECT * FROM roadmap_milestones ORDER BY target_date, id"
+    ).fetchall()
+    conn.close()
+
+    try:
+        gate_results = evaluate_gates(db_path=active_db_path())
+    except Exception:
+        gate_results = {}
+
+    today = date.today()
+    phases: dict = {}
+
+    for row in milestones:
+        m = dict(row)
+        m['display_status'], m['gate_result'] = _roadmap_display_status(m, gate_results, today)
+        ph = m['phase']
+        if ph not in phases:
+            phases[ph] = {'label': m['phase_label'], 'milestones': []}
+        phases[ph]['milestones'].append(m)
+
+    phases = dict(sorted(phases.items()))
+    all_ms = [m for ph in phases.values() for m in ph['milestones']]
+    total          = len(all_ms)
+    complete_count = sum(1 for m in all_ms if m['display_status'] == 'complete')
+    at_risk_count  = sum(1 for m in all_ms if m['display_status'] == 'at_risk')
+    days_to_market = (date(2027, 5, 24) - today).days
+
+    return render_template('roadmap.html',
+        phases=phases, today=str(today),
+        total=total, complete_count=complete_count,
+        at_risk_count=at_risk_count, days_to_market=days_to_market,
+        gate_results=gate_results)
+
+
+@app.route('/roadmap/milestone/<int:mid>/complete', methods=['POST'])
+def roadmap_milestone_complete(mid):
+    conn = get_db()
+    m = conn.execute("SELECT status, gate_type FROM roadmap_milestones WHERE id=?", (mid,)).fetchone()
+    if m and m['gate_type'] == 'manual':
+        if m['status'] == 'complete':
+            conn.execute(
+                "UPDATE roadmap_milestones SET status='pending', completed_at=NULL WHERE id=?",
+                (mid,))
+        else:
+            conn.execute(
+                "UPDATE roadmap_milestones SET status='complete', completed_at=? WHERE id=?",
+                (str(date.today()), mid))
+        conn.commit()
+    conn.close()
+    return redirect(url_for('roadmap'))
+
+
+@app.route('/roadmap/milestone/<int:mid>/note', methods=['POST'])
+def roadmap_milestone_note(mid):
+    note = request.form.get('notes', '').strip() or None
+    conn = get_db()
+    conn.execute("UPDATE roadmap_milestones SET notes=? WHERE id=?", (note, mid))
+    conn.commit()
+    conn.close()
+    return redirect(url_for('roadmap'))
 
 
 if __name__ == '__main__':

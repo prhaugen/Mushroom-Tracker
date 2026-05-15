@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+{% block title %}Roadmap — Mushroom Tracker{% endblock %}
+{% block content %}
+
+{# ── Status helpers ─────────────────────────────────────────────────── #}
+{% macro status_dot(s) %}
+  {% if s == 'complete' %}
+    <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--blue);flex-shrink:0;box-shadow:0 0 6px rgba(106,173,204,.5)"></span>
+  {% elif s == 'on_track' %}
+    <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--green);flex-shrink:0;box-shadow:0 0 6px rgba(116,194,122,.5)"></span>
+  {% elif s == 'at_risk' %}
+    <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--amber);flex-shrink:0;box-shadow:0 0 6px rgba(212,168,67,.4)"></span>
+  {% elif s == 'missed' %}
+    <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--red);flex-shrink:0"></span>
+  {% else %}
+    <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--border);flex-shrink:0"></span>
+  {% endif %}
+{% endmacro %}
+
+{% macro status_colors(s) %}
+  {% if s == 'complete' %}color:var(--blue);background:var(--blue-bg);border-color:var(--blue-border)
+  {% elif s == 'on_track' %}color:var(--green);background:var(--green-bg);border-color:var(--green-border)
+  {% elif s == 'at_risk' %}color:var(--amber);background:var(--amber-bg);border-color:var(--amber-border)
+  {% elif s == 'missed' %}color:var(--red);background:var(--red-bg);border-color:var(--red-border)
+  {% else %}color:var(--gray);background:var(--gray-bg);border-color:var(--gray-border)
+  {% endif %}
+{% endmacro %}
+
+{# ── Page header ────────────────────────────────────────────────────── #}
+<div class="page-head-row">
+  <div class="page-head">
+    <div class="page-title">Roadmap to Market</div>
+    <div class="page-sub">May 2027 — Uptown Ankeny Farmers Market launch</div>
+  </div>
+  <div style="text-align:right">
+    <div style="font-size:28px;font-weight:700;color:var(--amber);line-height:1">{{ days_to_market }}</div>
+    <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em">days to market</div>
+  </div>
+</div>
+
+{# ── Summary bar ─────────────────────────────────────────────────────── #}
+<div class="stats" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px">
+  <div class="stat b">
+    <div class="stat-label">Milestones</div>
+    <div class="stat-val">{{ total }}</div>
+    <div class="stat-sub">total across 4 phases</div>
+  </div>
+  <div class="stat {% if complete_count > 0 %}g{% endif %}">
+    <div class="stat-label">Complete</div>
+    <div class="stat-val">{{ complete_count }}</div>
+    <div class="stat-sub">{{ total - complete_count }} remaining</div>
+  </div>
+  <div class="stat {% if at_risk_count > 0 %}a{% endif %}">
+    <div class="stat-label">At Risk</div>
+    <div class="stat-val">{{ at_risk_count }}</div>
+    <div class="stat-sub">need attention</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Progress</div>
+    <div class="stat-val">{% if total > 0 %}{{ (complete_count / total * 100)|int }}%{% else %}—{% endif %}</div>
+    <div class="stat-sub">{{ complete_count }}/{{ total }} done</div>
+  </div>
+</div>
+
+{# ── Phase sections ─────────────────────────────────────────────────── #}
+{% for phase_num, phase in phases.items() %}
+{% set ph_ms = phase.milestones %}
+{% set ph_done = ph_ms | selectattr('display_status','equalto','complete') | list | length %}
+{% set ph_risk = ph_ms | selectattr('display_status','equalto','at_risk') | list | length %}
+
+<div class="card mb-20">
+
+  {# Phase header #}
+  <div style="display:flex;align-items:center;justify-content:space-between;
+              margin:-20px -20px 20px;padding:14px 20px;
+              border-radius:var(--r-lg) var(--r-lg) 0 0;
+              background:{% if phase_num == 1 %}rgba(116,194,122,.07){% elif phase_num == 2 %}rgba(106,173,204,.07){% elif phase_num == 3 %}rgba(212,168,67,.06){% else %}rgba(184,153,208,.07){% endif %};
+              border-bottom:1px solid var(--border)">
+    <div style="display:flex;align-items:center;gap:12px">
+      <span style="display:inline-flex;align-items:center;justify-content:center;
+                   width:28px;height:28px;border-radius:50%;font-size:13px;font-weight:700;
+                   {% if phase_num == 1 %}background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)
+                   {% elif phase_num == 2 %}background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)
+                   {% elif phase_num == 3 %}background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-border)
+                   {% else %}background:var(--purple-bg);color:var(--purple);border:1px solid var(--purple-border){% endif %}">
+        {{ phase_num }}
+      </span>
+      <div>
+        <div style="font-size:13px;font-weight:700;color:var(--text)">Phase {{ phase_num }}</div>
+        <div style="font-size:11px;color:var(--text-muted)">{{ phase.label }}</div>
+      </div>
+    </div>
+    <div style="font-size:12px;color:var(--text-muted)">
+      {{ ph_done }}/{{ ph_ms|length }} complete
+      {% if ph_risk > 0 %}
+      &nbsp;·&nbsp;<span style="color:var(--amber)">{{ ph_risk }} at risk</span>
+      {% endif %}
+    </div>
+  </div>
+
+  {# Milestone rows #}
+  <div style="display:flex;flex-direction:column;gap:0">
+    {% for m in ph_ms %}
+    {% set ds = m.display_status %}
+    {% set is_last = loop.last %}
+
+    <div style="display:flex;gap:16px;padding:14px 0;
+                {% if not is_last %}border-bottom:1px solid var(--border-muted){% endif %}">
+
+      {# Timeline connector #}
+      <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0;padding-top:2px">
+        {{ status_dot(ds) }}
+        {% if not is_last %}
+        <div style="width:1px;flex:1;min-height:24px;background:var(--border-muted)"></div>
+        {% endif %}
+      </div>
+
+      {# Content #}
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+
+          {# Title + badges #}
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+              <span style="font-size:13px;font-weight:600;color:var(--text)">{{ m.title }}</span>
+              {# Gate type badge #}
+              {% if m.gate_type == 'auto' %}
+              <span style="padding:1px 7px;border-radius:10px;font-size:10px;font-weight:700;
+                           background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)">AUTO</span>
+              {% else %}
+              <span style="padding:1px 7px;border-radius:10px;font-size:10px;font-weight:700;
+                           background:var(--gray-bg);color:var(--gray);border:1px solid var(--gray-border)">MANUAL</span>
+              {% endif %}
+              {# Status badge #}
+              <span style="padding:1px 7px;border-radius:10px;font-size:10px;font-weight:700;
+                           border:1px solid;{{ status_colors(ds) }}">
+                {{ ds.replace('_',' ').title() }}
+              </span>
+            </div>
+            <div style="font-size:12px;color:var(--text-muted)">
+              Target: {{ m.target_date }}
+              {% if m.completed_at %}&nbsp;·&nbsp;<span style="color:var(--green)">Completed {{ m.completed_at }}</span>{% endif %}
+            </div>
+          </div>
+
+          {# Right-side action / value #}
+          <div style="flex-shrink:0;text-align:right">
+            {% if m.gate_type == 'auto' and m.gate_result %}
+              {# Auto gate: show measured value #}
+              <div style="font-size:11px;color:var(--text-muted);text-align:right">
+                {% if m.gate_result.value is not none %}
+                <span style="font-size:14px;font-weight:700;
+                             {% if ds == 'complete' %}color:var(--blue){% elif ds == 'on_track' %}color:var(--green){% else %}color:var(--amber){% endif %}">
+                  {{ m.gate_result.value }}
+                </span>
+                {% endif %}
+                <div style="font-size:10px;color:var(--text-muted)">{{ m.gate_result.threshold }}</div>
+              </div>
+            {% else %}
+              {# Manual gate: toggle button #}
+              <form method="post" action="{{ url_for('roadmap_milestone_complete', mid=m.id) }}" style="margin:0">
+                <button type="submit" class="btn btn-sm
+                  {% if ds == 'complete' %}btn-secondary{% else %}btn-ghost{% endif %}"
+                  style="{% if ds == 'complete' %}border-color:var(--blue-border);color:var(--blue){% endif %}">
+                  {% if ds == 'complete' %}&#10003; Done{% else %}Mark Done{% endif %}
+                </button>
+              </form>
+            {% endif %}
+          </div>
+        </div>
+
+        {# Auto gate detail line #}
+        {% if m.gate_type == 'auto' and m.gate_result and m.gate_result.detail %}
+        <div style="margin-top:6px;font-size:12px;color:var(--text-muted);
+                    padding:6px 10px;background:var(--surface);border-radius:var(--r);
+                    border:1px solid var(--border-muted)">
+          {{ m.gate_result.detail }}
+        </div>
+        {% endif %}
+
+        {# Notes section #}
+        <details style="margin-top:8px" {% if m.notes %}open{% endif %}>
+          <summary style="font-size:11px;color:var(--text-muted);cursor:pointer;
+                          list-style:none;display:flex;align-items:center;gap:4px">
+            <svg viewBox="0 0 10 10" width="9" height="9" fill="currentColor" xmlns="http://www.w3.org/2000/svg" style="transition:transform .15s">
+              <path d="M2 3.5 L5 6.5 L8 3.5" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+            </svg>
+            Notes{% if m.notes %}: {{ m.notes[:60] }}{% if m.notes|length > 60 %}…{% endif %}{% endif %}
+          </summary>
+          <form method="post" action="{{ url_for('roadmap_milestone_note', mid=m.id) }}"
+                style="margin-top:8px;display:flex;flex-direction:column;gap:6px">
+            <textarea name="notes" rows="2"
+                      placeholder="Add a note…"
+                      style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
+                             padding:7px 10px;color:var(--text);font-family:var(--font);font-size:12px;
+                             resize:vertical;outline:none;width:100%">{{ m.notes or '' }}</textarea>
+            <div>
+              <button type="submit" class="btn btn-ghost btn-sm">Save Note</button>
+            </div>
+          </form>
+        </details>
+
+      </div>{# /content #}
+    </div>{# /milestone row #}
+    {% endfor %}
+  </div>{# /milestone list #}
+
+</div>{# /phase card #}
+{% endfor %}
+
+{% endblock %}

@@ -478,6 +478,15 @@ input[name="quality_rating"]{display:none}
       </svg>
       Report
     </a>
+    <!-- Roadmap icon: milestone flag -->
+    <a href="{{ url_for('roadmap') }}"
+       class="nav-link{% if request.endpoint in ('roadmap','roadmap_milestone_complete','roadmap_milestone_note') %} active{% endif %}">
+      <svg viewBox="0 0 14 14" width="13" height="13" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+        <rect x="2" y="1" width="1.4" height="12" rx=".7"/>
+        <path d="M3.4 2 L11 4.5 L3.4 7 Z" opacity=".9"/>
+      </svg>
+      Roadmap
+    </a>
     <!-- Briefing icon: sparkle / AI -->
     <a href="{{ url_for('briefing') }}"
        class="nav-link{% if request.endpoint in ('briefing','briefing_run') %} active{% endif %}">

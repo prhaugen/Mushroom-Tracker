@@ -27,6 +27,11 @@ from agent_config import (
     DEFAULT_TIMELINE, ENV_GUARDRAILS, FLUSH_DEGRADATION,
     MIN_HISTORY_BATCHES, SPECIES_TIMELINES,
 )
+try:
+    from roadmap_gates import evaluate_gates as _evaluate_gates
+    _ROADMAP_AVAILABLE = True
+except ImportError:
+    _ROADMAP_AVAILABLE = False
 
 SYSTEM_PROMPT = """\
 You are a mushroom cultivation monitoring agent. You analyze batch status data \
@@ -104,6 +109,14 @@ humidity when readings are outside the species' acceptable range entirely. \
 A reading of 66.7°F for Blue Oyster (range 55–70°F) is normal — do not \
 suggest cooling toward 62.5°F. Apply this reasoning to all species: \
 within-range is within-range, regardless of distance from the midpoint.
+
+ROADMAP CONTEXT — if 'roadmap_status' is present in the snapshot, use it to \
+inform your pattern_observations and summary. Note which milestones are at risk \
+and whether current cultivation performance is on track for the target phase gates. \
+Do NOT list every milestone — only surface roadmap information when it adds \
+meaningful context to a batch-level observation (e.g. 'Contam rate is improving \
+but still above the Phase 1 <15% gate due by July 15'). Keep roadmap comments \
+brief and action-oriented. \
 
 Output format — return JSON only, no preamble:
 {
@@ -473,6 +486,76 @@ def _get_historical_averages(conn) -> dict:
     return hist
 
 
+def _current_phase(today: date) -> int:
+    if today <= date(2026, 7, 31):
+        return 1
+    elif today <= date(2026, 10, 31):
+        return 2
+    elif today <= date(2027, 1, 31):
+        return 3
+    return 4
+
+
+def _get_roadmap_status(conn) -> dict | None:
+    """Collect roadmap snapshot for the briefing context. Returns None on any failure."""
+    if not _ROADMAP_AVAILABLE:
+        return None
+    try:
+        gate_results = _evaluate_gates(db_path=_mt.DB_PATH)
+        today = date.today()
+
+        rows = conn.execute(
+            "SELECT id, phase, title, target_date, gate_type, gate_key, status "
+            "FROM roadmap_milestones ORDER BY target_date, id"
+        ).fetchall()
+
+        upcoming, at_risk = [], []
+        for r in rows:
+            m = dict(r)
+            # Resolve auto-gate display status
+            if m['gate_type'] == 'auto' and m['gate_key']:
+                gs = gate_results.get(m['gate_key'], {}).get('status', 'pending')
+                try:
+                    target = date.fromisoformat(m['target_date'])
+                except Exception:
+                    target = today
+                if gs == 'complete':
+                    m['display_status'] = 'complete'
+                elif gs == 'on_track':
+                    m['display_status'] = 'on_track' if target >= today else 'at_risk'
+                else:
+                    days_out = (target - today).days
+                    m['display_status'] = 'at_risk' if days_out <= 30 else 'pending'
+            else:
+                m['display_status'] = m['status']
+
+            if m['display_status'] not in ('complete',):
+                upcoming.append({
+                    'title': m['title'],
+                    'target_date': m['target_date'],
+                    'gate_type': m['gate_type'],
+                    'display_status': m['display_status'],
+                })
+            if m['display_status'] in ('at_risk', 'missed'):
+                at_risk.append({
+                    'title': m['title'],
+                    'target_date': m['target_date'],
+                    'display_status': m['display_status'],
+                })
+
+        upcoming.sort(key=lambda x: x['target_date'])
+
+        return {
+            'current_phase': _current_phase(today),
+            'upcoming_milestones': upcoming[:3],
+            'at_risk': at_risk,
+            'gate_summaries': {k: v.get('detail', '') for k, v in gate_results.items()},
+        }
+    except Exception as exc:
+        logger.debug("Could not build roadmap_status for briefing: %s", exc)
+        return None
+
+
 def get_snapshot(conn) -> dict:
     active_batches = _get_active_batches(conn)
     batch_ids = [b['id'] for b in active_batches]
@@ -507,7 +590,9 @@ def get_snapshot(conn) -> dict:
             historical.get(b['species'], {}).get('completed_batches', 0) >= MIN_HISTORY_BATCHES
         )
 
-    return {
+    roadmap_status = _get_roadmap_status(conn)
+
+    snapshot = {
         'snapshot_date':         str(date.today()),
         'active_batches':        active_batches,
         'env_flags':             env_flags,
@@ -521,6 +606,9 @@ def get_snapshot(conn) -> dict:
             'min_history_batches':  MIN_HISTORY_BATCHES,
         },
     }
+    if roadmap_status is not None:
+        snapshot['roadmap_status'] = roadmap_status
+    return snapshot
 
 
 # ── Claude API ────────────────────────────────────────────────────────────────

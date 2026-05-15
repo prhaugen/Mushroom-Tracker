@@ -323,6 +323,19 @@ def init_db():
             notes                      TEXT,
             created_at                 TEXT DEFAULT CURRENT_TIMESTAMP
         );
+        CREATE TABLE IF NOT EXISTS roadmap_milestones (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            phase        INTEGER NOT NULL,
+            phase_label  TEXT NOT NULL,
+            title        TEXT NOT NULL,
+            target_date  TEXT NOT NULL,
+            gate_type    TEXT NOT NULL,
+            gate_key     TEXT,
+            status       TEXT DEFAULT 'pending',
+            completed_at TEXT,
+            notes        TEXT,
+            created_at   TEXT DEFAULT CURRENT_TIMESTAMP
+        );
     """)
 
     # Non-destructive column additions for env_logs upgrade from v1
@@ -375,6 +388,10 @@ def init_db():
             c.execute("INSERT INTO batch_notes (batch_id, body, created_at) VALUES (?, ?, ?)",
                       (row[0], row[1], row[2]))
 
+    # Seed roadmap milestones on first run
+    if c.execute("SELECT COUNT(*) FROM roadmap_milestones").fetchone()[0] == 0:
+        _seed_roadmap(c)
+
     conn.commit()
 
     version = c.execute("SELECT value FROM _meta WHERE key='schema_version'").fetchone()
@@ -384,6 +401,43 @@ def init_db():
         conn.commit()
 
     conn.close()
+
+
+def _seed_roadmap(c):
+    """Seed the 20 launch-roadmap milestones. Called only when table is empty."""
+    P1 = "SGFC + Boom Room #1 pilot · Purchased fruiting blocks"
+    P2 = "Purchased LC → grain → substrate · Staggered scheduling"
+    P3 = "Agar R&D (parallel) · Culture library · Market prep"
+    P4 = "Own LC production · Boom Room #3 · Market launch"
+    rows = [
+        # (phase, phase_label, title, target_date, gate_type, gate_key)
+        (1, P1, "Boom Room #1 arrives — 48h calibration run complete",              "2026-05-16", "manual", None),
+        (1, P1, "Species selection locked to 2–3 species",                          "2026-06-15", "manual", None),
+        (1, P1, "Contamination rate below 15%",                                     "2026-07-15", "auto",   "contam_rate_15"),
+        (1, P1, "BE% baseline established (≥2 complete cycles per species)",        "2026-07-31", "auto",   "be_baseline"),
+        (2, P2, "Transition to purchased LC syringes + own substrate begun",        "2026-08-31", "manual", None),
+        (2, P2, "Substrate SOP documented",                                         "2026-08-31", "manual", None),
+        (2, P2, "Staggered inoculation schedule producing weekly harvests",         "2026-09-30", "auto",   "stagger_active"),
+        (2, P2, "Yield gate: 3–5 lb/week for 4 consecutive weeks",                 "2026-10-01", "auto",   "yield_3_5"),
+        (2, P2, "Boom Room #2 added (gate: contam <10%, stagger working)",          "2026-11-01", "manual", None),
+        (3, P3, "Agar work started — first tissue cultures on plates",              "2026-11-30", "manual", None),
+        (3, P3, "Soft market testing begun (surplus distributed)",                  "2026-11-30", "manual", None),
+        (3, P3, "Iowa regulatory compliance confirmed (IDALS)",                     "2026-12-31", "manual", None),
+        (3, P3, "Uptown Ankeny Farmers Market application submitted",               "2026-12-31", "manual", None),
+        (3, P3, "Culture library established — 2–3 clean cultures per species",     "2027-01-31", "manual", None),
+        (4, P4, "Boom Room #3 added",                                               "2027-01-31", "manual", None),
+        (4, P4, "Own LC production begun from agar-derived cultures",               "2027-02-28", "manual", None),
+        (4, P4, "Booth rehearsal complete — branding, packaging, harvest protocol", "2027-03-31", "manual", None),
+        (4, P4, "Yield gate: 10–15 lb/week for 8 consecutive weeks",               "2027-04-30", "auto",   "yield_10_15"),
+        (4, P4, "Weekly yield forecast accuracy ±20% for 4 consecutive weeks",     "2027-04-30", "auto",   "forecast_accuracy"),
+        (4, P4, "First Uptown Ankeny Farmers Market booth",                        "2027-05-24", "manual", None),
+    ]
+    c.executemany(
+        "INSERT INTO roadmap_milestones "
+        "(phase, phase_label, title, target_date, gate_type, gate_key) "
+        "VALUES (?,?,?,?,?,?)",
+        rows
+    )
 
 
 def _migrate_v1(conn, c):
