@@ -21,27 +21,18 @@
 
 <!-- 7-day history nav -->
 {% if history %}
-<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px">
+<div class="day-nav">
   {% for h in history %}
   {% set is_active = h.briefing_date == target_date %}
   <a href="{{ url_for('briefing', briefing_date=h.briefing_date) }}"
-     style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;
-            font-size:12px;font-weight:600;text-decoration:none;transition:all .15s;
-            {% if is_active %}
-              background:var(--card-hover);border:1px solid var(--green-border);color:var(--green);
-            {% else %}
-              background:var(--card);border:1px solid var(--border);color:var(--text-muted);
-            {% endif %}">
+     class="day-pill{% if is_active %} active{% endif %}">
     {{ h.briefing_date }}
     {% if h.critical_count > 0 %}
-    <span style="background:var(--red-bg);color:var(--red);border:1px solid var(--red-border);
-                 padding:1px 6px;border-radius:10px;font-size:10px;">{{ h.critical_count }}</span>
+    <span class="day-pill-count day-pill-count-r">{{ h.critical_count }}</span>
     {% elif h.attention_count > 0 %}
-    <span style="background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-border);
-                 padding:1px 6px;border-radius:10px;font-size:10px;">{{ h.attention_count }}</span>
+    <span class="day-pill-count day-pill-count-a">{{ h.attention_count }}</span>
     {% else %}
-    <span style="background:var(--green-bg);color:var(--green);border:1px solid var(--green-border);
-                 padding:1px 6px;border-radius:10px;font-size:10px;">&#10003;</span>
+    <span class="day-pill-count day-pill-count-g">&#10003;</span>
     {% endif %}
   </a>
   {% endfor %}
@@ -62,11 +53,11 @@
 {% else %}
 
 <!-- Summary + stats -->
-<div class="card" style="margin-bottom:16px">
+<div class="card mb-16">
   <div class="card-head">
     <div class="card-title">Summary — {{ target_date }}</div>
   </div>
-  <p style="font-size:14px;color:var(--text);line-height:1.6">{{ briefing.summary }}</p>
+  <p class="body-text">{{ briefing.summary }}</p>
   <div class="stats" style="grid-template-columns:repeat(3,1fr);margin-top:16px">
     <div class="stat r">
       <div class="stat-label">Critical</div>
@@ -85,37 +76,25 @@
 
 <!-- Attention required -->
 {% if briefing.attention_required %}
-<div class="card" style="margin-bottom:16px">
+<div class="card mb-16">
   <div class="card-head">
     <div class="card-title">Attention Required</div>
   </div>
-  <div style="display:flex;flex-direction:column;gap:10px">
+  <div class="alert-list">
     {% for item in briefing.attention_required %}
-    {% if item.severity == 'critical' %}
-      {% set bg='var(--red-bg)' %}{% set border='var(--red-border)' %}{% set col='var(--red)' %}{% set dot='🔴' %}
-    {% elif item.severity == 'warning' %}
-      {% set bg='var(--amber-bg)' %}{% set border='var(--amber-border)' %}{% set col='var(--amber)' %}{% set dot='🟡' %}
-    {% else %}
-      {% set bg='var(--blue-bg)' %}{% set border='var(--blue-border)' %}{% set col='var(--blue)' %}{% set dot='🔵' %}
-    {% endif %}
-    <div style="padding:14px 16px;background:{{ bg }};border:1px solid {{ border }};border-radius:var(--r)">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-        <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-weight:700;font-size:13px;color:{{ col }}">
-            {{ item.batch_label }} &mdash; {{ item.species }}
-          </span>
-          <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;
-                       padding:2px 7px;border-radius:10px;background:{{ bg }};border:1px solid {{ border }};color:{{ col }}">
-            {{ item.severity }}
-          </span>
+    {% if item.severity == 'critical' %}{% set sev_class = 'alert-critical' %}
+    {% elif item.severity == 'warning' %}{% set sev_class = 'alert-warning' %}
+    {% else %}{% set sev_class = 'alert-info' %}{% endif %}
+    <div class="alert-card {{ sev_class }}">
+      <div class="alert-card-head">
+        <div class="gap-row">
+          <span class="alert-title">{{ item.batch_label }} &mdash; {{ item.species }}</span>
+          <span class="alert-sev">{{ item.severity }}</span>
         </div>
-        <a href="{{ url_for('batch_detail', batch_id=item.batch_id) }}"
-           style="font-size:11px;color:{{ col }};text-decoration:none;opacity:.8">View Batch &rarr;</a>
+        <a href="{{ url_for('batch_detail', batch_id=item.batch_id) }}" class="alert-link">View Batch &rarr;</a>
       </div>
-      <div style="font-size:13px;color:var(--text);margin-bottom:8px">{{ item.issue }}</div>
-      <div style="font-size:12px;color:var(--text-muted)">
-        <b style="color:{{ col }}">Action:</b> {{ item.suggested_action }}
-      </div>
+      <div class="alert-issue">{{ item.issue }}</div>
+      <div class="alert-action"><span class="alert-action-label">Action:</span> {{ item.suggested_action }}</div>
     </div>
     {% endfor %}
   </div>
@@ -124,7 +103,7 @@
 
 <!-- Environmental alerts -->
 {% if briefing.environmental_alerts %}
-<div class="card" style="margin-bottom:16px">
+<div class="card mb-16">
   <div class="card-head">
     <div class="card-title">Environmental Alerts</div>
   </div>
@@ -143,13 +122,12 @@
         {% for alert in briefing.environmental_alerts %}
         <tr>
           <td>
-            <a href="{{ url_for('batch_detail', batch_id=alert.batch_id) }}"
-               style="color:var(--amber);text-decoration:none;font-weight:600">
+            <a href="{{ url_for('batch_detail', batch_id=alert.batch_id) }}" class="link-amber">
               #{{ alert.batch_id }}
             </a>
           </td>
           <td class="td-mono">{{ alert.parameter }}</td>
-          <td style="color:var(--amber);font-weight:600">{{ alert.observed }}</td>
+          <td class="text-amber fw-600">{{ alert.observed }}</td>
           <td class="td-m">{{ alert.expected_range }}</td>
           <td class="td-m">{{ alert.duration_hours }}h</td>
         </tr>
@@ -162,16 +140,13 @@
 
 <!-- On track -->
 {% if briefing.on_track %}
-<div class="card" style="margin-bottom:16px">
+<div class="card mb-16">
   <div class="card-head">
     <div class="card-title">On Track</div>
   </div>
-  <div style="display:flex;flex-wrap:wrap;gap:8px">
+  <div class="chip-group">
     {% for item in briefing.on_track %}
-    <a href="{{ url_for('batch_detail', batch_id=item.batch_id) }}"
-       style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;
-              background:var(--green-bg);border:1px solid var(--green-border);
-              border-radius:20px;text-decoration:none;color:var(--green);font-size:12px;font-weight:600">
+    <a href="{{ url_for('batch_detail', batch_id=item.batch_id) }}" class="on-track-pill">
       &#10003; {{ item.batch_label }} &mdash; {{ item.species }}
     </a>
     {% endfor %}
@@ -185,10 +160,10 @@
   <div class="card-head">
     <div class="card-title">Pattern Observations</div>
   </div>
-  <ul style="list-style:none;display:flex;flex-direction:column;gap:8px">
+  <ul class="obs-list">
     {% for obs in briefing.pattern_observations %}
-    <li style="display:flex;gap:10px;align-items:flex-start;font-size:13px;color:var(--text)">
-      <span style="color:var(--blue);flex-shrink:0;margin-top:1px">&#8227;</span>
+    <li class="obs-item">
+      <span class="obs-bullet">&#8227;</span>
       {{ obs }}
     </li>
     {% endfor %}
@@ -200,31 +175,28 @@
 
 {% if roadmap_data %}
 {# ── Roadmap snapshot ──────────────────────────────────────────────── #}
-<div class="card" style="margin-top:16px">
+<div class="card mt-16">
   <div class="card-head">
     <div class="card-title">Roadmap Snapshot</div>
     <a href="{{ url_for('roadmap') }}" class="btn btn-ghost btn-sm">Full Roadmap &rarr;</a>
   </div>
 
-  <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px">
-    <div style="padding:10px 16px;background:var(--surface);border-radius:var(--r);
-                border:1px solid var(--border);text-align:center">
-      <div style="font-size:22px;font-weight:700;color:var(--amber)">{{ roadmap_data.days_to_market }}</div>
-      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted)">Days to Market</div>
+  <div class="mini-stats">
+    <div class="mini-stat">
+      <div class="mini-stat-val val-a">{{ roadmap_data.days_to_market }}</div>
+      <div class="mini-stat-lbl">Days to Market</div>
     </div>
     {% set rms = roadmap_data.milestones %}
-    {% set r_done  = rms | selectattr('display_status','equalto','complete') | list | length %}
-    {% set r_risk  = rms | selectattr('display_status','equalto','at_risk')  | list | length %}
-    <div style="padding:10px 16px;background:var(--surface);border-radius:var(--r);
-                border:1px solid var(--border);text-align:center">
-      <div style="font-size:22px;font-weight:700;color:var(--blue)">{{ r_done }}/{{ rms|length }}</div>
-      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted)">Milestones Done</div>
+    {% set r_done = rms | selectattr('display_status','equalto','complete') | list | length %}
+    {% set r_risk = rms | selectattr('display_status','equalto','at_risk')  | list | length %}
+    <div class="mini-stat">
+      <div class="mini-stat-val val-b">{{ r_done }}/{{ rms|length }}</div>
+      <div class="mini-stat-lbl">Milestones Done</div>
     </div>
     {% if r_risk > 0 %}
-    <div style="padding:10px 16px;background:var(--amber-bg);border-radius:var(--r);
-                border:1px solid var(--amber-border);text-align:center">
-      <div style="font-size:22px;font-weight:700;color:var(--amber)">{{ r_risk }}</div>
-      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--amber)">At Risk</div>
+    <div class="mini-stat mini-stat-a">
+      <div class="mini-stat-val val-a">{{ r_risk }}</div>
+      <div class="mini-stat-lbl">At Risk</div>
     </div>
     {% endif %}
   </div>
@@ -232,16 +204,13 @@
   {# At-risk milestones #}
   {% set at_risk_ms = rms | selectattr('display_status','equalto','at_risk') | list %}
   {% if at_risk_ms %}
-  <div style="margin-bottom:14px">
-    <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;
-                color:var(--amber);margin-bottom:8px">At Risk</div>
+  <div class="mb-16">
+    <div class="sub-label amber">At Risk</div>
     {% for m in at_risk_ms %}
-    <div style="display:flex;align-items:center;gap:8px;padding:7px 12px;
-                background:var(--amber-bg);border:1px solid var(--amber-border);
-                border-radius:var(--r);margin-bottom:6px;font-size:13px">
-      <span style="width:8px;height:8px;border-radius:50%;background:var(--amber);flex-shrink:0"></span>
-      <span style="flex:1;color:var(--text)">{{ m.title }}</span>
-      <span style="font-size:11px;color:var(--amber)">{{ m.target_date }}</span>
+    <div class="ms-row">
+      <span class="ms-dot sz-8 dot-a"></span>
+      <span class="flex-1">{{ m.title }}</span>
+      <span class="text-xs text-amber">{{ m.target_date }}</span>
     </div>
     {% endfor %}
   </div>
@@ -251,23 +220,20 @@
   {% set upcoming = rms | rejectattr('display_status','equalto','complete') | list %}
   {% if upcoming %}
   <div>
-    <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;
-                color:var(--text-muted);margin-bottom:8px">Next Up</div>
+    <div class="sub-label">Next Up</div>
     {% for m in upcoming[:3] %}
-    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;
-                border-bottom:1px solid var(--border-muted);font-size:12px">
+    <div class="ms-row-plain">
       {% if m.display_status == 'on_track' %}
-        <span style="width:7px;height:7px;border-radius:50%;background:var(--green);flex-shrink:0"></span>
+        <span class="ms-dot sz-7 dot-g"></span>
       {% elif m.display_status == 'at_risk' %}
-        <span style="width:7px;height:7px;border-radius:50%;background:var(--amber);flex-shrink:0"></span>
+        <span class="ms-dot sz-7 dot-a"></span>
       {% else %}
-        <span style="width:7px;height:7px;border-radius:50%;background:var(--border);flex-shrink:0"></span>
+        <span class="ms-dot sz-7 dot-m"></span>
       {% endif %}
-      <span style="flex:1;color:var(--text)">{{ m.title }}</span>
-      <span style="color:var(--text-muted)">{{ m.target_date }}</span>
+      <span class="flex-1">{{ m.title }}</span>
+      <span class="text-muted">{{ m.target_date }}</span>
       {% if m.gate_type == 'auto' %}
-      <span style="padding:1px 5px;border-radius:8px;font-size:9px;font-weight:700;
-                   background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)">AUTO</span>
+      <span class="gate-badge">AUTO</span>
       {% endif %}
     </div>
     {% endfor %}

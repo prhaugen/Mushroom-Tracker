@@ -56,7 +56,7 @@
           <div class="env-status">{{ "In range" if hum_ok else "Too low!" }}</div>
         </div>
       </div>
-      <div class="mt-12 text-muted" style="font-size:12px">
+      <div class="mt-12 text-muted text-sm">
         {{ time_ago(latest_env.logged_at) }}
         {% if latest_env.phase %} &nbsp;·&nbsp; {{ latest_env.phase }}{% endif %}
         {% if latest_env.co2_ppm %} &nbsp;·&nbsp; CO2: {{ latest_env.co2_ppm|int }} ppm{% endif %}
@@ -123,7 +123,7 @@
 <div class="card mb-20">
   <div class="card-head">
     <span class="card-title">Harvest Forecast</span>
-    <span style="font-size:11px;color:var(--text-muted)">projected windows from SPECIES_TIMELINES</span>
+    <span class="text-xs text-muted">projected windows from SPECIES_TIMELINES</span>
   </div>
   <div class="table-wrap">
     <table>
@@ -140,37 +140,32 @@
       </thead>
       <tbody>
         {% for fc in harvest_forecast %}
-        {% if fc.confidence == 'Imminent' %}
-          {% set conf_color = 'var(--green)' %}{% set conf_bg = 'var(--green-bg)' %}{% set conf_border = 'var(--green-border)' %}
-        {% elif fc.confidence == 'High' %}
-          {% set conf_color = 'var(--blue)' %}{% set conf_bg = 'var(--blue-bg)' %}{% set conf_border = 'var(--blue-border)' %}
-        {% elif fc.confidence == 'Medium' %}
-          {% set conf_color = 'var(--amber)' %}{% set conf_bg = 'var(--amber-bg)' %}{% set conf_border = 'var(--amber-border)' %}
-        {% else %}
-          {% set conf_color = 'var(--gray)' %}{% set conf_bg = 'var(--gray-bg)' %}{% set conf_border = 'var(--gray-border)' %}
-        {% endif %}
+        {% if fc.confidence == 'Imminent' %}{% set conf_cls = 'conf-imminent' %}
+        {% elif fc.confidence == 'High' %}{% set conf_cls = 'conf-high' %}
+        {% elif fc.confidence == 'Medium' %}{% set conf_cls = 'conf-medium' %}
+        {% else %}{% set conf_cls = 'conf-low' %}{% endif %}
         <tr>
           <td class="fw-600">
-            <a href="{{ url_for('batch_detail', batch_id=fc.batch_id) }}" style="color:var(--blue);text-decoration:none">{{ fc.label }}</a>
+            <a href="{{ url_for('batch_detail', batch_id=fc.batch_id) }}" class="link-blue">{{ fc.label }}</a>
           </td>
           <td class="td-m">{{ fc.species }}</td>
           <td><span class="badge badge-{{ fc.status }}">{{ fc.status }}</span></td>
-          <td class="fw-600" style="color:{% if fc.days_out <= 7 %}var(--green){% elif fc.days_out <= 14 %}var(--amber){% else %}var(--text){% endif %}">
+          {% if fc.days_out <= 7 %}{% set date_cls = 'text-green' %}
+          {% elif fc.days_out <= 14 %}{% set date_cls = 'text-amber' %}
+          {% else %}{% set date_cls = '' %}{% endif %}
+          <td class="fw-600 {{ date_cls }}">
             {{ fc.display_mid }}
-            <span class="td-m" style="font-size:11px;font-weight:400">
+            <span class="td-m text-xs fw-normal">
               {% if fc.days_out <= 0 %}(now)
               {% elif fc.days_out == 1 %}(tomorrow)
               {% else %}({{ fc.days_out }}d){% endif %}
             </span>
           </td>
-          <td class="td-m" style="font-size:12px">{{ fc.display_range }}</td>
+          <td class="td-m text-sm">{{ fc.display_range }}</td>
           <td>
-            <span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;
-                         background:{{ conf_bg }};color:{{ conf_color }};border:1px solid {{ conf_border }}">
-              {{ fc.confidence }}
-            </span>
+            <span class="conf-badge {{ conf_cls }}">{{ fc.confidence }}</span>
           </td>
-          <td class="td-m" style="font-size:12px">{{ fc.note or '' }}</td>
+          <td class="td-m text-sm">{{ fc.note or '' }}</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -189,7 +184,7 @@
         {% for f in recent_flushes %}
         <tr>
           <td class="td-m">{{ f.harvest_date or f.created_at[:10] }}</td>
-          <td class="fw-600"><a href="{{ url_for('batch_detail', batch_id=f.batch_id) }}" style="color:var(--blue);text-decoration:none">{{ f.label }}</a></td>
+          <td class="fw-600"><a href="{{ url_for('batch_detail', batch_id=f.batch_id) }}" class="link-blue">{{ f.label }}</a></td>
           <td>{{ f.species }}</td>
           <td class="td-m">#{{ f.flush_number }}</td>
           <td class="text-green fw-600">{{ f.fresh_weight_g|int }}g</td>

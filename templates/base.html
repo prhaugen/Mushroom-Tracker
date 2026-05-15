@@ -386,6 +386,101 @@ input[name="quality_rating"]{display:none}
 .mb-16{margin-bottom:16px}.mb-20{margin-bottom:20px}
 .text-muted{color:var(--text-muted)}.text-green{color:var(--green)}.fw-600{font-weight:600}
 
+/* ── Extended utilities ───────────────────────────────────────────────────── */
+.text-amber{color:var(--amber)}.text-blue{color:var(--blue)}.text-red{color:var(--red)}
+.text-sm{font-size:12px}.text-xs{font-size:11px}.fw-normal{font-weight:400}
+.link-blue{color:var(--blue);text-decoration:none}
+.link-amber{color:var(--amber);text-decoration:none;font-weight:600}
+.body-text{font-size:14px;color:var(--text);line-height:1.6}
+.flex-1{flex:1}.chip-group{display:flex;flex-wrap:wrap;gap:8px}
+
+/* ── Alert cards ─────────────────────────────────────────────────────────── */
+.alert-list{display:flex;flex-direction:column;gap:10px}
+.alert-card{padding:14px 16px;border:1px solid transparent;border-radius:var(--r)}
+.alert-card.alert-critical{background:var(--red-bg);border-color:var(--red-border)}
+.alert-card.alert-warning{background:var(--amber-bg);border-color:var(--amber-border)}
+.alert-card.alert-info{background:var(--blue-bg);border-color:var(--blue-border)}
+.alert-card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.alert-title{font-weight:700;font-size:13px}
+.alert-sev{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;
+           padding:2px 7px;border-radius:10px;border:1px solid transparent;background:inherit}
+.alert-link{font-size:11px;text-decoration:none;opacity:.8}
+.alert-issue{font-size:13px;color:var(--text);margin-bottom:8px}
+.alert-action{font-size:12px;color:var(--text-muted)}
+.alert-action-label{font-weight:700}
+.alert-card.alert-critical .alert-title,
+.alert-card.alert-critical .alert-sev,
+.alert-card.alert-critical .alert-link,
+.alert-card.alert-critical .alert-action-label{color:var(--red)}
+.alert-card.alert-critical .alert-sev{border-color:var(--red-border)}
+.alert-card.alert-warning .alert-title,
+.alert-card.alert-warning .alert-sev,
+.alert-card.alert-warning .alert-link,
+.alert-card.alert-warning .alert-action-label{color:var(--amber)}
+.alert-card.alert-warning .alert-sev{border-color:var(--amber-border)}
+.alert-card.alert-info .alert-title,
+.alert-card.alert-info .alert-sev,
+.alert-card.alert-info .alert-link,
+.alert-card.alert-info .alert-action-label{color:var(--blue)}
+.alert-card.alert-info .alert-sev{border-color:var(--blue-border)}
+
+/* ── Day nav pills ───────────────────────────────────────────────────────── */
+.day-nav{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px}
+.day-pill{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;
+          font-size:12px;font-weight:600;text-decoration:none;transition:all .15s;
+          background:var(--card);border:1px solid var(--border);color:var(--text-muted)}
+.day-pill.active{background:var(--card-hover);border-color:var(--green-border);color:var(--green)}
+.day-pill-count{padding:1px 6px;border-radius:10px;font-size:10px;border:1px solid}
+.day-pill-count-r{background:var(--red-bg);color:var(--red);border-color:var(--red-border)}
+.day-pill-count-a{background:var(--amber-bg);color:var(--amber);border-color:var(--amber-border)}
+.day-pill-count-g{background:var(--green-bg);color:var(--green);border-color:var(--green-border)}
+
+/* ── On-track pill ───────────────────────────────────────────────────────── */
+.on-track-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;
+               background:var(--green-bg);border:1px solid var(--green-border);border-radius:20px;
+               text-decoration:none;color:var(--green);font-size:12px;font-weight:600}
+
+/* ── Observation list ────────────────────────────────────────────────────── */
+.obs-list{list-style:none;display:flex;flex-direction:column;gap:8px}
+.obs-item{display:flex;gap:10px;align-items:flex-start;font-size:13px;color:var(--text)}
+.obs-bullet{color:var(--blue);flex-shrink:0;margin-top:1px}
+
+/* ── Mini stats ──────────────────────────────────────────────────────────── */
+.mini-stats{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px}
+.mini-stat{padding:10px 16px;background:var(--surface);border-radius:var(--r);
+           border:1px solid var(--border);text-align:center}
+.mini-stat.mini-stat-a{background:var(--amber-bg);border-color:var(--amber-border)}
+.mini-stat-val{font-size:22px;font-weight:700}
+.mini-stat-val.val-a{color:var(--amber)}.mini-stat-val.val-b{color:var(--blue)}
+.mini-stat-lbl{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted)}
+.mini-stat.mini-stat-a .mini-stat-lbl{color:var(--amber)}
+
+/* ── Sub-label ───────────────────────────────────────────────────────────── */
+.sub-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;
+           color:var(--text-muted);margin-bottom:8px}
+.sub-label.amber{color:var(--amber)}
+
+/* ── Milestone rows ──────────────────────────────────────────────────────── */
+.ms-row{display:flex;align-items:center;gap:8px;padding:7px 12px;
+        background:var(--amber-bg);border:1px solid var(--amber-border);
+        border-radius:var(--r);margin-bottom:6px;font-size:13px}
+.ms-row-plain{display:flex;align-items:center;gap:8px;padding:6px 0;
+              border-bottom:1px solid var(--border-muted);font-size:12px}
+.ms-dot{border-radius:50%;flex-shrink:0;display:inline-block}
+.ms-dot.sz-8{width:8px;height:8px}.ms-dot.sz-7{width:7px;height:7px}
+.ms-dot.dot-g{background:var(--green)}.ms-dot.dot-a{background:var(--amber)}.ms-dot.dot-m{background:var(--border)}
+
+/* ── Confidence badge ────────────────────────────────────────────────────── */
+.conf-badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;border:1px solid}
+.conf-imminent{background:var(--green-bg);color:var(--green);border-color:var(--green-border)}
+.conf-high{background:var(--blue-bg);color:var(--blue);border-color:var(--blue-border)}
+.conf-medium{background:var(--amber-bg);color:var(--amber);border-color:var(--amber-border)}
+.conf-low{background:var(--gray-bg);color:var(--gray);border-color:var(--gray-border)}
+
+/* ── Gate badge ──────────────────────────────────────────────────────────── */
+.gate-badge{padding:1px 7px;border-radius:10px;font-size:10px;font-weight:700;
+            background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)}
+
 @media(max-width:768px){
   .stats{grid-template-columns:1fr 1fr}
   .g2,.g2-1,.g3{grid-template-columns:1fr}
