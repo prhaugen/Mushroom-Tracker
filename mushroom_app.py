@@ -554,6 +554,77 @@ def batch_note_edit(batch_id, note_id):
     return redirect(url_for('batch_detail', batch_id=batch_id) + '#discussion')
 
 
+# ── LC Lots ───────────────────────────────────────────────────────────────────
+
+@app.route('/lc-lots')
+def lc_lots_list():
+    init_db()
+    conn = get_db()
+    lots = conn.execute("SELECT * FROM lc_lots ORDER BY order_date DESC, id DESC").fetchall()
+    conn.close()
+    return render_template('lc_lots.html', lots=lots)
+
+
+@app.route('/lc-lots/add', methods=['GET', 'POST'])
+def lc_lot_add():
+    init_db()
+    if request.method == 'POST':
+        f = request.form
+        conn = get_db()
+        conn.execute(
+            "INSERT INTO lc_lots (vendor, species, order_date, lot_number, media_type, notes) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (f['vendor'].strip(),
+             f['species'].strip(),
+             f.get('order_date') or None,
+             f.get('lot_number', '').strip() or None,
+             f.get('media_type', '').strip() or None,
+             f.get('notes', '').strip() or None))
+        conn.commit()
+        conn.close()
+        flash(f"LC lot from '{f['vendor'].strip()}' added.", 'success')
+        return redirect(url_for('lc_lots_list'))
+    return render_template('lc_lot_form.html', lot=None)
+
+
+@app.route('/lc-lots/<int:lot_id>/edit', methods=['GET', 'POST'])
+def lc_lot_edit(lot_id):
+    conn = get_db()
+    lot = conn.execute("SELECT * FROM lc_lots WHERE id=?", (lot_id,)).fetchone()
+    if not lot:
+        conn.close(); flash('LC lot not found.', 'error')
+        return redirect(url_for('lc_lots_list'))
+    if request.method == 'POST':
+        f = request.form
+        conn.execute(
+            "UPDATE lc_lots SET vendor=?, species=?, order_date=?, lot_number=?, media_type=?, notes=? WHERE id=?",
+            (f['vendor'].strip(),
+             f['species'].strip(),
+             f.get('order_date') or None,
+             f.get('lot_number', '').strip() or None,
+             f.get('media_type', '').strip() or None,
+             f.get('notes', '').strip() or None,
+             lot_id))
+        conn.commit()
+        conn.close()
+        flash('LC lot updated.', 'success')
+        return redirect(url_for('lc_lots_list'))
+    conn.close()
+    return render_template('lc_lot_form.html', lot=lot)
+
+
+@app.route('/lc-lots/<int:lot_id>/delete', methods=['POST'])
+def lc_lot_delete(lot_id):
+    conn = get_db()
+    lot = conn.execute("SELECT vendor, species FROM lc_lots WHERE id=?", (lot_id,)).fetchone()
+    if lot:
+        conn.execute("DELETE FROM lc_lots WHERE id=?", (lot_id,))
+        conn.commit()
+        flash(f"LC lot deleted.", 'success')
+    conn.close()
+    return redirect(url_for('lc_lots_list'))
+
+
 # ── Flushes ───────────────────────────────────────────────────────────────────
 @app.route('/batch/<int:batch_id>/flush/add', methods=['GET','POST'])
 def flush_add(batch_id):

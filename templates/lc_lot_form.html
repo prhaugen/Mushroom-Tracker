@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}{% if lot %}Edit LC Lot{% else %}Add LC Lot{% endif %} — Mushroom Tracker{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="page-title">{% if lot %}Edit LC Lot{% else %}Add LC Lot{% endif %}</div>
+  <div class="page-sub">{% if lot %}{{ lot.vendor }} &mdash; {{ lot.species }}{% else %}Log a purchased liquid culture syringe order{% endif %}</div>
+</div>
+
+<div class="form-wrap">
+  <form method="POST">
+
+    <div class="form-section">
+      <div class="section-label">Vendor & Species</div>
+      <div class="fg-grid">
+        <div class="fg">
+          <label for="vendor">Vendor <span style="color:var(--red)">*</span></label>
+          <input type="text" id="vendor" name="vendor" required
+                 placeholder="e.g. Mycelium Supply Co."
+                 value="{{ lot.vendor if lot else '' }}">
+        </div>
+        <div class="fg">
+          <label for="species">Species <span style="color:var(--red)">*</span></label>
+          <select id="species" name="species" required>
+            <option value="">— select —</option>
+            {% for sp in SPECIES %}
+            <option value="{{ sp }}" {% if lot and lot.species == sp %}selected{% endif %}>{{ sp }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="section-label">Order Details</div>
+      <div class="fg-grid">
+        <div class="fg">
+          <label for="order_date">Order Date</label>
+          <input type="date" id="order_date" name="order_date"
+                 value="{{ lot.order_date if lot else today }}">
+        </div>
+        <div class="fg">
+          <label for="lot_number">Lot Number</label>
+          <input type="text" id="lot_number" name="lot_number"
+                 placeholder="Vendor lot or batch ID"
+                 value="{{ lot.lot_number if lot else '' }}">
+          <div class="form-hint">Record the vendor's lot # — this is the unit of traceability if a bad batch surfaces later</div>
+        </div>
+        <div class="fg">
+          <label for="media_type">Media Type</label>
+          <input type="text" id="media_type" name="media_type"
+                 list="media-suggestions"
+                 placeholder="e.g. Potato Dextrose Broth"
+                 value="{{ lot.media_type if lot else '' }}">
+          <datalist id="media-suggestions">
+            <option value="Potato Dextrose Broth (PDB)">
+            <option value="Malt Extract Broth (MEB)">
+            <option value="Coconut Water">
+            <option value="Honey Water">
+            <option value="Corn Syrup Broth">
+            <option value="Potato Dextrose Agar (PDA)">
+            <option value="Malt Extract Agar (MEA)">
+          </datalist>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="section-label">Notes</div>
+      <div class="fg">
+        <label for="notes">Notes</label>
+        <textarea id="notes" name="notes" rows="3"
+                  placeholder="Supplier link, observations, colonization results…">{{ lot.notes if lot else '' }}</textarea>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">{% if lot %}Save Changes{% else %}Add Lot{% endif %}</button>
+      <a href="{{ url_for('lc_lots_list') }}" class="btn btn-ghost">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

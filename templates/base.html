@@ -414,6 +414,18 @@ input[name="quality_rating"]{display:none}
       </svg>
       Batches
     </a>
+    <!-- Culture icon: vial/syringe -->
+    <a href="{{ url_for('lc_lots_list') }}"
+       class="nav-link{% if request.endpoint in ('lc_lots_list','lc_lot_add','lc_lot_edit') %} active{% endif %}">
+      <svg viewBox="0 0 14 14" width="13" height="13" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+        <rect x="6" y="1" width="2" height="1.5" rx=".5" opacity=".55"/>
+        <rect x="5" y="2.5" width="4" height="7.5" rx="2"/>
+        <path d="M6.5 10h1v2.5h-1z" rx=".5" opacity=".7"/>
+        <path d="M5.5 7.5h3" stroke="var(--bg)" stroke-width=".9" opacity=".5" fill="none"/>
+        <path d="M5.5 6h3" stroke="var(--bg)" stroke-width=".9" opacity=".35" fill="none"/>
+      </svg>
+      Culture
+    </a>
     <!-- Environment icon: thermometer -->
     <a href="{{ url_for('env_history') }}"
        class="nav-link{% if request.endpoint=='env_history' %} active{% endif %}">

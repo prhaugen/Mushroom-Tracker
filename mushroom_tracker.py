@@ -282,6 +282,16 @@ def init_db():
             body       TEXT NOT NULL,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         );
+        CREATE TABLE IF NOT EXISTS lc_lots (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            vendor      TEXT NOT NULL,
+            species     TEXT NOT NULL,
+            order_date  TEXT,
+            lot_number  TEXT,
+            media_type  TEXT,
+            notes       TEXT,
+            created_at  TEXT DEFAULT CURRENT_TIMESTAMP
+        );
     """)
 
     # Non-destructive column additions for env_logs upgrade from v1

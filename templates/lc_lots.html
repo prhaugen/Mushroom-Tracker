@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}LC Syringe Lots — Mushroom Tracker{% endblock %}
+{% block content %}
+<div class="page-head-row">
+  <div class="page-head">
+    <div class="page-title">LC Syringe Lots</div>
+    <div class="page-sub">{{ lots|length }} lot{% if lots|length != 1 %}s{% endif %} tracked &mdash; log each purchased syringe order to trace grain jar colonization back to vendor and lot</div>
+  </div>
+  <a href="{{ url_for('lc_lot_add') }}" class="btn btn-primary">+ Add Lot</a>
+</div>
+
+{% if lots %}
+{% set vendors = lots | map(attribute='vendor') | list | unique | list %}
+{% set species_list = lots | map(attribute='species') | list | unique | list %}
+<div class="stats mb-20" style="grid-template-columns:repeat(3,1fr)">
+  <div class="stat">
+    <div class="stat-label">Total Lots</div>
+    <div class="stat-val">{{ lots|length }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Vendors</div>
+    <div class="stat-val">{{ lots | map(attribute='vendor') | list | unique | list | length }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Species</div>
+    <div class="stat-val">{{ lots | map(attribute='species') | list | unique | list | length }}</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Vendor</th>
+          <th>Species</th>
+          <th>Order Date</th>
+          <th>Lot #</th>
+          <th>Media Type</th>
+          <th>Notes</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for lot in lots %}
+        <tr>
+          <td class="fw-600">{{ lot.vendor }}</td>
+          <td>{{ lot.species }}</td>
+          <td class="td-m td-mono">{{ lot.order_date or '—' }}</td>
+          <td class="td-m td-mono">{{ lot.lot_number or '—' }}</td>
+          <td class="td-m">{{ lot.media_type or '—' }}</td>
+          <td class="td-m" style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ lot.notes or '' }}</td>
+          <td style="white-space:nowrap">
+            <a href="{{ url_for('lc_lot_edit', lot_id=lot.id) }}" class="btn btn-ghost btn-sm">Edit</a>
+            <form method="POST" action="{{ url_for('lc_lot_delete', lot_id=lot.id) }}" style="display:inline"
+                  onsubmit="return confirm('Delete this LC lot record?')">
+              <button type="submit" class="btn btn-danger btn-sm">Del</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="card">
+  <div class="empty">
+    <div class="empty-title">No LC lots recorded yet</div>
+    <div class="empty-sub">When you start purchasing LC syringes, log each order here. Lot-level tracking lets you isolate which vendor batch is responsible if colonization fails.</div>
+    <a href="{{ url_for('lc_lot_add') }}" class="btn btn-primary">Add First Lot</a>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

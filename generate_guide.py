@@ -403,9 +403,11 @@ def build():
         ("12.3", "The Briefing Dashboard",                      "14"),
         ("12.4", "Running a Briefing",                          "15"),
         ("12.5", "Reading the Output",                          "15"),
-        ("13",   "Command-Line Interface (CLI)",                "16"),
-        ("14",   "Growing Reference",                           "17"),
-        ("15",   "Tips & Troubleshooting",                      "19"),
+        ("13",   "Culture Tracking",                             "16"),
+        ("13.1", "LC Syringe Lots",                             "16"),
+        ("14",   "Command-Line Interface (CLI)",                "17"),
+        ("15",   "Growing Reference",                           "18"),
+        ("16",   "Tips & Troubleshooting",                      "20"),
     ]
     for num, title, pg in toc_entries:
         story.append(toc_row(num, title, pg))
@@ -1784,10 +1786,80 @@ def build():
     story.append(PageBreak())
 
     # ══════════════════════════════════════════════════════════════════════
-    # 13. CLI REFERENCE
+    # 13. CULTURE TRACKING
     # ══════════════════════════════════════════════════════════════════════
     story += [
-        h1("13. Command-Line Interface (CLI)"),
+        h1("13. Culture Tracking"),
+        rule(),
+        p("The Culture section tracks the upstream inputs to your grow — the liquid culture "
+          "syringes, agar plates, and grain jars that become your fruiting blocks. "
+          "This section documents the first piece of that chain: LC syringe lots."),
+        sp(8),
+        h2("13.1  LC Syringe Lots"),
+        p("Navigate to <b>Culture</b> in the top navigation bar to view and manage your "
+          "LC syringe lot records. Each record represents one order from a vendor — a "
+          "distinct lot of liquid culture for a specific species."),
+        sp(6),
+        callout(
+            "Start logging lots before you inoculate your first grain jars. "
+            "Retrofitting lot numbers onto grain jar records after the fact is lossy — "
+            "lot-level traceability only works if the lot is recorded at order time.",
+            label="Timing:", color=AMBER_BG, border=AMBER_BORDER
+        ),
+        sp(8),
+        h3("Fields"),
+        sp(4),
+        data_table(
+            ["Field", "Required", "Notes"],
+            [
+                ["Vendor",      "Yes",
+                 "Supplier name. Used to group lots for cross-vendor comparisons."],
+                ["Species",     "Yes",
+                 "Mushroom species. Selects from the same species list as batches."],
+                ["Order Date",  "No",
+                 "Date the order was placed or received. Used for lot age tracking."],
+                ["Lot Number",  "No",
+                 "The vendor's internal lot or batch identifier. This is the critical "
+                 "traceability field — record it exactly as printed on the packaging."],
+                ["Media Type",  "No",
+                 "The liquid culture growth medium (e.g. Potato Dextrose Broth, "
+                 "Malt Extract Broth, Coconut Water). Affects colonization vigor."],
+                ["Notes",       "No",
+                 "Free text for observations, supplier links, or colonization results."],
+            ],
+            col_widths=[3.2*cm, 2.2*cm, 10.8*cm],
+        ),
+        sp(10),
+        h3("Why Lot Numbers Matter"),
+        p("Lot number is the unit of traceability. A vendor may ship multiple lots "
+          "of different quality in the same month. If colonization fails across several "
+          "grain jars, the lot number tells you whether all failures share a common "
+          "source — a question you cannot answer if you only recorded the vendor name."),
+        sp(4),
+        callout(
+            "When a lot produces poor colonization, search all grain jar records linked "
+            "to that lot ID to calculate the contamination rate. A single bad lot is a "
+            "vendor quality issue; a pattern across lots is a workflow issue on your end.",
+            label="Diagnostic:"
+        ),
+        sp(10),
+        h3("Transitioning to Own-Culture LC"),
+        p("When you begin producing your own liquid culture from agar plates "
+          "(Phase 4, target February 2027), the same LC Lots table carries forward. "
+          "Set Vendor to <b>own culture</b> and Lot Number to the source block's "
+          "batch label (e.g. <i>BO-007</i>). The data model does not change at "
+          "the transition — only the source of the culture changes. "
+          "Yield comparisons before and after the transition are a direct query: "
+          "group BE% by own-culture lots vs. purchased lots."),
+    ]
+
+    story.append(PageBreak())
+
+    # ══════════════════════════════════════════════════════════════════════
+    # 14. CLI REFERENCE
+    # ══════════════════════════════════════════════════════════════════════
+    story += [
+        h1("14. Command-Line Interface (CLI)"),
         rule(),
         p("The CLI (<b>mushroom_tracker.py</b>) provides the same core functions as the web app "
           "from a terminal. It is useful for quick data entry when you do not want to open "
@@ -1866,10 +1938,10 @@ def build():
     story.append(PageBreak())
 
     # ══════════════════════════════════════════════════════════════════════
-    # 14. GROWING REFERENCE
+    # 15. GROWING REFERENCE
     # ══════════════════════════════════════════════════════════════════════
     story += [
-        h1("14. Growing Reference"),
+        h1("15. Growing Reference"),
         rule(),
         h2("Optimal Fruiting Conditions by Species"),
         sp(4),
@@ -1979,10 +2051,10 @@ def build():
     story.append(PageBreak())
 
     # ══════════════════════════════════════════════════════════════════════
-    # 15. TIPS & TROUBLESHOOTING
+    # 16. TIPS & TROUBLESHOOTING
     # ══════════════════════════════════════════════════════════════════════
     story += [
-        h1("15. Tips & Troubleshooting"),
+        h1("16. Tips & Troubleshooting"),
         rule(),
         h2("Improving Your BE%"),
         *bullet([
