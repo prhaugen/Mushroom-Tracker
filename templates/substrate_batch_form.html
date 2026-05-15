@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block title %}{% if sb %}Edit Substrate Batch{% else %}New Substrate Batch{% endif %} — Mushroom Tracker{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="page-title">{% if sb %}Edit Substrate Batch{% else %}New Substrate Batch{% endif %}</div>
+  <div class="page-sub">{% if sb %}{{ sb.date_prepared or 'No date' }}{% if sb.substrate_type %} · {{ sb.substrate_type }}{% endif %}{% else %}Log a substrate preparation run{% endif %}</div>
+</div>
+
+<div class="card form-wrap">
+  <form method="POST">
+
+    <div class="form-section">
+      <div class="section-label">Preparation</div>
+      <div class="fg-grid">
+        <div class="fg">
+          <label for="date_prepared">Date Prepared</label>
+          <input type="date" id="date_prepared" name="date_prepared"
+                 value="{{ sb.date_prepared if sb else today }}">
+        </div>
+        <div class="fg">
+          <label for="substrate_type">Substrate Type</label>
+          <input type="text" id="substrate_type" name="substrate_type"
+                 list="type-suggestions"
+                 placeholder="e.g. Master's Mix"
+                 value="{{ sb.substrate_type if sb else '' }}">
+          <datalist id="type-suggestions">
+            <option value="Master's Mix (HW/Straw 50/50)">
+            <option value="Hardwood Sawdust">
+            <option value="Supplemented Sawdust (HW + Bran)">
+            <option value="Straw">
+            <option value="Brown Rice Flour (BRF)">
+            <option value="Custom">
+          </datalist>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="section-label">Substrate Composition</div>
+      <div class="callout callout-green" style="margin-bottom:14px;font-size:12px">
+        <b>Dry substrate weight is required to calculate BE%</b> on all blocks linked to this run.
+        Record the total dry weight before hydration.
+      </div>
+      <div class="fg-grid">
+        <div class="fg">
+          <label>Dry Weight (g) *</label>
+          <input type="number" name="dry_weight_g" step="0.1" placeholder="e.g. 5000"
+                 id="sb_dry_weight" oninput="updateBEPreview()"
+                 value="{{ sb.dry_weight_g if sb and sb.dry_weight_g else '' }}">
+          <span class="form-hint">Total pre-hydration weight for this run</span>
+        </div>
+        <div class="fg">
+          <label>Field Capacity / Moisture %</label>
+          <input type="number" name="moisture_pct" step="0.1" min="0" max="100" placeholder="e.g. 60"
+                 value="{{ sb.moisture_pct if sb and sb.moisture_pct else '' }}">
+          <span class="form-hint">Aim for 60–65% for hardwood substrates</span>
+        </div>
+      </div>
+
+      <div style="margin:12px 0 6px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted)">
+        Component Percentages (should sum to 100%)
+      </div>
+      <div class="fg-grid">
+        <div class="fg">
+          <label>Hardwood Sawdust %</label>
+          <input type="number" name="hardwood_pct" step="0.1" min="0" max="100"
+                 class="pct-input" oninput="updatePctSum()"
+                 value="{{ sb.hardwood_pct|int if sb and sb.hardwood_pct else 0 }}">
+        </div>
+        <div class="fg">
+          <label>Straw %</label>
+          <input type="number" name="straw_pct" step="0.1" min="0" max="100"
+                 class="pct-input" oninput="updatePctSum()"
+                 value="{{ sb.straw_pct|int if sb and sb.straw_pct else 0 }}">
+        </div>
+        <div class="fg">
+          <label>Wheat / Rice Bran %</label>
+          <input type="number" name="bran_pct" step="0.1" min="0" max="100"
+                 class="pct-input" oninput="updatePctSum()"
+                 value="{{ sb.bran_pct|int if sb and sb.bran_pct else 0 }}">
+        </div>
+        <div class="fg">
+          <label>Gypsum %</label>
+          <input type="number" name="gypsum_pct" step="0.1" min="0" max="100"
+                 class="pct-input" oninput="updatePctSum()"
+                 value="{{ sb.gypsum_pct|int if sb and sb.gypsum_pct else 0 }}">
+        </div>
+        <div class="fg">
+          <label>Coco Coir %</label>
+          <input type="number" name="coco_pct" step="0.1" min="0" max="100"
+                 class="pct-input" oninput="updatePctSum()"
+                 value="{{ sb.coco_pct|int if sb and sb.coco_pct else 0 }}">
+        </div>
+        <div class="fg">
+          <label>Other components</label>
+          <input type="text" name="substrate_other"
+                 placeholder="e.g. soy hulls 5%, coffee grounds..."
+                 value="{{ sb.substrate_other if sb and sb.substrate_other else '' }}">
+        </div>
+      </div>
+      <div id="pct-feedback" style="margin-top:8px;font-size:12px;font-weight:600">&nbsp;</div>
+    </div>
+
+    <div class="form-section">
+      <div class="section-label">Sterilization / Pasteurization</div>
+      <div class="fg-grid">
+        <div class="fg">
+          <label>Method</label>
+          <select name="steril_method">
+            <option value="">— select —</option>
+            {% for m in STERIL_METHODS %}
+            <option value="{{ m }}" {{ 'selected' if sb and sb.steril_method == m }}>
+              {{ m | replace('_',' ') | title }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="fg">
+          <label>Temperature (F)</label>
+          <input type="number" name="steril_temp_f" step="0.5" placeholder="e.g. 250"
+                 value="{{ sb.steril_temp_f if sb and sb.steril_temp_f else '' }}">
+          <span class="form-hint">250F / 15 PSI for pressure cooker</span>
+        </div>
+        <div class="fg">
+          <label>Duration (minutes)</label>
+          <input type="number" name="steril_duration_min" step="1" placeholder="e.g. 150"
+                 value="{{ sb.steril_duration_min if sb and sb.steril_duration_min else '' }}">
+        </div>
+        <div class="fg">
+          <label>Cooldown Duration (minutes)</label>
+          <input type="number" name="cooldown_duration_min" step="1" placeholder="e.g. 60"
+                 value="{{ sb.cooldown_duration_min if sb and sb.cooldown_duration_min else '' }}">
+          <span class="form-hint">Time from PC off → inoculation. Insufficient cooldown raises contam risk</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="section-label">Notes</div>
+      <div class="fg">
+        <label>Notes</label>
+        <textarea name="notes" rows="3"
+                  placeholder="Qualitative observations — felt drier than usual, used older bran, bag weight after hydration...">{{ sb.notes if sb and sb.notes else '' }}</textarea>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">{% if sb %}Save Changes{% else %}Save Substrate Batch{% endif %}</button>
+      <a href="{{ url_for('substrate_batches_list') }}" class="btn btn-ghost">Cancel</a>
+    </div>
+  </form>
+</div>
+
+<script>
+function updatePctSum() {
+  const inputs = document.querySelectorAll('.pct-input');
+  let sum = 0;
+  inputs.forEach(i => sum += parseFloat(i.value) || 0);
+  const fb = document.getElementById('pct-feedback');
+  if (sum === 0) { fb.textContent = ' '; return; }
+  if (Math.abs(sum - 100) < 0.1) {
+    fb.textContent = 'Total: 100% — good!';
+    fb.style.color = 'var(--green)';
+  } else if (sum < 100) {
+    fb.textContent = `Total: ${sum.toFixed(1)}% — ${(100-sum).toFixed(1)}% unaccounted`;
+    fb.style.color = 'var(--amber)';
+  } else {
+    fb.textContent = `Total: ${sum.toFixed(1)}% — exceeds 100%`;
+    fb.style.color = 'var(--red)';
+  }
+}
+function updateBEPreview() {}
+updatePctSum();
+</script>
+{% endblock %}

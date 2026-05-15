@@ -345,6 +345,7 @@ def batch_add():
     chamber = get_primary_chamber()
     if not chamber: conn.close(); return redirect(url_for('setup'))
     all_chambers = conn.execute("SELECT * FROM chambers ORDER BY id").fetchall()
+    all_substrate_batches = _substrate_batches_with_count(conn)
     conn.close()
 
     if request.method == 'POST':
@@ -367,8 +368,9 @@ def batch_add():
              substrate_other,substrate_notes,
              steril_method,steril_temp_f,steril_duration_min,
              inoculation_date,spawn_type,spawn_strain,spawn_rate_pct,spawn_source,spawn_lot,
-             colonization_start_date,fruiting_start_date,sourced_block,status,notes)
-            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+             colonization_start_date,fruiting_start_date,sourced_block,status,notes,
+             substrate_batch_id)
+            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (fruiting_chamber_id,
              int(f['colonization_chamber_id']) if f.get('colonization_chamber_id') else None,
              f['label'], species, f.get('strain') or None,
@@ -389,12 +391,14 @@ def batch_add():
              f.get('inoculation_date') or str(date.today()),
              f.get('fruiting_start_date') or None,
              1 if f.get('sourced_block') else 0,
-             f.get('status','colonizing'), f.get('notes') or None))
+             f.get('status','colonizing'), f.get('notes') or None,
+             int(f['substrate_batch_id']) if f.get('substrate_batch_id') else None))
         conn.commit(); conn.close()
         flash(f"Batch '{f['label']}' added.", 'success')
         return redirect(url_for('batches'))
 
     return render_template('batch_form.html', chamber=chamber, batch=None, all_chambers=all_chambers,
+                           all_substrate_batches=all_substrate_batches,
                            species_defaults=json.dumps(_SPECIES_DEFAULTS))
 
 
@@ -552,6 +556,133 @@ def batch_note_edit(batch_id, note_id):
         conn.commit()
         conn.close()
     return redirect(url_for('batch_detail', batch_id=batch_id) + '#discussion')
+
+
+# ── Substrate Batches ─────────────────────────────────────────────────────────
+
+def _substrate_batches_with_count(conn):
+    return conn.execute("""
+        SELECT sb.*,
+               (SELECT COUNT(*) FROM batches WHERE substrate_batch_id=sb.id) AS batch_count
+        FROM substrate_batches sb
+        ORDER BY sb.date_prepared DESC, sb.id DESC
+    """).fetchall()
+
+
+@app.route('/substrate-batches')
+def substrate_batches_list():
+    init_db()
+    conn = get_db()
+    batches = _substrate_batches_with_count(conn)
+    unlinked_count = conn.execute(
+        "SELECT COUNT(*) FROM batches WHERE substrate_batch_id IS NULL"
+    ).fetchone()[0]
+    conn.close()
+    return render_template('substrate_batches.html', batches=batches, unlinked_count=unlinked_count)
+
+
+@app.route('/substrate-batches/add', methods=['GET', 'POST'])
+def substrate_batch_add():
+    init_db()
+    if request.method == 'POST':
+        f = request.form
+        conn = get_db()
+        conn.execute("""
+            INSERT INTO substrate_batches
+                (date_prepared, substrate_type, dry_weight_g, moisture_pct,
+                 straw_pct, hardwood_pct, bran_pct, gypsum_pct, coco_pct,
+                 substrate_other, steril_method, steril_temp_f, steril_duration_min,
+                 cooldown_duration_min, notes)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (f.get('date_prepared') or None,
+             f.get('substrate_type', '').strip() or None,
+             float(f['dry_weight_g']) if f.get('dry_weight_g') else None,
+             float(f['moisture_pct']) if f.get('moisture_pct') else None,
+             float(f.get('straw_pct') or 0), float(f.get('hardwood_pct') or 0),
+             float(f.get('bran_pct') or 0), float(f.get('gypsum_pct') or 0),
+             float(f.get('coco_pct') or 0),
+             f.get('substrate_other', '').strip() or None,
+             f.get('steril_method') or None,
+             float(f['steril_temp_f']) if f.get('steril_temp_f') else None,
+             int(f['steril_duration_min']) if f.get('steril_duration_min') else None,
+             int(f['cooldown_duration_min']) if f.get('cooldown_duration_min') else None,
+             f.get('notes', '').strip() or None))
+        conn.commit()
+        conn.close()
+        flash('Substrate batch saved.', 'success')
+        return redirect(url_for('substrate_batches_list'))
+    return render_template('substrate_batch_form.html', sb=None)
+
+
+@app.route('/substrate-batches/<int:sb_id>/edit', methods=['GET', 'POST'])
+def substrate_batch_edit(sb_id):
+    conn = get_db()
+    sb = conn.execute("SELECT * FROM substrate_batches WHERE id=?", (sb_id,)).fetchone()
+    if not sb:
+        conn.close(); flash('Substrate batch not found.', 'error')
+        return redirect(url_for('substrate_batches_list'))
+    if request.method == 'POST':
+        f = request.form
+        conn.execute("""
+            UPDATE substrate_batches SET
+                date_prepared=?, substrate_type=?, dry_weight_g=?, moisture_pct=?,
+                straw_pct=?, hardwood_pct=?, bran_pct=?, gypsum_pct=?, coco_pct=?,
+                substrate_other=?, steril_method=?, steril_temp_f=?, steril_duration_min=?,
+                cooldown_duration_min=?, notes=?
+            WHERE id=?""",
+            (f.get('date_prepared') or None,
+             f.get('substrate_type', '').strip() or None,
+             float(f['dry_weight_g']) if f.get('dry_weight_g') else None,
+             float(f['moisture_pct']) if f.get('moisture_pct') else None,
+             float(f.get('straw_pct') or 0), float(f.get('hardwood_pct') or 0),
+             float(f.get('bran_pct') or 0), float(f.get('gypsum_pct') or 0),
+             float(f.get('coco_pct') or 0),
+             f.get('substrate_other', '').strip() or None,
+             f.get('steril_method') or None,
+             float(f['steril_temp_f']) if f.get('steril_temp_f') else None,
+             int(f['steril_duration_min']) if f.get('steril_duration_min') else None,
+             int(f['cooldown_duration_min']) if f.get('cooldown_duration_min') else None,
+             f.get('notes', '').strip() or None,
+             sb_id))
+        conn.commit()
+        conn.close()
+        flash('Substrate batch updated.', 'success')
+        return redirect(url_for('substrate_batches_list'))
+    conn.close()
+    return render_template('substrate_batch_form.html', sb=sb)
+
+
+@app.route('/substrate-batches/<int:sb_id>/delete', methods=['POST'])
+def substrate_batch_delete(sb_id):
+    conn = get_db()
+    conn.execute("UPDATE batches SET substrate_batch_id=NULL WHERE substrate_batch_id=?", (sb_id,))
+    conn.execute("DELETE FROM substrate_batches WHERE id=?", (sb_id,))
+    conn.commit()
+    conn.close()
+    flash('Substrate batch deleted.', 'success')
+    return redirect(url_for('substrate_batches_list'))
+
+
+@app.route('/api/substrate-batch/<int:sb_id>')
+def api_substrate_batch(sb_id):
+    conn = get_db()
+    sb = conn.execute("SELECT * FROM substrate_batches WHERE id=?", (sb_id,)).fetchone()
+    conn.close()
+    if not sb:
+        return jsonify({'error': 'not found'}), 404
+    return jsonify({
+        'dry_weight_g':        sb['dry_weight_g'],
+        'moisture_pct':        sb['moisture_pct'],
+        'hardwood_pct':        sb['hardwood_pct'],
+        'straw_pct':           sb['straw_pct'],
+        'bran_pct':            sb['bran_pct'],
+        'gypsum_pct':          sb['gypsum_pct'],
+        'coco_pct':            sb['coco_pct'],
+        'substrate_other':     sb['substrate_other'],
+        'steril_method':       sb['steril_method'],
+        'steril_temp_f':       sb['steril_temp_f'],
+        'steril_duration_min': sb['steril_duration_min'],
+    })
 
 
 # ── LC Lots ───────────────────────────────────────────────────────────────────
@@ -960,6 +1091,7 @@ def batch_edit(batch_id):
         return redirect(url_for('batches'))
     chamber = get_primary_chamber()
     all_chambers = conn.execute("SELECT * FROM chambers ORDER BY id").fetchall()
+    all_substrate_batches = _substrate_batches_with_count(conn)
     if request.method == 'POST':
         f = request.form
         species = f.get('species_custom','').strip() if f.get('species') == '__other__' else f.get('species','')
@@ -980,7 +1112,8 @@ def batch_edit(batch_id):
             gypsum_pct=?,coco_pct=?,substrate_other=?,substrate_notes=?,
             steril_method=?,steril_temp_f=?,steril_duration_min=?,
             inoculation_date=?,spawn_type=?,spawn_strain=?,spawn_rate_pct=?,
-            spawn_source=?,spawn_lot=?,fruiting_start_date=?,sourced_block=?,notes=?
+            spawn_source=?,spawn_lot=?,fruiting_start_date=?,sourced_block=?,notes=?,
+            substrate_batch_id=?
             WHERE id=?""",
             (edit_chamber_id,
              f['label'], species, f.get('strain') or None,
@@ -1001,12 +1134,15 @@ def batch_edit(batch_id):
              spawn_source, f.get('spawn_lot') or None,
              f.get('fruiting_start_date') or None,
              1 if f.get('sourced_block') else 0,
-             f.get('notes') or None, batch_id))
+             f.get('notes') or None,
+             int(f['substrate_batch_id']) if f.get('substrate_batch_id') else None,
+             batch_id))
         conn.commit(); conn.close()
         flash(f"Batch '{f['label']}' updated.", 'success')
         return redirect(url_for('batch_detail', batch_id=batch_id))
     conn.close()
     return render_template('batch_form.html', chamber=chamber, batch=batch, all_chambers=all_chambers,
+                           all_substrate_batches=all_substrate_batches,
                            species_defaults=json.dumps(_SPECIES_DEFAULTS))
 
 

@@ -165,6 +165,25 @@
     <!-- Section 2: Substrate -->
     <div class="form-section">
       <div class="section-label">2 — Substrate Composition</div>
+      <div class="fg-grid" style="margin-bottom:14px">
+        <div class="fg full">
+          <label>Link to Substrate Batch (optional)</label>
+          <select name="substrate_batch_id" id="substrateBatchSelect" onchange="loadSubstrateBatch()">
+            <option value="">— enter substrate details manually below —</option>
+            {% for sb in all_substrate_batches %}
+            <option value="{{ sb.id }}"
+              {% if editing and batch.substrate_batch_id == sb.id %}selected{% endif %}>
+              {{ sb.date_prepared or 'No date' }}{% if sb.substrate_type %} · {{ sb.substrate_type }}{% endif %}{% if sb.dry_weight_g %} · {{ sb.dry_weight_g|int }}g dry{% endif %}{% if sb.batch_count %} · {{ sb.batch_count }} block{% if sb.batch_count != 1 %}s{% endif %}{% endif %}
+            </option>
+            {% endfor %}
+          </select>
+          {% if not all_substrate_batches %}
+          <span class="form-hint">No substrate batches yet — <a href="{{ url_for('substrate_batch_add') }}" style="color:var(--blue)">create one</a> to enable pre-fill</span>
+          {% else %}
+          <span class="form-hint">Selecting pre-fills all substrate fields below; values remain editable per-block if needed</span>
+          {% endif %}
+        </div>
+      </div>
       <div class="callout callout-green" style="margin-bottom:14px;font-size:12px">
         <b>Dry substrate weight is required to calculate Biological Efficiency (BE%)</b> — your primary performance KPI.
         Use the dry weight <em>before</em> hydration and record it consistently.
@@ -560,6 +579,33 @@ function updateTargetHints() {
 
 // Show hints on load (for edit form with existing species + values)
 updateTargetHints();
+
+async function loadSubstrateBatch() {
+  const id = document.getElementById('substrateBatchSelect').value;
+  if (!id) return;
+  try {
+    const res  = await fetch(`/api/substrate-batch/${id}`);
+    const data = await res.json();
+    if (data.error) return;
+    const set = (name, val) => {
+      const el = document.querySelector(`[name="${name}"]`);
+      if (el) el.value = (val !== null && val !== undefined) ? val : '';
+    };
+    set('dry_weight_g',        data.dry_weight_g);
+    set('moisture_pct',        data.moisture_pct);
+    set('hardwood_pct',        data.hardwood_pct ?? 0);
+    set('straw_pct',           data.straw_pct    ?? 0);
+    set('bran_pct',            data.bran_pct     ?? 0);
+    set('gypsum_pct',          data.gypsum_pct   ?? 0);
+    set('coco_pct',            data.coco_pct     ?? 0);
+    set('substrate_other',     data.substrate_other);
+    set('steril_method',       data.steril_method);
+    set('steril_temp_f',       data.steril_temp_f);
+    set('steril_duration_min', data.steril_duration_min);
+    updatePctSum();
+    updateBEPreview();
+  } catch(e) {}
+}
 
 async function suggestLabel(speciesOverride) {
   const sel = document.getElementById('speciesSelect');

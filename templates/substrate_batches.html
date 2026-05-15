@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Substrate Batches — Mushroom Tracker{% endblock %}
+{% block content %}
+<div class="page-head-row">
+  <div class="page-head">
+    <div class="page-title">Substrate Batches</div>
+    <div class="page-sub">{{ batches|length }} preparation run{% if batches|length != 1 %}s{% endif %} &mdash; group fruiting blocks by substrate run to diagnose contamination waves</div>
+  </div>
+  <a href="{{ url_for('substrate_batch_add') }}" class="btn btn-primary">+ New Substrate Batch</a>
+</div>
+
+{% if batches %}
+{% set total_linked = batches | sum(attribute='batch_count') %}
+<div class="stats mb-20" style="grid-template-columns:repeat(3,1fr)">
+  <div class="stat">
+    <div class="stat-label">Substrate Runs</div>
+    <div class="stat-val">{{ batches|length }}</div>
+  </div>
+  <div class="stat g">
+    <div class="stat-label">Blocks Linked</div>
+    <div class="stat-val">{{ total_linked }}</div>
+  </div>
+  <div class="stat a">
+    <div class="stat-label">Unlinked Blocks</div>
+    <div class="stat-val">{{ unlinked_count }}</div>
+    <div class="stat-sub">batches with no substrate run assigned</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Date Prepared</th>
+          <th>Type</th>
+          <th>Dry Weight</th>
+          <th>Composition</th>
+          <th>Sterilization</th>
+          <th>Linked Blocks</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for sb in batches %}
+        {% set comp_parts = [] %}
+        {% if sb.hardwood_pct and sb.hardwood_pct > 0 %}{% set _ = comp_parts.append('HW ' ~ sb.hardwood_pct|int ~ '%') %}{% endif %}
+        {% if sb.straw_pct and sb.straw_pct > 0 %}{% set _ = comp_parts.append('Straw ' ~ sb.straw_pct|int ~ '%') %}{% endif %}
+        {% if sb.bran_pct and sb.bran_pct > 0 %}{% set _ = comp_parts.append('Bran ' ~ sb.bran_pct|int ~ '%') %}{% endif %}
+        {% if sb.gypsum_pct and sb.gypsum_pct > 0 %}{% set _ = comp_parts.append('Gypsum ' ~ sb.gypsum_pct|int ~ '%') %}{% endif %}
+        {% if sb.coco_pct and sb.coco_pct > 0 %}{% set _ = comp_parts.append('Coco ' ~ sb.coco_pct|int ~ '%') %}{% endif %}
+        {% if sb.substrate_other %}{% set _ = comp_parts.append(sb.substrate_other) %}{% endif %}
+        <tr>
+          <td class="td-mono">{{ sb.date_prepared or '—' }}</td>
+          <td class="fw-600">{{ sb.substrate_type or '—' }}</td>
+          <td>{% if sb.dry_weight_g %}{{ sb.dry_weight_g|int }}g{% else %}—{% endif %}</td>
+          <td class="td-m" style="font-size:12px">{{ comp_parts | join(' / ') if comp_parts else '—' }}</td>
+          <td class="td-m" style="font-size:12px">
+            {% if sb.steril_method %}
+              {{ sb.steril_method | replace('_',' ') | title }}
+              {% if sb.steril_duration_min %} · {{ sb.steril_duration_min }}min{% endif %}
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            {% if sb.batch_count > 0 %}
+            <span style="color:var(--green);font-weight:600">{{ sb.batch_count }}</span>
+            {% else %}
+            <span class="td-m">0</span>
+            {% endif %}
+          </td>
+          <td style="white-space:nowrap">
+            <a href="{{ url_for('substrate_batch_edit', sb_id=sb.id) }}" class="btn btn-ghost btn-sm">Edit</a>
+            <form method="POST" action="{{ url_for('substrate_batch_delete', sb_id=sb.id) }}" style="display:inline"
+                  onsubmit="return confirm('Delete this substrate batch?{% if sb.batch_count > 0 %} This will unlink {{ sb.batch_count }} block(s).{% endif %}')">
+              <button type="submit" class="btn btn-danger btn-sm">Del</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="card">
+  <div class="empty">
+    <div class="empty-title">No substrate batches yet</div>
+    <div class="empty-sub">Log each substrate preparation run here. Link multiple fruiting blocks to the same run to diagnose whether contamination events share a common substrate source.</div>
+    <a href="{{ url_for('substrate_batch_add') }}" class="btn btn-primary">Log First Substrate Batch</a>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

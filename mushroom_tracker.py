@@ -292,6 +292,25 @@ def init_db():
             notes       TEXT,
             created_at  TEXT DEFAULT CURRENT_TIMESTAMP
         );
+        CREATE TABLE IF NOT EXISTS substrate_batches (
+            id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+            date_prepared         TEXT,
+            substrate_type        TEXT,
+            dry_weight_g          REAL,
+            moisture_pct          REAL,
+            straw_pct             REAL DEFAULT 0,
+            hardwood_pct          REAL DEFAULT 0,
+            bran_pct              REAL DEFAULT 0,
+            gypsum_pct            REAL DEFAULT 0,
+            coco_pct              REAL DEFAULT 0,
+            substrate_other       TEXT,
+            steril_method         TEXT,
+            steril_temp_f         REAL,
+            steril_duration_min   INTEGER,
+            cooldown_duration_min INTEGER,
+            notes                 TEXT,
+            created_at            TEXT DEFAULT CURRENT_TIMESTAMP
+        );
     """)
 
     # Non-destructive column additions for env_logs upgrade from v1
@@ -327,6 +346,7 @@ def init_db():
         "fruiting_start_date": "TEXT",
         "sourced_block": "INTEGER DEFAULT 0",
         "block_end_date": "TEXT",
+        "substrate_batch_id": "INTEGER REFERENCES substrate_batches(id)",
     }.items():
         if col not in existing_b:
             c.execute(f"ALTER TABLE batches ADD COLUMN {col} {typedef}")

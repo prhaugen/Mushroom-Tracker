@@ -405,9 +405,12 @@ def build():
         ("12.5", "Reading the Output",                          "15"),
         ("13",   "Culture Tracking",                             "16"),
         ("13.1", "LC Syringe Lots",                             "16"),
-        ("14",   "Command-Line Interface (CLI)",                "17"),
-        ("15",   "Growing Reference",                           "18"),
-        ("16",   "Tips & Troubleshooting",                      "20"),
+        ("14",   "Substrate Batches",                           "17"),
+        ("14.1", "Logging a Substrate Run",                     "17"),
+        ("14.2", "Linking Blocks to a Substrate Batch",         "18"),
+        ("15",   "Command-Line Interface (CLI)",                "18"),
+        ("16",   "Growing Reference",                           "19"),
+        ("17",   "Tips & Troubleshooting",                      "21"),
     ]
     for num, title, pg in toc_entries:
         story.append(toc_row(num, title, pg))
@@ -1856,10 +1859,93 @@ def build():
     story.append(PageBreak())
 
     # ══════════════════════════════════════════════════════════════════════
-    # 14. CLI REFERENCE
+    # 14. SUBSTRATE BATCHES
     # ══════════════════════════════════════════════════════════════════════
     story += [
-        h1("14. Command-Line Interface (CLI)"),
+        h1("14. Substrate Batches"),
+        rule(),
+        p("A substrate batch is one preparation run — a specific mix of ingredients "
+          "sterilized together at the same time. Multiple fruiting blocks inoculated "
+          "from the same substrate run share a substrate batch record. "
+          "Navigate to <b>Substrate</b> in the top navigation bar to log and manage runs."),
+        sp(6),
+        callout(
+            "The most important contamination diagnostic this enables: "
+            "<b>did all the contaminated blocks this week come from the same substrate batch?</b> "
+            "If yes, the cause is in the substrate prep — sterilization, field capacity, or cooldown. "
+            "If no, the cause is environmental or spawn-related. "
+            "This query is impossible without substrate batch as a first-class entity.",
+            label="Why it matters:"
+        ),
+        sp(10),
+        h2("14.1  Logging a Substrate Run"),
+        p("Click <b>+ New Substrate Batch</b> on the Substrate page. "
+          "Fill in the preparation details for the entire run — not for individual blocks. "
+          "All blocks inoculated from this run will link back to this record."),
+        sp(6),
+        data_table(
+            ["Field", "Notes"],
+            [
+                ["Date Prepared",
+                 "Date the substrate was mixed and sterilized."],
+                ["Substrate Type",
+                 "Free-text label for the recipe — e.g. Master's Mix, Supplemented Sawdust. "
+                 "Common types are suggested in a dropdown."],
+                ["Dry Weight (g)",
+                 "Total dry substrate weight for the entire run before hydration. "
+                 "Required for BE% calculation on all blocks linked to this run."],
+                ["Field Capacity %",
+                 "Target moisture percentage. Aim for 60–65% for most hardwood substrates."],
+                ["Component Percentages",
+                 "Hardwood, Straw, Bran, Gypsum, Coco Coir, and Other. "
+                 "A live sum checker confirms they total 100%."],
+                ["Sterilization Method",
+                 "Pressure cooker, autoclave, pasteurization, lime treat, cold water, or none."],
+                ["Sterilization Temp (F) / Duration (min)",
+                 "Actual values used — not targets. Record what happened, not what was planned."],
+                ["Cooldown Duration (min)",
+                 "Time from pressure cooker off to inoculation. "
+                 "Insufficient cooldown is a common contamination root cause — "
+                 "inoculating into still-warm substrate kills or stresses the spawn."],
+                ["Notes",
+                 "Qualitative observations: substrate felt drier than usual, "
+                 "used older bran, bag weight after hydration, etc."],
+            ],
+            col_widths=[4.5*cm, 11.7*cm],
+        ),
+        sp(10),
+        h2("14.2  Linking Blocks to a Substrate Batch"),
+        p("When adding or editing a batch, the <b>Substrate Composition</b> section "
+          "shows a <b>Link to Substrate Batch</b> dropdown at the top. "
+          "Select the run this block came from to:"),
+        sp(4),
+        *bullet([
+            "Auto-fill all substrate fields from the run record — dry weight, moisture, "
+            "component percentages, sterilization method, temp, and duration.",
+            "Link the block to the run for contamination diagnostics. "
+            "The Substrate page shows how many blocks are linked to each run.",
+        ]),
+        sp(6),
+        p("Fields remain fully editable after auto-fill. If one block in a run used "
+          "a different inoculation rate or had a different actual dry weight, "
+          "override the field — the substrate batch record captures the run-level defaults, "
+          "the batch record captures what actually happened per block."),
+        sp(6),
+        callout(
+            "Log the substrate batch <b>before</b> adding the blocks, not after. "
+            "The selector only shows existing runs — if the run isn't logged yet, "
+            "there is nothing to link to and each block gets entered redundantly.",
+            label="Workflow tip:", color=AMBER_BG, border=AMBER_BORDER
+        ),
+    ]
+
+    story.append(PageBreak())
+
+    # ══════════════════════════════════════════════════════════════════════
+    # 15. CLI REFERENCE
+    # ══════════════════════════════════════════════════════════════════════
+    story += [
+        h1("15. Command-Line Interface (CLI)"),
         rule(),
         p("The CLI (<b>mushroom_tracker.py</b>) provides the same core functions as the web app "
           "from a terminal. It is useful for quick data entry when you do not want to open "
@@ -1938,10 +2024,10 @@ def build():
     story.append(PageBreak())
 
     # ══════════════════════════════════════════════════════════════════════
-    # 15. GROWING REFERENCE
+    # 16. GROWING REFERENCE
     # ══════════════════════════════════════════════════════════════════════
     story += [
-        h1("15. Growing Reference"),
+        h1("16. Growing Reference"),
         rule(),
         h2("Optimal Fruiting Conditions by Species"),
         sp(4),
@@ -2051,10 +2137,10 @@ def build():
     story.append(PageBreak())
 
     # ══════════════════════════════════════════════════════════════════════
-    # 16. TIPS & TROUBLESHOOTING
+    # 17. TIPS & TROUBLESHOOTING
     # ══════════════════════════════════════════════════════════════════════
     story += [
-        h1("16. Tips & Troubleshooting"),
+        h1("17. Tips & Troubleshooting"),
         rule(),
         h2("Improving Your BE%"),
         *bullet([

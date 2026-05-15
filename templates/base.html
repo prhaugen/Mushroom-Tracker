@@ -414,6 +414,16 @@ input[name="quality_rating"]{display:none}
       </svg>
       Batches
     </a>
+    <!-- Substrate icon: stacked layers / block -->
+    <a href="{{ url_for('substrate_batches_list') }}"
+       class="nav-link{% if request.endpoint in ('substrate_batches_list','substrate_batch_add','substrate_batch_edit') %} active{% endif %}">
+      <svg viewBox="0 0 14 14" width="13" height="13" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+        <rect x="1.5" y="9" width="11" height="3.5" rx="1.2" opacity=".6"/>
+        <rect x="2.5" y="5.5" width="9" height="3" rx="1" opacity=".8"/>
+        <rect x="3.5" y="2.5" width="7" height="2.5" rx=".8"/>
+      </svg>
+      Substrate
+    </a>
     <!-- Culture icon: vial/syringe -->
     <a href="{{ url_for('lc_lots_list') }}"
        class="nav-link{% if request.endpoint in ('lc_lots_list','lc_lot_add','lc_lot_edit') %} active{% endif %}">
