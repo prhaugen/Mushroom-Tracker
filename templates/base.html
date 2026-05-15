@@ -361,9 +361,59 @@ input[name="quality_rating"]{display:none}
   .stats{grid-template-columns:1fr}
   .nav-links .nav-link:not(.nav-cta){display:none}
 }
+
+/* ── Chat Widget ────────────────────────────────────────────────────────────── */
+#chat-fab{position:fixed;bottom:24px;right:24px;z-index:900;display:none}
+#chat-fab-btn{
+  width:48px;height:48px;border-radius:50%;
+  background:var(--green);color:#0c0a08;
+  border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 16px rgba(116,194,122,.35);
+  transition:transform .15s,box-shadow .15s;
+}
+#chat-fab-btn:hover{transform:scale(1.08);box-shadow:0 6px 22px rgba(116,194,122,.5)}
+#chat-panel{
+  position:fixed;bottom:82px;right:24px;z-index:900;
+  width:360px;max-height:520px;
+  background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);
+  display:none;flex-direction:column;
+  box-shadow:0 12px 40px rgba(0,0,0,.65);
+  transform:translateY(8px);opacity:0;transition:transform .2s,opacity .2s;
+}
+#chat-panel.open{display:flex;transform:translateY(0);opacity:1}
+#chat-panel-head{
+  padding:13px 16px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;flex-shrink:0;
+}
+#chat-panel-title{font-size:13px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px}
+#chat-panel-close{background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:20px;line-height:1;padding:0 2px;transition:color .15s}
+#chat-panel-close:hover{color:var(--text)}
+#chat-msgs{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px;min-height:0}
+.chat-msg{max-width:88%;font-size:13px;line-height:1.55;padding:9px 12px;border-radius:var(--r)}
+.chat-msg-user{align-self:flex-end;background:var(--green-bg);border:1px solid var(--green-border);color:var(--text)}
+.chat-msg-ai{align-self:flex-start;background:var(--surface);border:1px solid var(--border);color:var(--text)}
+.chat-msg-thinking{align-self:flex-start;color:var(--text-muted);font-size:12px;font-style:italic;padding:4px 0}
+#chat-input-row{padding:10px 12px;border-top:1px solid var(--border);display:flex;gap:8px;flex-shrink:0}
+#chat-q{
+  flex:1;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
+  padding:8px 11px;color:var(--text);font-size:13px;font-family:var(--font);
+  outline:none;resize:none;line-height:1.4;
+}
+#chat-q:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(116,194,122,.12)}
+#chat-send{
+  background:var(--green);color:#0c0a08;border:none;border-radius:var(--r);
+  padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;
+  transition:background .15s;white-space:nowrap;font-family:var(--font);
+}
+#chat-send:hover{background:#86d48c}
+#chat-send:disabled{opacity:.45;cursor:default}
+@media(max-width:480px){
+  #chat-panel{width:calc(100vw - 20px);right:10px;bottom:74px}
+}
 </style>
 </head>
-<body>
+<body {% block body_data %}{% endblock %}>
 {% if db_mode == 'sandbox' %}
 <div class="sandbox-bar">
   <span>&#9888; SANDBOX MODE &mdash; changes here won't affect your production data</span>
@@ -533,5 +583,148 @@ input[name="quality_rating"]{display:none}
   {% endwith %}
   {% block content %}{% endblock %}
 </main>
+
+<!-- ── Chat Widget ──────────────────────────────────────────────────────────── -->
+<div id="chat-fab">
+  <div id="chat-panel">
+    <div id="chat-panel-head">
+      <div id="chat-panel-title">
+        <svg viewBox="0 0 14 14" width="13" height="13" fill="var(--green)" xmlns="http://www.w3.org/2000/svg">
+          <path d="M7 1 L8 5.5 L12.5 5.5 L9 8.5 L10.5 13 L7 10.5 L3.5 13 L5 8.5 L1.5 5.5 L6 5.5 Z" opacity=".9"/>
+        </svg>
+        Ask Claude
+      </div>
+      <button id="chat-panel-close" title="Close">&times;</button>
+    </div>
+    <div id="chat-msgs"></div>
+    <div id="chat-input-row">
+      <textarea id="chat-q" rows="2" placeholder="Ask a question about your data…"></textarea>
+      <button id="chat-send">Send</button>
+    </div>
+  </div>
+  <button id="chat-fab-btn" onclick="chatToggle()" title="Ask Claude about your data">
+    <svg viewBox="0 0 20 20" width="20" height="20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+      <path d="M10 1 L11.8 7.5 L18 7.5 L13 11.5 L15 18 L10 14.5 L5 18 L7 11.5 L2 7.5 L8.2 7.5 Z" opacity=".9"/>
+    </svg>
+  </button>
+</div>
+
+<script>
+(function () {
+  var batchId = document.body.dataset.batchId || null;
+  if (!batchId) return;
+
+  var fab    = document.getElementById('chat-fab');
+  var panel  = document.getElementById('chat-panel');
+  var msgs   = document.getElementById('chat-msgs');
+  var input  = document.getElementById('chat-q');
+  var sendBtn= document.getElementById('chat-send');
+  var isOpen = false;
+  var history= [];
+
+  fab.style.display = 'block';
+
+  window.chatToggle = function () {
+    isOpen = !isOpen;
+    if (isOpen) {
+      panel.style.display = 'flex';
+      requestAnimationFrame(function () { panel.classList.add('open'); });
+      if (!msgs.children.length) appendWelcome();
+      setTimeout(function () { input.focus(); }, 200);
+    } else {
+      panel.classList.remove('open');
+      setTimeout(function () { panel.style.display = 'none'; }, 200);
+    }
+  };
+
+  document.getElementById('chat-panel-close').onclick = function () {
+    isOpen = false;
+    panel.classList.remove('open');
+    setTimeout(function () { panel.style.display = 'none'; }, 200);
+  };
+
+  function appendWelcome() {
+    appendMsg('ai',
+      'Hi! I can answer questions about batch #' + batchId + ' or any of your cultivation data.\n\n' +
+      'Try asking:\n' +
+      '• "What is the yield so far for this batch?"\n' +
+      '• "What is my overall contamination rate?"\n' +
+      '• "How does this batch compare to others of the same species?"'
+    );
+  }
+
+  function appendMsg(role, text) {
+    var div = document.createElement('div');
+    div.className = role === 'user' ? 'chat-msg chat-msg-user' : 'chat-msg chat-msg-ai';
+    div.innerHTML = renderMd(text);
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+    return div;
+  }
+
+  function appendThinking() {
+    var div = document.createElement('div');
+    div.className = 'chat-msg-thinking';
+    div.textContent = 'Thinking…';
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+    return div;
+  }
+
+  function renderMd(text) {
+    return text
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/`([^`\n]+)`/g, '<code style="background:var(--surface);padding:1px 5px;border-radius:3px;font-size:11px;font-family:Consolas,monospace">$1</code>')
+      .replace(/\n/g, '<br>');
+  }
+
+  function send() {
+    var q = input.value.trim();
+    if (!q) return;
+    input.value = '';
+    sendBtn.disabled = true;
+    input.disabled   = true;
+
+    appendMsg('user', q);
+    var thinkDiv = appendThinking();
+
+    fetch('/ask', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        question: q,
+        context:  {batch_id: parseInt(batchId, 10), page: 'batch_detail'},
+        history:  history.slice(-10),
+      }),
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      thinkDiv.remove();
+      if (data.error) {
+        appendMsg('ai', 'Sorry, an error occurred: ' + data.error);
+      } else {
+        appendMsg('ai', data.answer);
+        history.push({role: 'user',      content: q});
+        history.push({role: 'assistant', content: data.answer});
+      }
+    })
+    .catch(function () {
+      thinkDiv.remove();
+      appendMsg('ai', 'Request failed. Please try again.');
+    })
+    .finally(function () {
+      sendBtn.disabled = false;
+      input.disabled   = false;
+      input.focus();
+    });
+  }
+
+  sendBtn.onclick = send;
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+  });
+})();
+</script>
 </body>
 </html>

@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ batch.label }} — Mushroom Tracker{% endblock %}
+{% block body_data %}data-batch-id="{{ batch.id }}"{% endblock %}
 {% block content %}
 {% set be = bio_efficiency(batch.total_yield_g, batch.dry_weight_g) %}
 

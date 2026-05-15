@@ -4,6 +4,7 @@ Run: python mushroom_app.py  →  http://localhost:5000
 """
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
 import sqlite3, json, os, csv, io, re
+import anthropic as _anthropic
 from pathlib import Path
 from datetime import datetime, date, timedelta
 import sys
@@ -1814,6 +1815,142 @@ def roadmap_milestone_note(mid):
     conn.commit()
     conn.close()
     return redirect(url_for('roadmap'))
+
+
+# ── Interactive Q&A ───────────────────────────────────────────────────────────
+
+_ASK_SYSTEM = (
+    "You are a mushroom cultivation data analyst for a small farm operation. "
+    "Use run_sql to query the SQLite database and answer questions about batches, "
+    "harvests, yields, contamination rates, environmental conditions, and performance. "
+    "Always query before answering — never guess at data. "
+    "Keep answers concise and conversational. "
+    "Never run UPDATE, INSERT, DELETE, DROP, or any write operation."
+)
+
+_ASK_TOOLS = [
+    {
+        "name": "run_sql",
+        "description": "Execute a read-only SQL SELECT query against the mushroom tracker database.",
+        "input_schema": {
+            "type": "object",
+            "properties": {"query": {"type": "string", "description": "A SQL SELECT statement"}},
+            "required": ["query"],
+        },
+    },
+    {
+        "name": "get_schema",
+        "description": "Get the database schema — table names and column definitions.",
+        "input_schema": {"type": "object", "properties": {}, "required": []},
+    },
+]
+
+
+def _ask_schema_text():
+    conn = get_db()
+    tables = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
+    ).fetchall()
+    parts = []
+    for t in tables:
+        cols = conn.execute(f"PRAGMA table_info({t['name']})").fetchall()
+        col_str = ', '.join(f"{c['name']} {c['type']}" for c in cols)
+        parts.append(f"{t['name']}({col_str})")
+    conn.close()
+    return '\n'.join(parts)
+
+
+@app.route('/ask', methods=['POST'])
+def ask():
+    data = request.get_json(silent=True) or {}
+    question = (data.get('question') or '').strip()
+    context  = data.get('context') or {}
+    history  = data.get('history') or []  # [{role, content}, ...] plain-text pairs
+
+    if not question:
+        return jsonify({'error': 'No question provided'}), 400
+
+    try:
+        client = _anthropic.Anthropic()
+    except Exception:
+        return jsonify({'error': 'AI client unavailable — check ANTHROPIC_API_KEY'}), 503
+
+    # Prepend batch context to the question when present
+    user_content = question
+    if context.get('batch_id'):
+        user_content = f"[Context: viewing batch #{context['batch_id']}]\n\n{question}"
+
+    # Cap history to 10 messages (5 exchange pairs) to stay within token budget
+    trimmed = history[-10:] if len(history) > 10 else history
+    messages = [{'role': h['role'], 'content': h['content']} for h in trimmed]
+    messages.append({'role': 'user', 'content': user_content})
+
+    queries_run = []
+    last_resp   = None
+
+    try:
+        for _ in range(5):
+            resp = client.messages.create(
+                model='claude-haiku-4-5-20251001',
+                max_tokens=1024,
+                system=_ASK_SYSTEM,
+                tools=_ASK_TOOLS,
+                messages=messages,
+            )
+            last_resp = resp
+            messages.append({'role': 'assistant', 'content': resp.content})
+
+            if resp.stop_reason in ('end_turn', None):
+                break
+            if resp.stop_reason != 'tool_use':
+                break
+
+            tool_results = []
+            for block in resp.content:
+                if block.type != 'tool_use':
+                    continue
+                if block.name == 'get_schema':
+                    result = _ask_schema_text()
+                elif block.name == 'run_sql':
+                    q = (block.input.get('query') or '').strip()
+                    if not re.match(r'^\s*(SELECT|WITH)\b', q, re.IGNORECASE):
+                        result = 'ERROR: Only SELECT/WITH queries are permitted.'
+                    else:
+                        try:
+                            conn = get_db()
+                            rows = conn.execute(q).fetchmany(200)
+                            conn.close()
+                            if rows:
+                                cols = list(rows[0].keys())
+                                lines = ['\t'.join(cols)]
+                                lines += ['\t'.join('' if rows[i][c] is None else str(rows[i][c]) for c in cols)
+                                          for i in range(len(rows))]
+                                result = '\n'.join(lines)
+                            else:
+                                result = '(no rows)'
+                            queries_run.append(q)
+                        except Exception as e:
+                            result = f'ERROR: {e}'
+                else:
+                    result = 'Unknown tool.'
+                tool_results.append({
+                    'type': 'tool_result',
+                    'tool_use_id': block.id,
+                    'content': result,
+                })
+            messages.append({'role': 'user', 'content': tool_results})
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+    if last_resp is None:
+        return jsonify({'answer': 'No response generated.', 'queries_run': []}), 200
+
+    answer = ' '.join(
+        b.text for b in last_resp.content if hasattr(b, 'text')
+    ).strip() or "I wasn't able to answer that question."
+
+    return jsonify({'answer': answer, 'queries_run': queries_run})
 
 
 if __name__ == '__main__':

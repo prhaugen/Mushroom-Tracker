@@ -412,9 +412,12 @@ def build():
         ("15",   "Grain Jars",                                  "18"),
         ("15.1", "Logging a Grain Jar",                         "18"),
         ("15.2", "Colonization Outcome Outcomes",               "19"),
-        ("16",   "Command-Line Interface (CLI)",                "19"),
-        ("17",   "Growing Reference",                           "20"),
-        ("18",   "Tips & Troubleshooting",                      "22"),
+        ("16",   "Interactive Q&A",                            "19"),
+        ("16.1", "Opening the Chat Widget",                    "19"),
+        ("16.2", "How It Works",                               "20"),
+        ("17",   "Command-Line Interface (CLI)",                "20"),
+        ("18",   "Growing Reference",                           "21"),
+        ("19",   "Tips & Troubleshooting",                      "23"),
     ]
     for num, title, pg in toc_entries:
         story.append(toc_row(num, title, pg))
@@ -2069,10 +2072,88 @@ def build():
     story.append(PageBreak())
 
     # ══════════════════════════════════════════════════════════════════════
-    # 16. CLI REFERENCE
+    # 16. INTERACTIVE Q&A
     # ══════════════════════════════════════════════════════════════════════
     story += [
-        h1("16. Command-Line Interface (CLI)"),
+        h1("16. Interactive Q&A"),
+        rule(),
+        p("The <b>Ask Claude</b> chat widget lets you query your cultivation data in plain "
+          "English directly from any batch detail page. Instead of writing SQL or digging "
+          "through report tables, you can ask questions like <i>\"What is the yield so far "
+          "for this batch?\"</i> or <i>\"How does my contamination rate compare this month?\"</i> "
+          "and get a concise, data-backed answer in seconds."),
+        sp(8),
+
+        h2("16.1  Opening the Chat Widget"),
+        p("The widget is available on every <b>batch detail</b> page. Look for the green "
+          "star button (&#9733;) fixed in the bottom-right corner of the screen. "
+          "Click it to slide open the chat panel. The panel closes when you click the "
+          "button again or press the &times; in the panel header."),
+        sp(4),
+        data_table(
+            ["Feature", "Behaviour"],
+            [
+                ["Welcome message",
+                 "The first time you open the panel it pre-loads three example questions "
+                 "tailored to the batch you are viewing."],
+                ["Send a question",
+                 "Type in the text box and press Enter (or click Send). "
+                 "Shift+Enter inserts a line break without sending."],
+                ["Thinking indicator",
+                 "A 'Thinking…' line appears while Claude queries the database. "
+                 "Typical response time is 2–5 seconds."],
+                ["Conversation history",
+                 "Prior questions and answers stay visible in the panel for the "
+                 "duration of your browser session. Claude uses up to the last 5 "
+                 "exchanges as context for follow-up questions."],
+                ["Availability",
+                 "Only visible on batch detail pages — the button does not appear "
+                 "on the dashboard, report, or other list pages."],
+            ],
+        ),
+        sp(8),
+
+        h2("16.2  How It Works"),
+        p("Each question is sent to a small Claude AI model via the "
+          "<b>POST /ask</b> endpoint. The model is given two tools:"),
+        sp(4),
+        *bullet([
+            "<b>run_sql</b> — executes a read-only SELECT query against your local "
+            "SQLite database and returns the results as tab-separated text.",
+            "<b>get_schema</b> — returns the full table and column list so the model "
+            "can construct accurate queries without guessing field names.",
+        ]),
+        sp(6),
+        p("The model runs an internal reasoning loop (up to 5 tool calls per question) "
+          "until it has enough data to compose a plain-English answer. "
+          "Only SELECT and WITH queries are permitted — any attempt to run an "
+          "INSERT, UPDATE, DELETE, or DROP is rejected before reaching the database."),
+        sp(6),
+        callout(
+            "The chat widget requires an active ANTHROPIC_API_KEY environment variable. "
+            "If the key is missing or invalid, the endpoint returns an error message "
+            "inside the chat panel rather than crashing the page.",
+            label="Requirement:", color=AMBER_BG, border=AMBER_BORDER,
+        ),
+        sp(6),
+        p("<b>Example questions that work well:</b>"),
+        *bullet([
+            "\"What are the total flushes and yield for batch B-07?\"",
+            "\"Which batch has the highest bio-efficiency this year?\"",
+            "\"How many batches have been contaminated in the last 90 days?\"",
+            "\"What is the average days-to-first-flush for Oyster batches?\"",
+            "\"Show me the last 5 environment readings for my chamber.\"",
+            "\"Which substrate recipe gives the best yield per kg dry weight?\"",
+        ]),
+    ]
+
+    story.append(PageBreak())
+
+    # ══════════════════════════════════════════════════════════════════════
+    # 17. CLI REFERENCE
+    # ══════════════════════════════════════════════════════════════════════
+    story += [
+        h1("17. Command-Line Interface (CLI)"),
         rule(),
         p("The CLI (<b>mushroom_tracker.py</b>) provides the same core functions as the web app "
           "from a terminal. It is useful for quick data entry when you do not want to open "
@@ -2151,10 +2232,10 @@ def build():
     story.append(PageBreak())
 
     # ══════════════════════════════════════════════════════════════════════
-    # 16. GROWING REFERENCE
+    # 18. GROWING REFERENCE
     # ══════════════════════════════════════════════════════════════════════
     story += [
-        h1("17. Growing Reference"),
+        h1("18. Growing Reference"),
         rule(),
         h2("Optimal Fruiting Conditions by Species"),
         sp(4),
@@ -2264,10 +2345,10 @@ def build():
     story.append(PageBreak())
 
     # ══════════════════════════════════════════════════════════════════════
-    # 17. TIPS & TROUBLESHOOTING
+    # 19. TIPS & TROUBLESHOOTING
     # ══════════════════════════════════════════════════════════════════════
     story += [
-        h1("18. Tips & Troubleshooting"),
+        h1("19. Tips & Troubleshooting"),
         rule(),
         h2("Improving Your BE%"),
         *bullet([
