@@ -67,24 +67,18 @@
     <div class="card-title">Summary — {{ target_date }}</div>
   </div>
   <p style="font-size:14px;color:var(--text);line-height:1.6">{{ briefing.summary }}</p>
-  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px">
-    <div style="text-align:center;padding:14px;background:var(--surface);border-radius:var(--r);border:1px solid var(--red-border)">
-      <div style="font-size:28px;font-weight:700;color:var(--red)">
-        {{ briefing.attention_required | selectattr('severity','equalto','critical') | list | length }}
-      </div>
-      <div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-top:4px">Critical</div>
+  <div class="stats" style="grid-template-columns:repeat(3,1fr);margin-top:16px">
+    <div class="stat r">
+      <div class="stat-label">Critical</div>
+      <div class="stat-val">{{ briefing.attention_required | selectattr('severity','equalto','critical') | list | length }}</div>
     </div>
-    <div style="text-align:center;padding:14px;background:var(--surface);border-radius:var(--r);border:1px solid var(--amber-border)">
-      <div style="font-size:28px;font-weight:700;color:var(--amber)">
-        {{ briefing.attention_required | length }}
-      </div>
-      <div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-top:4px">Need Attention</div>
+    <div class="stat a">
+      <div class="stat-label">Need Attention</div>
+      <div class="stat-val">{{ briefing.attention_required | length }}</div>
     </div>
-    <div style="text-align:center;padding:14px;background:var(--surface);border-radius:var(--r);border:1px solid var(--green-border)">
-      <div style="font-size:28px;font-weight:700;color:var(--green)">
-        {{ briefing.on_track | length }}
-      </div>
-      <div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-top:4px">On Track</div>
+    <div class="stat g">
+      <div class="stat-label">On Track</div>
+      <div class="stat-val">{{ briefing.on_track | length }}</div>
     </div>
   </div>
 </div>

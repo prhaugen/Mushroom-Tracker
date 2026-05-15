@@ -98,6 +98,39 @@ body{
 }
 .nav-cta:hover{background:#86d48c;box-shadow:0 0 14px rgba(116,194,122,.35)}
 
+/* ── Nav dropdown ─────────────────────────────────────────────────────────── */
+.nav-dropdown{position:relative}
+.nav-dropdown-menu{
+  position:absolute;top:calc(100% + 6px);left:0;
+  background:var(--card);border:1px solid var(--border);border-radius:var(--r);
+  padding:4px;min-width:168px;
+  opacity:0;visibility:hidden;transform:translateY(-4px);
+  transition:opacity .15s,transform .15s,visibility 0s .15s;
+  box-shadow:0 8px 24px rgba(0,0,0,.55);z-index:200;
+}
+.nav-dropdown:hover .nav-dropdown-menu,
+.nav-dropdown:focus-within .nav-dropdown-menu{
+  opacity:1;visibility:visible;transform:translateY(0);
+  transition:opacity .15s,transform .15s,visibility 0s 0s;
+}
+.nav-dd-item{
+  display:flex;align-items:center;gap:7px;
+  padding:7px 10px;border-radius:6px;
+  text-decoration:none;color:var(--text-muted);
+  font-size:13px;font-weight:500;transition:all .15s;white-space:nowrap;
+}
+.nav-dd-item:hover{color:var(--text);background:var(--card-hover)}
+.nav-dd-item.active{
+  color:var(--green);background:var(--green-bg);
+  border-left:2px solid var(--green);padding-left:8px;
+}
+.nav-dd-item svg{opacity:.7;flex-shrink:0}
+.nav-dd-item:hover svg,.nav-dd-item.active svg{opacity:1}
+.nav-dd-sep{height:1px;background:var(--border-muted);margin:3px 4px}
+.nav-chevron{transition:transform .15s;flex-shrink:0;margin-left:1px;opacity:.5}
+.nav-dropdown:hover .nav-chevron,
+.nav-dropdown:focus-within .nav-chevron{transform:rotate(180deg);opacity:.8}
+
 /* ── Layout ───────────────────────────────────────────────────────────── */
 .main{max-width:1200px;margin:0 auto;padding:28px 20px 60px}
 
@@ -132,6 +165,7 @@ body{
 .stat.g::before{background:linear-gradient(to right,var(--green),rgba(116,194,122,.3))}
 .stat.a::before{background:linear-gradient(to right,var(--amber),rgba(212,168,67,.3))}
 .stat.b::before{background:linear-gradient(to right,var(--blue),rgba(106,173,204,.3))}
+.stat.r::before{background:linear-gradient(to right,var(--red),rgba(217,107,90,.3))}
 
 .stat-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:6px}
 .stat-val{font-size:26px;font-weight:700;line-height:1;color:var(--text)}
@@ -139,6 +173,7 @@ body{
 .stat.g .stat-val{color:var(--green)}
 .stat.a .stat-val{color:var(--amber)}
 .stat.b .stat-val{color:var(--blue)}
+.stat.r .stat-val{color:var(--red)}
 
 /* ── Cards ────────────────────────────────────────────────────────────── */
 .card{background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px}
@@ -464,40 +499,59 @@ input[name="quality_rating"]{display:none}
       </svg>
       Batches
     </a>
-    <!-- Substrate icon: stacked layers / block -->
-    <a href="{{ url_for('substrate_batches_list') }}"
-       class="nav-link{% if request.endpoint in ('substrate_batches_list','substrate_batch_add','substrate_batch_edit') %} active{% endif %}">
-      <svg viewBox="0 0 14 14" width="13" height="13" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-        <rect x="1.5" y="9" width="11" height="3.5" rx="1.2" opacity=".6"/>
-        <rect x="2.5" y="5.5" width="9" height="3" rx="1" opacity=".8"/>
-        <rect x="3.5" y="2.5" width="7" height="2.5" rx=".8"/>
-      </svg>
-      Substrate
-    </a>
-    <!-- Culture icon: vial/syringe -->
-    <a href="{{ url_for('lc_lots_list') }}"
-       class="nav-link{% if request.endpoint in ('lc_lots_list','lc_lot_add','lc_lot_edit') %} active{% endif %}">
-      <svg viewBox="0 0 14 14" width="13" height="13" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-        <rect x="6" y="1" width="2" height="1.5" rx=".5" opacity=".55"/>
-        <rect x="5" y="2.5" width="4" height="7.5" rx="2"/>
-        <path d="M6.5 10h1v2.5h-1z" rx=".5" opacity=".7"/>
-        <path d="M5.5 7.5h3" stroke="var(--bg)" stroke-width=".9" opacity=".5" fill="none"/>
-        <path d="M5.5 6h3" stroke="var(--bg)" stroke-width=".9" opacity=".35" fill="none"/>
-      </svg>
-      Culture
-    </a>
-    <!-- Grain jars icon: jar silhouette -->
-    <a href="{{ url_for('grain_jars_list') }}"
-       class="nav-link{% if request.endpoint in ('grain_jars_list','grain_jar_add','grain_jar_edit') %} active{% endif %}">
-      <svg viewBox="0 0 14 14" width="13" height="13" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-        <rect x="4.5" y="1" width="5" height="1.5" rx=".6" opacity=".55"/>
-        <path d="M3 3.5 Q2 3.5 2 4.5 L2 12 Q2 13 3.5 13 L10.5 13 Q12 13 12 12 L12 4.5 Q12 3.5 11 3.5 Z"/>
-        <path d="M4 6.5 h6" stroke="var(--bg)" stroke-width=".9" opacity=".4" fill="none"/>
-        <path d="M4 8.5 h6" stroke="var(--bg)" stroke-width=".9" opacity=".3" fill="none"/>
-        <path d="M4 10.5 h6" stroke="var(--bg)" stroke-width=".9" opacity=".2" fill="none"/>
-      </svg>
-      Grain
-    </a>
+    <!-- Supply dropdown: Substrate / Culture / Grain -->
+    {% set _supply_active = request.endpoint in (
+        'substrate_batches_list','substrate_batch_add','substrate_batch_edit',
+        'lc_lots_list','lc_lot_add','lc_lot_edit',
+        'grain_jars_list','grain_jar_add','grain_jar_edit') %}
+    <div class="nav-dropdown">
+      <div class="nav-link{% if _supply_active %} active{% endif %}" tabindex="0"
+           style="cursor:default" role="button" aria-haspopup="true">
+        <!-- box / supply icon -->
+        <svg viewBox="0 0 14 14" width="13" height="13" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+          <path d="M7 1.5L12.5 4.5V9.5L7 12.5L1.5 9.5V4.5Z" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".85"/>
+          <path d="M7 1.5V12.5M1.5 4.5L12.5 4.5" stroke="currentColor" stroke-width=".8" opacity=".4" fill="none"/>
+        </svg>
+        Supply
+        <svg class="nav-chevron" viewBox="0 0 8 6" width="8" height="6" fill="none"
+             stroke="currentColor" stroke-width="1.4" stroke-linecap="round" xmlns="http://www.w3.org/2000/svg">
+          <path d="M1 1.5L4 4.5L7 1.5"/>
+        </svg>
+      </div>
+      <div class="nav-dropdown-menu">
+        <a href="{{ url_for('substrate_batches_list') }}"
+           class="nav-dd-item{% if request.endpoint in ('substrate_batches_list','substrate_batch_add','substrate_batch_edit') %} active{% endif %}">
+          <svg viewBox="0 0 14 14" width="13" height="13" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+            <rect x="1.5" y="9" width="11" height="3.5" rx="1.2" opacity=".6"/>
+            <rect x="2.5" y="5.5" width="9" height="3" rx="1" opacity=".8"/>
+            <rect x="3.5" y="2.5" width="7" height="2.5" rx=".8"/>
+          </svg>
+          Substrate
+        </a>
+        <a href="{{ url_for('lc_lots_list') }}"
+           class="nav-dd-item{% if request.endpoint in ('lc_lots_list','lc_lot_add','lc_lot_edit') %} active{% endif %}">
+          <svg viewBox="0 0 14 14" width="13" height="13" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+            <rect x="6" y="1" width="2" height="1.5" rx=".5" opacity=".55"/>
+            <rect x="5" y="2.5" width="4" height="7.5" rx="2"/>
+            <path d="M6.5 10h1v2.5h-1z" opacity=".7"/>
+            <path d="M5.5 7.5h3" stroke="var(--bg)" stroke-width=".9" opacity=".5" fill="none"/>
+            <path d="M5.5 6h3" stroke="var(--bg)" stroke-width=".9" opacity=".35" fill="none"/>
+          </svg>
+          Culture
+        </a>
+        <a href="{{ url_for('grain_jars_list') }}"
+           class="nav-dd-item{% if request.endpoint in ('grain_jars_list','grain_jar_add','grain_jar_edit') %} active{% endif %}">
+          <svg viewBox="0 0 14 14" width="13" height="13" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+            <rect x="4.5" y="1" width="5" height="1.5" rx=".6" opacity=".55"/>
+            <path d="M3 3.5 Q2 3.5 2 4.5 L2 12 Q2 13 3.5 13 L10.5 13 Q12 13 12 12 L12 4.5 Q12 3.5 11 3.5 Z"/>
+            <path d="M4 6.5 h6" stroke="var(--bg)" stroke-width=".9" opacity=".4" fill="none"/>
+            <path d="M4 8.5 h6" stroke="var(--bg)" stroke-width=".9" opacity=".3" fill="none"/>
+            <path d="M4 10.5 h6" stroke="var(--bg)" stroke-width=".9" opacity=".2" fill="none"/>
+          </svg>
+          Grain
+        </a>
+      </div>
+    </div>
     <!-- Environment icon: thermometer -->
     <a href="{{ url_for('env_history') }}"
        class="nav-link{% if request.endpoint=='env_history' %} active{% endif %}">
