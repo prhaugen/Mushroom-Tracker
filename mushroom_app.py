@@ -688,6 +688,115 @@ def api_substrate_batch(sb_id):
     })
 
 
+# ── Grain Jars ────────────────────────────────────────────────────────────────
+
+def _grain_jars_with_refs(conn):
+    return conn.execute("""
+        SELECT gj.*,
+               ll.vendor      AS lot_vendor,
+               ll.species     AS lot_species,
+               ll.lot_number  AS lot_lot_number,
+               sb.date_prepared AS sb_date,
+               sb.substrate_type AS sb_type
+        FROM grain_jars gj
+        LEFT JOIN lc_lots ll ON gj.lc_lot_id = ll.id
+        LEFT JOIN substrate_batches sb ON gj.used_in_substrate_batch_id = sb.id
+        ORDER BY gj.inoculation_date DESC, gj.id DESC
+    """).fetchall()
+
+
+@app.route('/grain-jars')
+def grain_jars_list():
+    init_db()
+    conn = get_db()
+    jars = _grain_jars_with_refs(conn)
+    lc_lots = conn.execute("SELECT * FROM lc_lots ORDER BY order_date DESC").fetchall()
+    substrate_batches = conn.execute(
+        "SELECT * FROM substrate_batches ORDER BY date_prepared DESC"
+    ).fetchall()
+    conn.close()
+    return render_template('grain_jars.html', jars=jars,
+                           lc_lots=lc_lots, substrate_batches=substrate_batches)
+
+
+@app.route('/grain-jars/add', methods=['GET', 'POST'])
+def grain_jar_add():
+    init_db()
+    conn = get_db()
+    lc_lots = conn.execute("SELECT * FROM lc_lots ORDER BY order_date DESC").fetchall()
+    substrate_batches = conn.execute(
+        "SELECT * FROM substrate_batches ORDER BY date_prepared DESC"
+    ).fetchall()
+    if request.method == 'POST':
+        f = request.form
+        conn.execute("""
+            INSERT INTO grain_jars
+                (lc_lot_id, spawn_source, species, inoculation_date,
+                 full_colonization_date, outcome, used_in_substrate_batch_id, notes)
+            VALUES (?,?,?,?,?,?,?,?)""",
+            (int(f['lc_lot_id']) if f.get('lc_lot_id') else None,
+             f.get('spawn_source', '').strip() or None,
+             f['species'].strip(),
+             f.get('inoculation_date') or None,
+             f.get('full_colonization_date') or None,
+             f.get('outcome') or None,
+             int(f['used_in_substrate_batch_id']) if f.get('used_in_substrate_batch_id') else None,
+             f.get('notes', '').strip() or None))
+        conn.commit()
+        conn.close()
+        flash('Grain jar logged.', 'success')
+        return redirect(url_for('grain_jars_list'))
+    conn.close()
+    return render_template('grain_jar_form.html', jar=None,
+                           lc_lots=lc_lots, substrate_batches=substrate_batches)
+
+
+@app.route('/grain-jars/<int:jar_id>/edit', methods=['GET', 'POST'])
+def grain_jar_edit(jar_id):
+    conn = get_db()
+    jar = conn.execute("SELECT * FROM grain_jars WHERE id=?", (jar_id,)).fetchone()
+    if not jar:
+        conn.close(); flash('Grain jar not found.', 'error')
+        return redirect(url_for('grain_jars_list'))
+    lc_lots = conn.execute("SELECT * FROM lc_lots ORDER BY order_date DESC").fetchall()
+    substrate_batches = conn.execute(
+        "SELECT * FROM substrate_batches ORDER BY date_prepared DESC"
+    ).fetchall()
+    if request.method == 'POST':
+        f = request.form
+        conn.execute("""
+            UPDATE grain_jars SET
+                lc_lot_id=?, spawn_source=?, species=?, inoculation_date=?,
+                full_colonization_date=?, outcome=?, used_in_substrate_batch_id=?, notes=?
+            WHERE id=?""",
+            (int(f['lc_lot_id']) if f.get('lc_lot_id') else None,
+             f.get('spawn_source', '').strip() or None,
+             f['species'].strip(),
+             f.get('inoculation_date') or None,
+             f.get('full_colonization_date') or None,
+             f.get('outcome') or None,
+             int(f['used_in_substrate_batch_id']) if f.get('used_in_substrate_batch_id') else None,
+             f.get('notes', '').strip() or None,
+             jar_id))
+        conn.commit()
+        conn.close()
+        flash('Grain jar updated.', 'success')
+        return redirect(url_for('grain_jars_list'))
+    conn.close()
+    return render_template('grain_jar_form.html', jar=jar,
+                           lc_lots=lc_lots, substrate_batches=substrate_batches)
+
+
+@app.route('/grain-jars/<int:jar_id>/delete', methods=['POST'])
+def grain_jar_delete(jar_id):
+    conn = get_db()
+    conn.execute("DELETE FROM grain_jars WHERE id=?", (jar_id,))
+    conn.commit()
+    conn.close()
+    flash('Grain jar deleted.', 'success')
+    return redirect(url_for('grain_jars_list'))
+
+
 # ── LC Lots ───────────────────────────────────────────────────────────────────
 
 @app.route('/lc-lots')

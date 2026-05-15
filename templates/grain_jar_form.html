@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if jar else 'Add' }} Grain Jar — Mushroom Tracker{% endblock %}
+{% block content %}
+<div class="page-head-row">
+  <div class="page-head">
+    <div class="page-title">{{ 'Edit' if jar else 'Log' }} Grain Jar</div>
+    <div class="page-sub">Track an inoculated jar from LC lot through colonization outcome</div>
+  </div>
+  <a href="{{ url_for('grain_jars_list') }}" class="btn btn-ghost btn-sm">← Back</a>
+</div>
+
+<div class="form-wrap">
+  <form method="post">
+
+    <div class="form-section">
+      <div class="section-label">Source</div>
+      <div class="fg-grid">
+        <div class="fg full">
+          <label>LC Lot (optional)</label>
+          <select name="lc_lot_id" id="lc_lot_id">
+            <option value="">— no LC lot / use spawn source below —</option>
+            {% for lot in lc_lots %}
+            <option value="{{ lot.id }}"
+              {% if jar and jar.lc_lot_id == lot.id %}selected{% endif %}>
+              {{ lot.vendor }} — {{ lot.species }}
+              {% if lot.order_date %} ({{ lot.order_date[:10] }}){% endif %}
+              {% if lot.lot_number %} · Lot {{ lot.lot_number }}{% endif %}
+            </option>
+            {% endfor %}
+          </select>
+          {% if not lc_lots %}
+          <div class="form-hint">No LC lots yet — <a href="{{ url_for('lc_lot_add') }}" style="color:var(--blue)">add one</a> or use spawn source below.</div>
+          {% else %}
+          <div class="form-hint">Select the LC lot this jar was inoculated from. Leave blank if using a free-text spawn source.</div>
+          {% endif %}
+        </div>
+
+        <div class="fg full">
+          <label>Spawn Source (free text fallback)</label>
+          <input type="text" name="spawn_source"
+                 value="{{ jar.spawn_source or '' if jar else '' }}"
+                 placeholder="e.g. vendor name, agar plate, own culture BO-007">
+          <div class="form-hint">Use when no LC lot record exists — or to capture additional detail beyond the lot.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="section-label">Species &amp; Timing</div>
+      <div class="fg-grid">
+        <div class="fg">
+          <label>Species <span style="color:var(--red)">*</span></label>
+          <select name="species" required>
+            <option value="">— select —</option>
+            {% for sp in SPECIES %}
+            <option value="{{ sp }}" {% if jar and jar.species == sp %}selected{% endif %}>{{ sp }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="fg">
+          <label>Outcome</label>
+          <select name="outcome">
+            <option value="">— pending —</option>
+            {% for val, lbl in [('clean','Clean'),('contaminated','Contaminated'),('slow','Slow'),('partial','Partial')] %}
+            <option value="{{ val }}" {% if jar and jar.outcome == val %}selected{% endif %}>{{ lbl }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="fg">
+          <label>Inoculation Date</label>
+          <input type="date" name="inoculation_date"
+                 value="{{ jar.inoculation_date[:10] if jar and jar.inoculation_date else today }}">
+        </div>
+
+        <div class="fg">
+          <label>Full Colonization Date</label>
+          <input type="date" name="full_colonization_date"
+                 value="{{ jar.full_colonization_date[:10] if jar and jar.full_colonization_date else '' }}">
+          <div class="form-hint">Leave blank until colonization is complete.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="section-label">Downstream Link</div>
+      <div class="fg-grid">
+        <div class="fg full">
+          <label>Used In Substrate Batch (optional)</label>
+          <select name="used_in_substrate_batch_id">
+            <option value="">— not yet used —</option>
+            {% for sb in substrate_batches %}
+            <option value="{{ sb.id }}"
+              {% if jar and jar.used_in_substrate_batch_id == sb.id %}selected{% endif %}>
+              {% if sb.date_prepared %}{{ sb.date_prepared[:10] }}{% else %}Batch #{{ sb.id }}{% endif %}
+              {% if sb.substrate_type %} · {{ sb.substrate_type }}{% endif %}
+              {% if sb.dry_weight_g %} · {{ sb.dry_weight_g|int }}g dry{% endif %}
+            </option>
+            {% endfor %}
+          </select>
+          <div class="form-hint">
+            Link this jar to the substrate batch it was used to inoculate.
+            {% if not substrate_batches %}
+            No substrate batches yet — <a href="{{ url_for('substrate_batch_add') }}" style="color:var(--blue)">create one</a>.
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="section-label">Notes</div>
+      <div class="fg">
+        <label>Notes</label>
+        <textarea name="notes" rows="3"
+                  placeholder="Contamination appearance, colonization speed observations, anything unusual...">{{ jar.notes or '' if jar else '' }}</textarea>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">{{ 'Save Changes' if jar else 'Log Jar' }}</button>
+      <a href="{{ url_for('grain_jars_list') }}" class="btn btn-ghost">Cancel</a>
+      {% if jar %}
+      <form method="post" action="{{ url_for('grain_jar_delete', jar_id=jar.id) }}"
+            style="margin-left:auto"
+            onsubmit="return confirm('Delete this grain jar record?')">
+        <button class="btn btn-danger">Delete</button>
+      </form>
+      {% endif %}
+    </div>
+
+  </form>
+</div>
+{% endblock %}

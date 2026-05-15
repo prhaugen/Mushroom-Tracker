@@ -409,9 +409,12 @@ def build():
         ("14",   "Substrate Batches",                           "17"),
         ("14.1", "Logging a Substrate Run",                     "17"),
         ("14.2", "Linking Blocks to a Substrate Batch",         "18"),
-        ("15",   "Command-Line Interface (CLI)",                "18"),
-        ("16",   "Growing Reference",                           "19"),
-        ("17",   "Tips & Troubleshooting",                      "21"),
+        ("15",   "Grain Jars",                                  "18"),
+        ("15.1", "Logging a Grain Jar",                         "18"),
+        ("15.2", "Colonization Outcome Outcomes",               "19"),
+        ("16",   "Command-Line Interface (CLI)",                "19"),
+        ("17",   "Growing Reference",                           "20"),
+        ("18",   "Tips & Troubleshooting",                      "22"),
     ]
     for num, title, pg in toc_entries:
         story.append(toc_row(num, title, pg))
@@ -1986,10 +1989,90 @@ def build():
     story.append(PageBreak())
 
     # ══════════════════════════════════════════════════════════════════════
-    # 15. CLI REFERENCE
+    # 15. GRAIN JARS
     # ══════════════════════════════════════════════════════════════════════
     story += [
-        h1("15. Command-Line Interface (CLI)"),
+        h1("15. Grain Jars"),
+        rule(),
+        p("Grain jars are the intermediate step between an LC lot and a substrate batch. "
+          "Each jar is inoculated from a liquid culture source, colonizes the grain, "
+          "and is then broken into a substrate batch to inoculate the blocks. "
+          "Recording grain jars closes the full traceability chain:"),
+        sp(4),
+        callout(
+            "<b>LC lot → grain jar → substrate batch → fruiting block → flush</b><br/>"
+            "Every hop is queryable. A contamination wave on fruiting blocks can be traced "
+            "back through substrate batch → grain jars → LC lot → vendor in a single join path.",
+            label="Traceability chain:", color=GREEN_BG, border=GREEN_LIGHT
+        ),
+        sp(8),
+
+        h2("15.1  Logging a Grain Jar"),
+        p("Navigate to <b>Grain</b> in the nav bar and click <b>+ Add Jar</b>. "
+          "Each jar record captures:"),
+        sp(4),
+        data_table(
+            ["Field", "Purpose"],
+            [
+                ["LC Lot",
+                 "Link to the LC lot (vendor, species, lot number) this jar was inoculated from. "
+                 "Optional — use Spawn Source as free text if no lot record exists yet."],
+                ["Spawn Source",
+                 "Free-text fallback when no LC lot record is selected. "
+                 "Also useful for own-culture notes, e.g. 'own culture BO-007'."],
+                ["Species",
+                 "Species being grown in this jar. Required."],
+                ["Inoculation Date",
+                 "Date the grain was inoculated. Used to calculate days-to-colonization."],
+                ["Full Colonization Date",
+                 "Date the jar reached full colonization. Leave blank until complete. "
+                 "The list page shows elapsed days for in-progress jars."],
+                ["Outcome",
+                 "Clean / Contaminated / Slow / Partial. "
+                 "Used to calculate clean rate per LC lot."],
+                ["Used In Substrate Batch",
+                 "Link to the substrate batch this jar was used to inoculate. "
+                 "Closes the grain jar → substrate batch hop in the traceability chain."],
+            ],
+            col_widths=[5.0*cm, 11.2*cm],
+        ),
+        sp(8),
+
+        h2("15.2  Colonization Outcome Codes"),
+        data_table(
+            ["Outcome", "Meaning"],
+            [
+                ["Clean",
+                 "Full colonization, no visible contamination. "
+                 "Jar is suitable for substrate inoculation."],
+                ["Contaminated",
+                 "Visible mold, bacterial wet rot, or other contamination. "
+                 "Jar should be discarded. Contributes to contam rate for the LC lot."],
+                ["Slow",
+                 "Colonizing but significantly behind expected timeline. "
+                 "May indicate weak LC viability or environmental issue."],
+                ["Partial",
+                 "Partially colonized — some sections clean, some not, "
+                 "or grain did not fully colonize. Use with caution for inoculation."],
+            ],
+            col_widths=[3.5*cm, 12.7*cm],
+        ),
+        sp(8),
+        callout(
+            "The Grain Jars list page shows <b>clean rate</b> (clean jars ÷ total jars). "
+            "A drop in clean rate across jars from the same LC lot is the earliest "
+            "signal of a bad vendor lot — before any fruiting block data exists.",
+            label="What to watch:", color=AMBER_BG, border=AMBER_BORDER
+        ),
+    ]
+
+    story.append(PageBreak())
+
+    # ══════════════════════════════════════════════════════════════════════
+    # 16. CLI REFERENCE
+    # ══════════════════════════════════════════════════════════════════════
+    story += [
+        h1("16. Command-Line Interface (CLI)"),
         rule(),
         p("The CLI (<b>mushroom_tracker.py</b>) provides the same core functions as the web app "
           "from a terminal. It is useful for quick data entry when you do not want to open "
@@ -2071,7 +2154,7 @@ def build():
     # 16. GROWING REFERENCE
     # ══════════════════════════════════════════════════════════════════════
     story += [
-        h1("16. Growing Reference"),
+        h1("17. Growing Reference"),
         rule(),
         h2("Optimal Fruiting Conditions by Species"),
         sp(4),
@@ -2184,7 +2267,7 @@ def build():
     # 17. TIPS & TROUBLESHOOTING
     # ══════════════════════════════════════════════════════════════════════
     story += [
-        h1("17. Tips & Troubleshooting"),
+        h1("18. Tips & Troubleshooting"),
         rule(),
         h2("Improving Your BE%"),
         *bullet([

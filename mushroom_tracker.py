@@ -311,6 +311,18 @@ def init_db():
             notes                 TEXT,
             created_at            TEXT DEFAULT CURRENT_TIMESTAMP
         );
+        CREATE TABLE IF NOT EXISTS grain_jars (
+            id                         INTEGER PRIMARY KEY AUTOINCREMENT,
+            lc_lot_id                  INTEGER REFERENCES lc_lots(id),
+            spawn_source               TEXT,
+            species                    TEXT NOT NULL,
+            inoculation_date           TEXT,
+            full_colonization_date     TEXT,
+            outcome                    TEXT,
+            used_in_substrate_batch_id INTEGER REFERENCES substrate_batches(id),
+            notes                      TEXT,
+            created_at                 TEXT DEFAULT CURRENT_TIMESTAMP
+        );
     """)
 
     # Non-destructive column additions for env_logs upgrade from v1

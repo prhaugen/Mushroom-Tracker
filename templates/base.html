@@ -436,6 +436,18 @@ input[name="quality_rating"]{display:none}
       </svg>
       Culture
     </a>
+    <!-- Grain jars icon: jar silhouette -->
+    <a href="{{ url_for('grain_jars_list') }}"
+       class="nav-link{% if request.endpoint in ('grain_jars_list','grain_jar_add','grain_jar_edit') %} active{% endif %}">
+      <svg viewBox="0 0 14 14" width="13" height="13" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+        <rect x="4.5" y="1" width="5" height="1.5" rx=".6" opacity=".55"/>
+        <path d="M3 3.5 Q2 3.5 2 4.5 L2 12 Q2 13 3.5 13 L10.5 13 Q12 13 12 12 L12 4.5 Q12 3.5 11 3.5 Z"/>
+        <path d="M4 6.5 h6" stroke="var(--bg)" stroke-width=".9" opacity=".4" fill="none"/>
+        <path d="M4 8.5 h6" stroke="var(--bg)" stroke-width=".9" opacity=".3" fill="none"/>
+        <path d="M4 10.5 h6" stroke="var(--bg)" stroke-width=".9" opacity=".2" fill="none"/>
+      </svg>
+      Grain
+    </a>
     <!-- Environment icon: thermometer -->
     <a href="{{ url_for('env_history') }}"
        class="nav-link{% if request.endpoint=='env_history' %} active{% endif %}">

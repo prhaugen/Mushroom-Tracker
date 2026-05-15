@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}Grain Jars — Mushroom Tracker{% endblock %}
+{% block content %}
+<div class="page-head-row">
+  <div class="page-head">
+    <div class="page-title">Grain Jars</div>
+    <div class="page-sub">Inoculated jars linking LC lots to substrate batches</div>
+  </div>
+  <a href="{{ url_for('grain_jar_add') }}" class="btn btn-primary btn-sm">+ Add Jar</a>
+</div>
+
+{% if jars %}
+{% set total = jars|length %}
+{% set clean_count = jars|selectattr('outcome','equalto','clean')|list|length %}
+{% set linked_count = jars|selectattr('used_in_substrate_batch_id')|list|length %}
+<div class="stats" style="grid-template-columns:repeat(3,1fr);margin-bottom:20px">
+  <div class="stat b">
+    <div class="stat-label">Total Jars</div>
+    <div class="stat-val">{{ total }}</div>
+    <div class="stat-sub">logged so far</div>
+  </div>
+  <div class="stat {% if total > 0 and clean_count / total >= 0.8 %}g{% elif total > 0 %}a{% endif %}">
+    <div class="stat-label">Clean Rate</div>
+    <div class="stat-val">{% if total > 0 %}{{ (clean_count / total * 100)|int }}%{% else %}—{% endif %}</div>
+    <div class="stat-sub">{{ clean_count }} clean of {{ total }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Linked to Substrate</div>
+    <div class="stat-val">{{ linked_count }}</div>
+    <div class="stat-sub">{{ total - linked_count }} unlinked</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <span class="card-title">All Jars ({{ total }})</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Species</th>
+          <th>LC Lot</th>
+          <th>Spawn Source</th>
+          <th>Inoculated</th>
+          <th>Colonized</th>
+          <th>Days</th>
+          <th>Outcome</th>
+          <th>Substrate Batch</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for j in jars %}
+        {% set days_col = none %}
+        {% if j.inoculation_date and j.full_colonization_date %}
+          {% set d0 = j.inoculation_date[:10] %}
+          {% set d1 = j.full_colonization_date[:10] %}
+          {# Compute days difference via days_since trick: days_since(inoculation) - days_since(colonization) #}
+          {% if days_since(d0) is not none and days_since(d1) is not none %}
+            {% set days_col = days_since(d0) - days_since(d1) %}
+          {% endif %}
+        {% endif %}
+        <tr>
+          <td class="fw-600">{{ j.species }}</td>
+          <td>
+            {% if j.lc_lot_id %}
+              <a href="{{ url_for('lc_lot_edit', lot_id=j.lc_lot_id) }}"
+                 style="color:var(--blue);text-decoration:none">
+                {{ j.lot_vendor }}{% if j.lot_lot_number %} · {{ j.lot_lot_number }}{% endif %}
+              </a>
+              <div style="font-size:11px;color:var(--text-muted)">{{ j.lot_species }}</div>
+            {% else %}
+              <span class="td-m">—</span>
+            {% endif %}
+          </td>
+          <td class="td-m">{{ j.spawn_source or '—' }}</td>
+          <td class="td-m">{{ j.inoculation_date[:10] if j.inoculation_date else '—' }}</td>
+          <td class="td-m">{{ j.full_colonization_date[:10] if j.full_colonization_date else '—' }}</td>
+          <td class="td-m">
+            {% if days_col is not none %}{{ days_col }}d
+            {% elif j.inoculation_date and not j.full_colonization_date %}
+              <span style="color:var(--amber)">{{ days_since(j.inoculation_date) }}d in progress</span>
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            {% if j.outcome == 'clean' %}
+              <span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;
+                           background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)">Clean</span>
+            {% elif j.outcome == 'contaminated' %}
+              <span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;
+                           background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)">Contam</span>
+            {% elif j.outcome == 'slow' %}
+              <span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;
+                           background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-border)">Slow</span>
+            {% elif j.outcome == 'partial' %}
+              <span style="display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700;
+                           background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)">Partial</span>
+            {% else %}
+              <span class="td-m">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if j.used_in_substrate_batch_id %}
+              <a href="{{ url_for('substrate_batch_edit', sb_id=j.used_in_substrate_batch_id) }}"
+                 style="color:var(--blue);text-decoration:none;font-size:12px">
+                {{ j.sb_date[:10] if j.sb_date else 'Batch #'+j.used_in_substrate_batch_id|string }}
+                {% if j.sb_type %}<div style="font-size:11px;color:var(--text-muted)">{{ j.sb_type }}</div>{% endif %}
+              </a>
+            {% else %}
+              <span class="td-m">—</span>
+            {% endif %}
+          </td>
+          <td style="white-space:nowrap">
+            <a href="{{ url_for('grain_jar_edit', jar_id=j.id) }}" class="btn btn-ghost btn-sm">Edit</a>
+            <form method="post" action="{{ url_for('grain_jar_delete', jar_id=j.id) }}"
+                  style="display:inline"
+                  onsubmit="return confirm('Delete this grain jar record?')">
+              <button class="btn btn-danger btn-sm">Del</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% else %}
+<div class="card">
+  <div class="empty">
+    <div class="empty-title">No grain jars logged yet</div>
+    <div class="empty-sub">
+      Record each inoculated grain jar — linked to the LC lot it came from and the substrate batch
+      it was used to inoculate. This closes the traceability chain:
+      <strong>LC lot → grain jar → substrate batch → fruiting block → flush</strong>.
+    </div>
+    <a href="{{ url_for('grain_jar_add') }}" class="btn btn-primary">Log First Jar</a>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
