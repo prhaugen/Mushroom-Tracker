@@ -88,17 +88,16 @@
     {% endfor %}
   </div>
   {% if batch.block_end_date %}
-  <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border-muted);
-              font-size:12px;color:var(--text-muted);display:flex;gap:20px;flex-wrap:wrap">
-    <span>Retired <b style="color:var(--text)">{{ batch.block_end_date }}</b></span>
+  <div class="retired-row">
+    <span>Retired <b>{{ batch.block_end_date }}</b></span>
     {% if cycle_days is not none %}
-    <span>Total cycle <b style="color:var(--text)">{{ cycle_days }} days</b></span>
+    <span>Total cycle <b>{{ cycle_days }} days</b></span>
     {% endif %}
     {% if batch.total_yield_g %}
-    <span>Cumulative yield <b style="color:var(--text)">{{ batch.total_yield_g|int }}g</b></span>
+    <span>Cumulative yield <b>{{ batch.total_yield_g|int }}g</b></span>
     {% endif %}
     {% if batch.dry_weight_g and batch.total_yield_g %}
-    <span>Final BE% <b style="color:var(--green)">{{ "%.1f"|format(batch.total_yield_g / batch.dry_weight_g * 100) }}%</b></span>
+    <span>Final BE% <b class="text-green">{{ "%.1f"|format(batch.total_yield_g / batch.dry_weight_g * 100) }}%</b></span>
     {% endif %}
   </div>
   {% endif %}
@@ -108,13 +107,9 @@
 <div class="card mb-16">
   <div class="card-head">
     <span class="card-title">Environment</span>
-    <div style="display:flex;gap:4px;align-items:center">
+    <div class="res-group">
       {% for r in resolutions %}
-      <a href="?res={{ r }}"
-         style="font-size:11px;padding:2px 8px;border-radius:4px;text-decoration:none;font-weight:600;
-                {% if r == env_res %}background:var(--green);color:#000{% else %}color:var(--text-muted);border:1px solid var(--border-muted){% endif %}">
-        {{ r }}m
-      </a>
+      <a href="?res={{ r }}" class="res-btn{% if r == env_res %} active{% endif %}">{{ r }}m</a>
       {% endfor %}
     </div>
   </div>
@@ -134,7 +129,7 @@
   <!-- Substrate & Spawn card -->
   <div class="card">
     <div class="card-title" style="margin-bottom:14px">Substrate & Spawn</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+    <div class="detail-grid">
       {% if batch.dry_weight_g %}
       <div><div class="detail-lbl">Dry Weight</div><div class="detail-val">{{ batch.dry_weight_g|int }}g</div></div>
       {% endif %}
@@ -184,7 +179,7 @@
     {% if batch.target_temp_f is not none or batch.target_humidity_rh is not none %}
     <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border-muted)">
       <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:8px">Environment Targets</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div class="detail-grid">
         {% if batch.target_temp_f is not none %}
         <div>
           <div class="detail-lbl">Target Temp</div>
@@ -389,8 +384,7 @@ new Chart(document.getElementById('yieldChart').getContext('2d'), {
       <div id="note-edit-{{ note.id }}" style="display:none">
         <form method="POST"
               action="{{ url_for('batch_note_edit', batch_id=batch.id, note_id=note.id) }}">
-          <textarea name="body" rows="3"
-                    style="width:100%;resize:vertical;font-size:13px;line-height:1.6;box-sizing:border-box">{{ note.body }}</textarea>
+          <div class="fg"><textarea name="body" rows="3">{{ note.body }}</textarea></div>
           <div style="margin-top:6px;display:flex;gap:8px">
             <button type="submit" class="btn btn-primary btn-sm">Save</button>
             <button type="button" class="btn btn-ghost btn-sm"
