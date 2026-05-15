@@ -1,5 +1,5 @@
-{% extends "base.html" %}
-{% block title %}Log Harvest — Mushroom Tracker{% endblock %}
+﻿{% extends "base.html" %}
+{% block title %}Log Harvest â€” Mushroom Tracker{% endblock %}
 
 {% block content %}
 <div class="page-head-row">
@@ -9,7 +9,7 @@
       &nbsp;/&nbsp; Log Harvest
     </div>
     <div class="page-title">Log Harvest</div>
-    <div class="page-sub">{{ block.label }} &nbsp;·&nbsp; {{ block.species }}</div>
+    <div class="page-sub">{{ block.label }} &nbsp;Â·&nbsp; {{ block.species }}</div>
   </div>
   <a href="{{ url_for('block_detail', block_id=block.id) }}" class="btn btn-ghost btn-sm">Back</a>
 </div>
@@ -31,7 +31,7 @@
 
 <div class="card form-card">
   <form method="POST" action="{{ url_for('harvest_log', block_id=block.id) }}">
-    <div class="form-grid">
+    <div class="fg-grid">
       <div class="fg">
         <label>Flush Number</label>
         <input type="number" name="flush_number" value="{{ next_flush }}" min="1" required>
@@ -65,7 +65,7 @@ function updatePreview() {
   if (!isNaN(w) && w > 0) {
     const newTotal = prevYield + w;
     document.getElementById('preview-text').textContent =
-      w.toFixed(0) + 'g this flush — new lifetime total: ' + newTotal.toFixed(0) + 'g';
+      w.toFixed(0) + 'g this flush â€” new lifetime total: ' + newTotal.toFixed(0) + 'g';
     preview.style.display = 'block';
     hint.textContent = w > 300 ? 'Great flush!' : (w > 100 ? 'Solid harvest' : 'Small flush');
     hint.style.color = w > 300 ? 'var(--green)' : (w > 100 ? 'var(--blue)' : 'var(--text-muted)');

@@ -1,5 +1,5 @@
-{% extends "base.html" %}
-{% block title %}{{ block.label }} — Mushroom Tracker{% endblock %}
+﻿{% extends "base.html" %}
+{% block title %}{{ block.label }} â€” Mushroom Tracker{% endblock %}
 
 {% block content %}
 <div class="page-head-row">
@@ -12,7 +12,7 @@
       {{ block.label }}
       <span class="badge badge-{{ block.status }}">{{ block.status }}</span>
     </div>
-    <div class="page-sub">{{ block.species }}{% if block.substrate %} &nbsp;·&nbsp; {{ block.substrate }}{% endif %}</div>
+    <div class="page-sub">{{ block.species }}{% if block.substrate %} &nbsp;Â·&nbsp; {{ block.substrate }}{% endif %}</div>
   </div>
   <div class="gap-row">
     {% if block.status not in ('done', 'contaminated') %}
@@ -21,11 +21,11 @@
   </div>
 </div>
 
-{# ── Stats ── #}
+{# â”€â”€ Stats â”€â”€ #}
 <div class="stats" style="grid-template-columns:repeat(4,1fr)">
   <div class="stat">
     <div class="stat-label">Inoculated</div>
-    <div class="stat-val" style="font-size:18px">{{ block.inoculation_date or '—' }}</div>
+    <div class="stat-val" style="font-size:18px">{{ block.inoculation_date or 'â€”' }}</div>
     <div class="stat-sub">{% if days_since(block.inoculation_date) is not none %}{{ days_since(block.inoculation_date) }} days ago{% endif %}</div>
   </div>
   <div class="stat accent-green">
@@ -35,15 +35,15 @@
   </div>
   <div class="stat">
     <div class="stat-label">Avg per Flush</div>
-    <div class="stat-val">{% if block.total_flushes > 0 %}{{ (block.total_yield_g / block.total_flushes)|int }}g{% else %}—{% endif %}</div>
+    <div class="stat-val">{% if block.total_flushes > 0 %}{{ (block.total_yield_g / block.total_flushes)|int }}g{% else %}â€”{% endif %}</div>
   </div>
   <div class="stat">
     <div class="stat-label">Days Active</div>
-    <div class="stat-val">{% if days_since(block.inoculation_date) is not none %}{{ days_since(block.inoculation_date) }}{% else %}—{% endif %}</div>
+    <div class="stat-val">{% if days_since(block.inoculation_date) is not none %}{{ days_since(block.inoculation_date) }}{% else %}â€”{% endif %}</div>
   </div>
 </div>
 
-{# ── Lifecycle timeline ── #}
+{# â”€â”€ Lifecycle timeline â”€â”€ #}
 <div class="card mb-16">
   <div class="card-title">Lifecycle</div>
   {% set lc_order = ['colonizing','colonized','pinning','fruiting','resting'] %}
@@ -75,11 +75,11 @@
 
 <div class="grid-2 mb-16">
 
-  {# ── Update status ── #}
+  {# â”€â”€ Update status â”€â”€ #}
   <div class="card">
     <div class="card-title">Update Status</div>
     <form method="POST" action="{{ url_for('block_update', block_id=block.id) }}" style="margin-top:14px">
-      <div class="form-grid" style="grid-template-columns:1fr">
+      <div class="fg-grid" style="grid-template-columns:1fr">
         <div class="fg">
           <label>New Status</label>
           <select name="status">
@@ -99,7 +99,7 @@
     </form>
   </div>
 
-  {# ── Block details ── #}
+  {# â”€â”€ Block details â”€â”€ #}
   <div class="card">
     <div class="card-title">Details</div>
     <div style="margin-top:14px;display:flex;flex-direction:column;gap:12px">
@@ -109,11 +109,11 @@
       </div>
       <div>
         <div class="detail-lbl">Substrate</div>
-        <div class="detail-val">{{ block.substrate or '—' }}</div>
+        <div class="detail-val">{{ block.substrate or 'â€”' }}</div>
       </div>
       <div>
         <div class="detail-lbl">Inoculated</div>
-        <div class="detail-val">{{ block.inoculation_date or '—' }}</div>
+        <div class="detail-val">{{ block.inoculation_date or 'â€”' }}</div>
       </div>
       {% if block.colonization_date %}
       <div>
@@ -137,7 +137,7 @@
   </div>
 </div>
 
-{# ── Harvest history ── #}
+{# â”€â”€ Harvest history â”€â”€ #}
 <div class="card">
   <div class="card-head">
     <span class="card-title">Harvest Log</span>
