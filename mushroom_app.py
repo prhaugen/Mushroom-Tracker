@@ -162,12 +162,15 @@ def dashboard():
                for b in batches if b['dry_weight_g']]
     avg_be = round(sum(be_list)/len(be_list), 1) if be_list else None
 
+    harvest_forecast = _build_harvest_forecast(conn)
+
     conn.close()
     return render_template('dashboard.html',
         chamber=chamber, latest_env=latest_env, batches=batches,
         recent_flushes=recent_flushes, total_yield=total_yield,
         active_count=active_count, env_count=env_count,
-        days_running=days_running, avg_be=avg_be)
+        days_running=days_running, avg_be=avg_be,
+        harvest_forecast=harvest_forecast)
 
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
@@ -915,6 +918,121 @@ def _aggregate_env_logs(rows, bucket_min):
             'co2_ppm':     round(sum(b['co2'])  / len(b['co2']),  0) if b['co2']  else None,
         })
     return result
+
+
+def _build_harvest_forecast(conn):
+    """
+    Project harvest windows for all active batches using SPECIES_TIMELINES midpoints.
+    Returns list of dicts sorted by projected_mid date.
+    """
+    from agent_config import DEFAULT_TIMELINE
+
+    batches = conn.execute("""
+        SELECT b.*,
+               (SELECT MAX(harvest_date) FROM flushes WHERE batch_id = b.id) AS last_harvest_date
+        FROM batches b
+        WHERE b.status IN ('colonizing','colonized','pinning','fruiting','resting')
+        ORDER BY b.id
+    """).fetchall()
+
+    today = date.today()
+    forecast = []
+
+    for b in batches:
+        sp_key = (b['species'] or '').lower()
+        tl = SPECIES_TIMELINES.get(sp_key, DEFAULT_TIMELINE)
+
+        col_lo, col_hi = tl['colonization_days']
+        pin_lo, pin_hi = tl['days_to_pin']
+        har_lo, har_hi = tl['days_to_harvest']
+        col_mid = (col_lo + col_hi) / 2
+        pin_mid = (pin_lo + pin_hi) / 2
+        har_mid = (har_lo + har_hi) / 2
+
+        status = b['status']
+        proj_mid = proj_lo = proj_hi = None
+        confidence = 'Low'
+        note = None
+
+        try:
+            if status == 'colonizing' and b['inoculation_date']:
+                base = date.fromisoformat(b['inoculation_date'][:10])
+                proj_mid = base + timedelta(days=round(col_mid + pin_mid + har_mid))
+                proj_lo  = base + timedelta(days=col_lo + pin_lo + har_lo)
+                proj_hi  = base + timedelta(days=col_hi + pin_hi + har_hi)
+                confidence = 'Low'
+                note = 'Est. colonization + pin + harvest'
+
+            elif status == 'colonized':
+                col_end = b['colonization_end_date'] or b['inoculation_date']
+                if not col_end:
+                    continue
+                base = date.fromisoformat(col_end[:10])
+                if b['colonization_end_date']:
+                    base = date.fromisoformat(b['colonization_end_date'][:10])
+                else:
+                    base = date.fromisoformat(b['inoculation_date'][:10]) + timedelta(days=round(col_mid))
+                proj_mid = base + timedelta(days=round(pin_mid + har_mid))
+                proj_lo  = base + timedelta(days=pin_lo + har_lo)
+                proj_hi  = base + timedelta(days=pin_hi + har_hi)
+                confidence = 'Medium'
+                note = 'Colonized — waiting on pins'
+
+            elif status == 'pinning':
+                pin_start = b['pinning_started_at'] or str(today)
+                base = date.fromisoformat(pin_start[:10])
+                proj_mid = base + timedelta(days=round(har_mid))
+                proj_lo  = base + timedelta(days=har_lo)
+                proj_hi  = base + timedelta(days=har_hi)
+                confidence = 'High'
+                note = 'Pinning — harvest window close'
+
+            elif status == 'fruiting':
+                proj_mid = today
+                proj_lo  = today
+                proj_hi  = today + timedelta(days=har_hi)
+                confidence = 'Imminent'
+                note = 'Fruiting now'
+
+            elif status == 'resting' and b['last_harvest_date']:
+                base = date.fromisoformat(b['last_harvest_date'][:10]) + timedelta(days=7)
+                proj_mid = base + timedelta(days=round(pin_mid + har_mid))
+                proj_lo  = base + timedelta(days=pin_lo + har_lo)
+                proj_hi  = base + timedelta(days=pin_hi + har_hi)
+                confidence = 'Medium'
+                note = 'Next flush after rest'
+
+            else:
+                continue
+
+        except (ValueError, TypeError):
+            continue
+
+        days_out = (proj_mid - today).days
+
+        def _fmt(d):
+            return d.strftime('%b ') + str(d.day)
+
+        if proj_lo.month == proj_hi.month:
+            display_range = f"{_fmt(proj_lo)}–{proj_hi.day}"
+        else:
+            display_range = f"{_fmt(proj_lo)} – {_fmt(proj_hi)}"
+
+        forecast.append({
+            'batch_id':      b['id'],
+            'label':         b['label'],
+            'species':       b['species'],
+            'status':        status,
+            'proj_mid':      proj_mid,
+            'display_mid':   _fmt(proj_mid),
+            'display_range': display_range,
+            'confidence':    confidence,
+            'days_out':      days_out,
+            'note':          note,
+        })
+
+    forecast.sort(key=lambda x: x['proj_mid'])
+    return forecast
 
 
 @app.route('/env/history')

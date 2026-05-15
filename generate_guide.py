@@ -381,6 +381,7 @@ def build():
         ("4.2",  "BE% Benchmarks by Species",                   "5"),
         ("4.3",  "A Note on Dry Weight",                        "6"),
         ("5",    "The Dashboard",                               "6"),
+        ("5.1",  "Harvest Forecast Card",                      "6"),
         ("6",    "Batch Management",                            "7"),
         ("6.1",  "Adding a Batch",                              "7"),
         ("6.2",  "Substrate Composition",                       "8"),
@@ -753,6 +754,49 @@ def build():
         h3("Recent Flushes"),
         p("A table at the bottom lists the last six flush events across all batches, "
           "with batch name, flush number, weight, and harvest date."),
+        sp(10),
+        h2("5.1  Harvest Forecast Card"),
+        p("When any active batches are present, the dashboard shows a <b>Harvest Forecast</b> "
+          "table above Recent Flushes. It projects the harvest window for every active batch "
+          "by applying the species timeline midpoints from the growing configuration to "
+          "the batch's current lifecycle state."),
+        sp(6),
+        data_table(
+            ["Status", "Projection Basis", "Confidence"],
+            [
+                ["Colonizing",
+                 "Inoculation date + colonization days + days to pin + days to harvest",
+                 "Low — weeks of compounding uncertainty"],
+                ["Colonized",
+                 "Colonization end date + days to pin + days to harvest",
+                 "Medium — colonization done, pin timing uncertain"],
+                ["Pinning",
+                 "Pinning start date + days to harvest",
+                 "High — days away"],
+                ["Fruiting",
+                 "Today — already in harvest window",
+                 "Imminent"],
+                ["Resting",
+                 "Last harvest date + 7 days rest + days to pin + days to harvest",
+                 "Medium — next flush projection"],
+            ],
+            col_widths=[3*cm, 8.8*cm, 4.4*cm],
+        ),
+        sp(6),
+        callout(
+            "The <b>Window</b> column shows the earliest-to-latest range using the "
+            "low and high ends of the species timeline. The <b>Projected Harvest</b> column "
+            "shows the midpoint — treat it as the most likely date, not a guarantee. "
+            "Confidence degrades the earlier in the lifecycle a batch is.",
+            label="Reading the table:"
+        ),
+        sp(6),
+        callout(
+            "By March 2027, this table becomes your market planning tool: "
+            "sort active blocks by projected date to confirm whether enough volume "
+            "will be in harvest window simultaneously to commit to a market date.",
+            label="Planning use:", color=AMBER_BG, border=AMBER_BORDER
+        ),
     ]
 
     story.append(PageBreak())
