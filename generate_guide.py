@@ -738,8 +738,21 @@ def build():
             "<b>Days Running</b> -- days since the earliest inoculation date",
         ]),
         sp(10),
-        h3("Environment Card"),
-        p("Shows the most recent temperature and humidity reading with color-coded status:"),
+        h3("Visual Hierarchy"),
+        p("The dashboard is arranged top-to-bottom by urgency:"),
+        sp(4),
+        *bullet([
+            "<b>Environment strip</b> -- live temp and humidity gauges span the full width "
+            "at the top so chamber status is always the first thing you see",
+            "<b>Batch grid</b> -- all active batches in a full-width card below the strip",
+            "<b>Harvest Forecast</b> -- projected windows for active batches",
+            "<b>Recent Flushes</b> -- last six harvest events at the bottom",
+        ]),
+        sp(10),
+        h3("Environment Strip"),
+        p("The top strip shows the most recent temperature and humidity reading "
+          "with color-coded status. A <b>History</b> link on the right opens the "
+          "full environment log."),
         sp(4),
         data_table(
             ["Color", "Meaning"],
@@ -751,8 +764,8 @@ def build():
             col_widths=[3*cm, 13.2*cm],
         ),
         sp(10),
-        h3("Batch Cards"),
-        p("A card grid shows all active batches. Each card displays four live metrics: "
+        h3("Batch Grid"),
+        p("A full-width card grid shows all active batches. Each card displays four live metrics: "
           "<b>Days</b> since inoculation, <b>Flushes</b> logged, <b>Yield</b> in grams, "
           "and <b>BE%</b> with its color-coded pill. Click any card to open the full "
           "Batch Detail page."),
@@ -2107,8 +2120,9 @@ def build():
                  "duration of your browser session. Claude uses up to the last 5 "
                  "exchanges as context for follow-up questions."],
                 ["Availability",
-                 "Only visible on batch detail pages — the button does not appear "
-                 "on the dashboard, report, or other list pages."],
+                 "Visible on every page. On batch detail pages the batch ID is "
+                 "included automatically as context; on all other pages (dashboard, "
+                 "report, etc.) it opens with general cultivation questions."],
             ],
         ),
         sp(8),
