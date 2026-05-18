@@ -396,7 +396,7 @@ def build():
         ("10",   "Environment History",                         "12"),
         ("11.1", "Chart Controls",                               "13"),
         ("11.2", "All Readings Table",                          "13"),
-        ("11.3", "Importing from a Govee H5179 Sensor",         "13"),
+        ("11.3", "Importing from a Govee Sensor",                "13"),
         ("11",   "Reports",                                     "14"),
         ("12",   "AI Daily Briefing",                           "14"),
         ("12.1", "What It Does",                                "14"),
@@ -1560,14 +1560,16 @@ def build():
 
     story += [
         sp(10),
-        h2("11.3  Importing from a Govee H5179 Sensor"),
-        p("If you use a Govee H5179 WiFi temperature and humidity sensor, you can bulk-import "
-          "its history directly from a CSV export rather than logging readings manually. "
+        h2("11.3  Importing from a Govee Sensor"),
+        p("If you use a Govee WiFi sensor, you can bulk-import its history directly from a CSV "
+          "export rather than logging readings manually. Supported sensors include the "
+          "<b>H5179</b> (temperature and humidity) and CO2-capable models such as the "
+          "<b>H5182 / H5183</b>. "
           "Click the <b>Import Govee CSV</b> button on the Environment History page."),
         sp(6),
         h3("How to export from the Govee app"),
         *bullet([
-            "Open the Govee Home app and tap your H5179 device",
+            "Open the Govee Home app and tap your sensor device",
             "Tap the graph icon to open the history view",
             "Select a date range",
             "Tap <b>Export</b> -- the app saves a .csv file to your device",
@@ -1576,19 +1578,28 @@ def build():
         data_table(
             ["Feature", "Detail"],
             [
+                ["Chamber selection",
+                 "Readings can be linked to a specific chamber or stored as <b>Ambient</b> "
+                 "(no chamber) for standalone sensors. Ambient is the default -- "
+                 "select a chamber only if the sensor lives inside one."],
+                ["CO2 support",
+                 "If the export contains a CO2 or Carbon column it is captured automatically "
+                 "and stored in co2_ppm. Exports without a CO2 column (H5179) still import cleanly."],
                 ["Unit detection",
                  "The importer reads the column header to determine whether temperature "
                  "is in Fahrenheit or Celsius and converts automatically. "
                  "Both export formats from the Govee app are supported."],
                 ["Deduplication",
-                 "Rows whose timestamp already exists for the selected chamber are skipped. "
+                 "Rows whose timestamp already exists for the selected chamber (or among "
+                 "ambient readings if no chamber is selected) are skipped automatically. "
                  "Re-importing the same file is safe -- no duplicate rows will be created."],
                 ["Result summary",
                  "After import a flash message reports exactly how many rows were inserted "
                  "and how many were skipped as duplicates."],
                 ["Column detection",
                  "Column order does not matter. The importer finds columns by keyword: "
-                 "Time/Date for the timestamp, Temp for temperature, Humid for humidity."],
+                 "Time/Date for the timestamp, Temp for temperature, Humid for humidity, "
+                 "CO2 or Carbon for CO2 readings."],
                 ["Phase",
                  "All imported rows are tagged with phase = fruiting. "
                  "Edit individual readings afterwards if a different phase applies."],

@@ -573,10 +573,13 @@ def build():
         sp(10),
         p("Click <b>+ Log Reading</b> in the top navigation bar. "
           "Log a reading every day, ideally at the same time each morning. "
-          "If you use a <b>Govee H5179</b> sensor, you can bulk-import its history instead -- "
+          "If you use a <b>Govee sensor</b> (H5179 temp/humidity, or a CO2-capable model "
+          "such as the H5182/H5183), you can bulk-import its history instead -- "
           "click <b>Import Govee CSV</b> on the Environment History page and upload "
-          "your Govee app export. Both &deg;F and &deg;C exports are supported, and "
-          "re-importing the same file is safe (duplicates are skipped automatically). "
+          "your Govee app export. Select a chamber if the sensor lives inside one, or leave "
+          "it as <b>Ambient</b> for a standalone sensor. "
+          "Both &deg;F and &deg;C exports are supported, CO2 columns are captured automatically, "
+          "and re-importing the same file is safe (duplicates are skipped automatically). "
           "Govee-imported readings are also picked up automatically by the AI briefing agent -- "
           "no extra steps needed."),
         sp(8),
