@@ -450,6 +450,14 @@ function cancelEdit(id) {
   const humMin  = humAll.length  ? Math.max(0,   Math.floor(Math.min(...humAll) - 1)) : 75;
   const humMax  = humAll.length  ? Math.min(100, Math.ceil(Math.max(...humAll)  + 1)) : 100;
 
+  const co2Vals = cd.co2.filter(v => v !== null);
+  const hasCO2  = co2Vals.length > 0;
+  let co2Min, co2Max;
+  if (hasCO2) {
+    co2Min = Math.max(0, Math.floor(Math.min(...co2Vals) - 50));
+    co2Max = Math.ceil(Math.max(...co2Vals) + 50);
+  }
+
   const datasets = [];
 
   // Actual readings
@@ -465,6 +473,14 @@ function cancelEdit(id) {
     tension: 0.3, pointRadius: n > 200 ? 0 : 3, borderWidth: 1.5,
     yAxisID: 'yHum',
   });
+  if (hasCO2) {
+    datasets.push({
+      label: 'CO2 (ppm)', data: cd.co2,
+      borderColor: '#b899d0', backgroundColor: 'rgba(184,153,208,0.05)',
+      tension: 0.3, pointRadius: n > 200 ? 0 : 3, borderWidth: 1.5,
+      yAxisID: 'yCO2',
+    });
+  }
 
   // Target lines — long dash
   datasets.push({
@@ -541,6 +557,12 @@ function cancelEdit(id) {
           grid:  { drawOnChartArea: false },
           title: { display: true, text: 'Humidity (% RH)', color: '#58a6ff', font: { size: 11 } },
         },
+        ...(hasCO2 ? { yCO2: {
+          type: 'linear', position: 'right', min: co2Min, max: co2Max,
+          ticks: { color: '#b899d0', font: { size: 11 }, callback: v => v + ' ppm' },
+          grid:  { drawOnChartArea: false },
+          title: { display: true, text: 'CO2 (ppm)', color: '#b899d0', font: { size: 11 } },
+        }} : {}),
       },
     },
   });

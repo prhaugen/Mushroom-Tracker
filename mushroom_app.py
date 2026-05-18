@@ -468,20 +468,26 @@ def batch_detail(batch_id):
         elif span_days <= 21: env_res = 30
         else:                 env_res = 60
 
+    ts0 = cs_dt.strftime('%Y-%m-%d %H:%M:%S')
+    ts1 = ce_dt.strftime('%Y-%m-%d %H:%M:%S')
     env_rows = conn.execute("""
-        SELECT logged_at, temp_f, humidity_rh
+        SELECT logged_at, temp_f, humidity_rh, co2_ppm
         FROM environment_logs
         WHERE chamber_id = ? AND logged_at >= ? AND logged_at <= ?
+        UNION ALL
+        SELECT logged_at, temp_f, humidity_rh, co2_ppm
+        FROM environment_logs
+        WHERE chamber_id IS NULL AND batch_id IS NULL
+          AND logged_at >= ? AND logged_at <= ?
         ORDER BY logged_at ASC
-    """, (batch['chamber_id'],
-          cs_dt.strftime('%Y-%m-%d %H:%M:%S'),
-          ce_dt.strftime('%Y-%m-%d %H:%M:%S'))).fetchall()
+    """, (batch['chamber_id'], ts0, ts1, ts0, ts1)).fetchall()
     env_agg = _aggregate_env_logs([dict(r) for r in env_rows], env_res)
 
     batch_chart_data = {
         'labels':      [r['logged_at'][:16] for r in env_agg],
         'temp':        [r['temp_f']          for r in env_agg],
         'humidity':    [r['humidity_rh']     for r in env_agg],
+        'co2':         [r['co2_ppm']         for r in env_agg],
         'target_temp': batch['target_temp_f'],
         'target_hum':  batch['target_humidity_rh'],
         'temp_lo':     sp_defaults['temp_lo']     if sp_defaults else None,
