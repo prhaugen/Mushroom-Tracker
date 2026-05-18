@@ -1613,7 +1613,7 @@ if not app.debug or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
 def _parse_govee_csv(conn, content, chamber_id):
     """Parse a Govee H5179 CSV export and insert new rows. Returns (inserted, skipped)."""
     reader = csv.reader(io.StringIO(content))
-    ts_col = temp_col = hum_col = None
+    ts_col = temp_col = hum_col = co2_col = None
     use_celsius = False
     headers_found = False
 
@@ -1637,6 +1637,8 @@ def _parse_govee_csv(conn, content, chamber_id):
                     use_celsius = any(k in h for k in ('°c', '(c)', 'celsius', 'cel'))
                 if 'humid' in h:
                     hum_col = i
+                if any(k in h for k in ('co2', 'carbon')):
+                    co2_col = i
             if ts_col is None or temp_col is None or hum_col is None:
                 raise ValueError(
                     f"Could not find Timestamp, Temperature, and Humidity columns. "
@@ -1681,10 +1683,18 @@ def _parse_govee_csv(conn, content, chamber_id):
         temp_val = round(temp_val, 1)
         hum_val  = round(hum_val, 1)
 
+        co2_val = None
+        if co2_col is not None:
+            try:
+                co2_raw = row[co2_col].strip()
+                co2_val = round(float(''.join(c for c in co2_raw if c in '0123456789.-')))
+            except (ValueError, IndexError):
+                pass
+
         conn.execute(
-            "INSERT INTO environment_logs (chamber_id, logged_at, phase, temp_f, humidity_rh) "
-            "VALUES (?, ?, 'fruiting', ?, ?)",
-            (chamber_id, ts_str, temp_val, hum_val)
+            "INSERT INTO environment_logs (chamber_id, logged_at, phase, temp_f, humidity_rh, co2_ppm) "
+            "VALUES (?, ?, 'fruiting', ?, ?, ?)",
+            (chamber_id, ts_str, temp_val, hum_val, co2_val)
         )
         existing.add(ts_str)
         inserted += 1
