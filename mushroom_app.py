@@ -1617,9 +1617,14 @@ def _parse_govee_csv(conn, content, chamber_id):
     use_celsius = False
     headers_found = False
 
-    existing = {r[0] for r in conn.execute(
-        "SELECT logged_at FROM environment_logs WHERE chamber_id=?", (chamber_id,)
-    ).fetchall()}
+    if chamber_id is not None:
+        existing = {r[0] for r in conn.execute(
+            "SELECT logged_at FROM environment_logs WHERE chamber_id=?", (chamber_id,)
+        ).fetchall()}
+    else:
+        existing = {r[0] for r in conn.execute(
+            "SELECT logged_at FROM environment_logs WHERE chamber_id IS NULL"
+        ).fetchall()}
 
     inserted = skipped = 0
 
@@ -1710,11 +1715,9 @@ def env_import():
     conn.close()
 
     if request.method == 'POST':
-        chamber_id = request.form.get('chamber_id')
+        raw_id     = request.form.get('chamber_id')
+        chamber_id = int(raw_id) if raw_id else None
         f = request.files.get('csv_file')
-        if not chamber_id:
-            flash('Select a chamber.', 'error')
-            return redirect(url_for('env_import'))
         if not f or not f.filename:
             flash('No file selected.', 'error')
             return redirect(url_for('env_import'))
@@ -1724,7 +1727,7 @@ def env_import():
         try:
             content  = f.stream.read().decode('utf-8-sig')
             conn     = get_db()
-            inserted, skipped = _parse_govee_csv(conn, content, int(chamber_id))
+            inserted, skipped = _parse_govee_csv(conn, content, chamber_id)
             conn.commit()
             conn.close()
             flash(

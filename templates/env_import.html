@@ -7,7 +7,7 @@
       <a href="{{ url_for('env_history') }}" style="color:var(--text-muted);text-decoration:none">Environment</a> / Import
     </div>
     <div class="page-title">Import Govee CSV</div>
-    <div class="page-sub">Govee H5179 sensor export</div>
+    <div class="page-sub">Govee sensor export — temp/humidity and CO2 sensors supported</div>
   </div>
   <a href="{{ url_for('env_history') }}" class="btn btn-ghost btn-sm">Back</a>
 </div>
@@ -26,16 +26,16 @@
   <form method="POST" action="{{ url_for('env_import') }}" enctype="multipart/form-data">
 
     <div class="form-section">
-      <div class="section-label">1 — Select Chamber</div>
+      <div class="section-label">1 — Select Chamber (optional)</div>
       <div class="fg">
-        <label>Chamber *</label>
-        <select name="chamber_id" required>
-          <option value="">— select chamber —</option>
+        <label>Chamber</label>
+        <select name="chamber_id">
+          <option value="">Ambient (no chamber)</option>
           {% for ch in chambers %}
           <option value="{{ ch.id }}">{{ ch.name }}{% if ch.location %} ({{ ch.location }}){% endif %}</option>
           {% endfor %}
         </select>
-        <span class="form-hint">Readings will be linked to this chamber</span>
+        <span class="form-hint">Link readings to a chamber, or leave as Ambient for a standalone sensor</span>
       </div>
     </div>
 
@@ -67,18 +67,20 @@
 <div class="card" style="max-width:680px;margin-top:16px">
   <div class="card-title" style="margin-bottom:12px">Expected CSV Format</div>
   <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px">
-    The importer expects a header row followed by data rows. Column order does not matter
-    as long as the headers contain the keywords <b>Time/Date</b>, <b>Temp</b>, and <b>Humid</b>.
+    The importer expects a header row followed by data rows. Column order does not matter.
+    Headers must contain the keywords <b>Time/Date</b>, <b>Temp</b>, and <b>Humid</b>.
+    A <b>CO2</b> or <b>Carbon</b> column is captured automatically if present.
   </p>
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px;font-family:Consolas,Monaco,monospace;font-size:12px;color:var(--text-muted);overflow-x:auto">
-    <div style="color:var(--green);margin-bottom:4px">Timestamp,Temperature(°F),Humidity(%RH)</div>
-    <div>2026-05-10 06:00:00,71.2,91.4</div>
-    <div>2026-05-10 06:10:00,71.5,90.8</div>
-    <div>2026-05-10 06:20:00,71.3,91.1</div>
+    <div style="color:var(--green);margin-bottom:4px">Timestamp,Temperature(°F),Humidity(%RH),CO2(ppm)</div>
+    <div>2026-05-10 06:00:00,71.2,91.4,842</div>
+    <div>2026-05-10 06:10:00,71.5,90.8,856</div>
+    <div>2026-05-10 06:20:00,71.3,91.1,831</div>
   </div>
   <p style="font-size:11px;color:var(--text-muted);margin-top:10px">
     &deg;C exports are converted to &deg;F automatically.
-    Percentage signs and degree symbols in value cells are stripped during parsing.
+    Percentage signs, degree symbols, and units in value cells are stripped during parsing.
+    CO2 column is optional — temp/humidity-only exports still import cleanly.
   </p>
 </div>
 {% endblock %}
