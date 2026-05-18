@@ -1648,7 +1648,7 @@ def _parse_govee_csv(conn, content, chamber_id):
                     use_celsius = any(k in h for k in ('°c', '(c)', 'celsius', 'cel'))
                 if 'humid' in h:
                     hum_col = i
-                if any(k in h for k in ('co2', 'carbon')):
+                if any(k in h for k in ('co2', 'co₂', 'carbon')):
                     co2_col = i
             if ts_col is None or temp_col is None or hum_col is None:
                 raise ValueError(
