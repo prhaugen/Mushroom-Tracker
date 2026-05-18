@@ -1128,9 +1128,9 @@ def build():
           "all in one place without switching screens."),
         sp(10),
         h3("Environment Chart"),
-        p("A dual-axis line chart shows chamber readings for the period the batch has been active, "
+        p("A line chart shows environment readings for the period the batch has been active, "
           "overlaid with targets and the species' full acceptable range. "
-          "Up to six trace lines are drawn:"),
+          "Up to seven trace lines are drawn (the CO2 line appears only when CO2 data exists):"),
         sp(6),
         data_table(
             ["Trace", "Style", "What It Shows"],
@@ -1140,6 +1140,11 @@ def build():
                  "Plotted on the left y-axis (°F)."],
                 ["Actual Humidity",   "Solid blue line",
                  "Humidity readings from the same period. Plotted on the right y-axis (% RH)."],
+                ["CO2",               "Solid purple line",
+                 "CO2 readings (ppm) plotted on an additional right y-axis. "
+                 "Drawn only when CO2 data exists — either from direct readings linked to the "
+                 "batch's chamber, or from an ambient (no-chamber) Govee import. "
+                 "If no CO2 data exists the axis is hidden entirely."],
                 ["Target Temp",       "Dashed green line (long dash)",
                  "The batch's saved Target Temp — the ideal fruiting temperature for this species."],
                 ["Target Humidity",   "Dashed blue line (long dash)",
@@ -1162,9 +1167,11 @@ def build():
           "Click any pill to override."),
         sp(8),
         callout(
-            "The environment chart only shows readings from the batch's assigned chamber "
-            "during the batch's active period (inoculation date to today or block end date). "
-            "If a batch has no chamber assigned, the chart is hidden.",
+            "The chart combines readings from two sources: the batch's assigned chamber "
+            "(for the batch's active period) and any ambient sensor readings (imported with "
+            "no chamber selected) covering the same date range. "
+            "Ambient readings feed the CO2 line when a standalone CO2 sensor is in use. "
+            "If a batch has no chamber assigned and no ambient data exists, the chart is hidden.",
             label="Note:", color=BLUE_BG, border=BLUE_BORDER
         ),
         sp(12),
