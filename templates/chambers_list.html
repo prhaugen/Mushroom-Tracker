@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Chambers — Mushroom Tracker{% endblock %}
+{% block content %}
+<div class="page-head-row">
+  <div class="page-head">
+    <div class="page-title">Chambers</div>
+    <div class="page-sub">Fruiting and colonization environments</div>
+  </div>
+  <a href="{{ url_for('chamber_add') }}" class="btn btn-primary btn-sm">+ Add Chamber</a>
+</div>
+
+{% if chambers %}
+<div class="card" style="padding:0;overflow:hidden">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Location</th>
+        <th>Type</th>
+        <th style="text-align:center">Active Batches</th>
+        <th style="text-align:right">Target Temp</th>
+        <th style="text-align:right">Target RH</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for ch in chambers %}
+      <tr>
+        <td><b>{{ ch.name }}</b></td>
+        <td style="color:var(--text-muted)">{{ ch.location or '—' }}</td>
+        <td style="color:var(--text-muted)">{{ ch.chamber_type or '—' }}</td>
+        <td style="text-align:center">
+          {% set n = batch_counts.get(ch.id, 0) %}
+          {% if n %}
+            <span class="gate-badge gate-green">{{ n }}</span>
+          {% else %}
+            <span style="color:var(--text-muted)">0</span>
+          {% endif %}
+        </td>
+        <td style="text-align:right;color:var(--text-muted)">{{ ch.target_temp_f }}°F</td>
+        <td style="text-align:right;color:var(--text-muted)">{{ ch.target_humidity_rh }}%</td>
+        <td style="text-align:right">
+          <a href="{{ url_for('chamber_edit', chamber_id=ch.id) }}" class="btn btn-ghost btn-sm">Edit</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="card" style="text-align:center;padding:40px;color:var(--text-muted)">
+  No chambers yet. <a href="{{ url_for('chamber_add') }}">Add your first chamber</a>.
+</div>
+{% endif %}
+{% endblock %}

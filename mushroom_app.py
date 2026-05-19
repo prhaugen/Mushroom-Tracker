@@ -1298,25 +1298,73 @@ def report():
         total_sold_fresh=total_sold_fresh, total_sold_dried=total_sold_dried)
 
 
-# ── Edit & Delete ─────────────────────────────────────────────────────────────
+# ── Chamber management ────────────────────────────────────────────────────────
 
-@app.route('/setup/edit', methods=['GET','POST'])
-def chamber_edit():
-    chamber = get_primary_chamber()
-    if not chamber: return redirect(url_for('setup'))
+@app.route('/chambers')
+def chambers_list():
+    conn = get_db()
+    chambers = conn.execute("SELECT * FROM chambers ORDER BY id").fetchall()
+    batch_counts = {r[0]: r[1] for r in conn.execute(
+        "SELECT chamber_id, COUNT(*) FROM batches WHERE status NOT IN ('retired','done') "
+        "AND chamber_id IS NOT NULL GROUP BY chamber_id"
+    ).fetchall()}
+    conn.close()
+    return render_template('chambers_list.html', chambers=chambers,
+                           batch_counts=batch_counts, chamber_types=CHAMBER_TYPES)
+
+
+@app.route('/chambers/new', methods=['GET', 'POST'])
+def chamber_add():
     if request.method == 'POST':
         f = request.form
         conn = get_db()
         conn.execute(
-            "UPDATE chambers SET name=?,location=?,chamber_type=?,target_temp_f=?,target_humidity_rh=?,notes=? WHERE id=?",
-            (f.get('name') or 'SGFC-1', f.get('location') or '',
+            "INSERT INTO chambers(name,location,chamber_type,target_temp_f,target_humidity_rh,notes) "
+            "VALUES(?,?,?,?,?,?)",
+            (f.get('name') or 'Chamber',
+             f.get('location') or None,
              f.get('chamber_type') or None,
-             float(f.get('target_temp') or 72), float(f.get('target_humidity') or 90),
-             f.get('notes') or None, chamber['id']))
+             float(f.get('target_temp') or 72),
+             float(f.get('target_humidity') or 90),
+             f.get('notes') or None))
         conn.commit(); conn.close()
-        flash('Chamber settings updated.', 'success')
-        return redirect(url_for('dashboard'))
-    return render_template('chamber_edit.html', chamber=chamber, chamber_types=CHAMBER_TYPES)
+        flash('Chamber added.', 'success')
+        return redirect(url_for('chambers_list'))
+    return render_template('chamber_form.html', chamber=None, chamber_types=CHAMBER_TYPES)
+
+
+@app.route('/chambers/<int:chamber_id>/edit', methods=['GET', 'POST'])
+def chamber_edit(chamber_id):
+    conn = get_db()
+    chamber = conn.execute("SELECT * FROM chambers WHERE id=?", (chamber_id,)).fetchone()
+    if not chamber:
+        conn.close(); flash('Chamber not found.', 'error')
+        return redirect(url_for('chambers_list'))
+    if request.method == 'POST':
+        f = request.form
+        conn.execute(
+            "UPDATE chambers SET name=?,location=?,chamber_type=?,target_temp_f=?,target_humidity_rh=?,notes=? WHERE id=?",
+            (f.get('name') or chamber['name'],
+             f.get('location') or None,
+             f.get('chamber_type') or None,
+             float(f.get('target_temp') or 72),
+             float(f.get('target_humidity') or 90),
+             f.get('notes') or None,
+             chamber_id))
+        conn.commit(); conn.close()
+        flash('Chamber updated.', 'success')
+        return redirect(url_for('chambers_list'))
+    conn.close()
+    return render_template('chamber_form.html', chamber=chamber, chamber_types=CHAMBER_TYPES)
+
+
+# Legacy redirect so old /setup/edit bookmarks still work
+@app.route('/setup/edit')
+def chamber_edit_legacy():
+    ch = get_primary_chamber()
+    if ch:
+        return redirect(url_for('chamber_edit', chamber_id=ch['id']))
+    return redirect(url_for('setup'))
 
 
 @app.route('/batch/<int:batch_id>/edit', methods=['GET','POST'])
