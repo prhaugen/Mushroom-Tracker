@@ -380,6 +380,7 @@ def build():
         ("4.1",  "What It Is and Why It Matters",               "5"),
         ("4.2",  "BE% Benchmarks by Species",                   "5"),
         ("4.3",  "A Note on Dry Weight",                        "6"),
+        ("4.4",  "Chambers",                                   "6"),
         ("5",    "The Dashboard",                               "6"),
         ("5.1",  "Harvest Forecast Card",                      "6"),
         ("6",    "Batch Management",                            "7"),
@@ -551,7 +552,12 @@ def build():
         ),
         sp(8),
         p("After saving, you will land on the Dashboard. Add your first batch "
-          "using the <b>+ New Batch</b> button."),
+          "using the <b>+ New Batch</b> button. "
+          "To add more chambers later — or edit an existing one — use the "
+          "<b>Chambers</b> page in the navigation bar. "
+          "Each chamber has its own name, location, type, and default targets. "
+          "When you have more than one chamber, each batch card on the Batches page "
+          "and Dashboard shows the assigned chamber name below the species line."),
     ]
 
     story += [
@@ -717,6 +723,35 @@ def build():
         ),
     ]
 
+    # ══════════════════════════════════════════════════════════════════════
+    # 4.4 CHAMBERS
+    # ══════════════════════════════════════════════════════════════════════
+    story += [
+        sp(10),
+        h2("4.4  Chambers"),
+        p("The <b>Chambers</b> page (navigation bar, between Batches and Supplies) is where you "
+          "manage all your fruiting and colonization environments. "
+          "Each chamber has a name, optional location and type, and default target "
+          "temperature and humidity that pre-fill new batches."),
+        sp(8),
+        h3("Adding a Chamber"),
+        p("Click <b>+ Add Chamber</b> at the top-right of the Chambers page. "
+          "Fill in the name (required) and any optional fields, then click <b>Add Chamber</b>. "
+          "The new chamber is immediately available when adding or editing batches "
+          "and when importing Govee CSV data."),
+        sp(8),
+        h3("Editing a Chamber"),
+        p("Click the <b>Edit</b> button on any row of the Chambers list "
+          "to update its name, location, type, targets, or notes. "
+          "Changes to default targets affect new batches only — "
+          "existing batch targets are not modified."),
+        sp(8),
+        h3("Chamber on Batch Cards"),
+        p("Each batch card on the Batches page shows the assigned chamber name "
+          "below the species line, so you can identify at a glance which environment "
+          "each block is in when you have multiple chambers running simultaneously."),
+    ]
+
     story.append(PageBreak())
 
     # ══════════════════════════════════════════════════════════════════════
@@ -765,7 +800,9 @@ def build():
         ),
         sp(10),
         h3("Batch Grid"),
-        p("A full-width card grid shows all active batches. Each card displays four live metrics: "
+        p("A full-width card grid shows all active batches. Each card shows the batch label, "
+          "species and strain, assigned chamber name, substrate composition summary, "
+          "and four live metrics: "
           "<b>Days</b> since inoculation, <b>Flushes</b> logged, <b>Yield</b> in grams, "
           "and <b>BE%</b> with its color-coded pill. Click any card to open the full "
           "Batch Detail page."),
