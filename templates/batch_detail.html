@@ -475,7 +475,7 @@ function cancelEdit(id) {
   });
   if (hasCO2) {
     datasets.push({
-      label: 'CO2 (ppm)', data: cd.co2,
+      label: 'Ambient CO₂ (ppm)', data: cd.co2,
       borderColor: '#b899d0', backgroundColor: 'rgba(184,153,208,0.05)',
       tension: 0.3, pointRadius: n > 200 ? 0 : 3, borderWidth: 1.5,
       yAxisID: 'yCO2',
@@ -522,8 +522,39 @@ function cancelEdit(id) {
     });
   }
 
+  const phaseLinePlugin = {
+    id: 'phaseLines',
+    afterDraw(chart) {
+      const { ctx, chartArea, scales: { x } } = chart;
+      const phases = [
+        { date: cd.fruiting_at, label: 'Fruiting start', color: 'rgba(250,173,20,0.75)' },
+        { date: cd.pinning_at,  label: 'Pinning',        color: 'rgba(255,110,55,0.85)' },
+      ].filter(p => p.date);
+      phases.forEach(({ date, label, color }) => {
+        const idx = cd.labels.findIndex(l => l.startsWith(date));
+        if (idx === -1) return;
+        const px = x.getPixelForIndex(idx);
+        ctx.save();
+        ctx.beginPath();
+        ctx.setLineDash([5, 4]);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.5;
+        ctx.moveTo(px, chartArea.top);
+        ctx.lineTo(px, chartArea.bottom);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = color;
+        ctx.font = 'bold 10px system-ui,sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(label, px, chartArea.top - 4);
+        ctx.restore();
+      });
+    },
+  };
+
   new Chart(document.getElementById('batchEnvChart').getContext('2d'), {
     type: 'line',
+    plugins: [phaseLinePlugin],
     data: { labels: cd.labels, datasets },
     options: {
       responsive: true, maintainAspectRatio: false,

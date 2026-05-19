@@ -494,6 +494,8 @@ def batch_detail(batch_id):
         'temp_hi':     sp_defaults['temp_hi']     if sp_defaults else None,
         'humidity_lo': sp_defaults['humidity_lo'] if sp_defaults else None,
         'humidity_hi': sp_defaults['humidity_hi'] if sp_defaults else None,
+        'fruiting_at': batch['fruiting_start_date'][:10] if batch['fruiting_start_date'] else None,
+        'pinning_at':  batch['pinning_started_at'][:10]  if batch['pinning_started_at']  else None,
     }
 
     conn.close()
@@ -1632,7 +1634,7 @@ def _parse_govee_csv(conn, content, chamber_id):
             "SELECT logged_at FROM environment_logs WHERE chamber_id IS NULL"
         ).fetchall()}
 
-    inserted = skipped = 0
+    inserted = skipped = updated = 0
 
     for row in reader:
         if not row or all(c.strip() == '' for c in row):
@@ -1680,7 +1682,22 @@ def _parse_govee_csv(conn, content, chamber_id):
 
         ts_str = ts.strftime("%Y-%m-%d %H:%M:%S")
         if ts_str in existing:
-            skipped += 1
+            # Backfill CO2 into an existing ambient row that has no CO2 yet
+            if co2_col is not None and chamber_id is None:
+                try:
+                    co2_raw = row[co2_col].strip()
+                    co2_val = round(float(''.join(c for c in co2_raw if c in '0123456789.-')))
+                    conn.execute(
+                        "UPDATE environment_logs SET co2_ppm=? "
+                        "WHERE chamber_id IS NULL AND batch_id IS NULL "
+                        "AND logged_at=? AND co2_ppm IS NULL",
+                        (co2_val, ts_str)
+                    )
+                    updated += 1
+                except (ValueError, IndexError):
+                    skipped += 1
+            else:
+                skipped += 1
             continue
 
         try:
@@ -1710,7 +1727,7 @@ def _parse_govee_csv(conn, content, chamber_id):
         existing.add(ts_str)
         inserted += 1
 
-    return inserted, skipped
+    return inserted, updated, skipped
 
 
 @app.route('/env/import', methods=['GET', 'POST'])
@@ -1733,14 +1750,17 @@ def env_import():
         try:
             content  = f.stream.read().decode('utf-8-sig')
             conn     = get_db()
-            inserted, skipped = _parse_govee_csv(conn, content, chamber_id)
+            inserted, updated, skipped = _parse_govee_csv(conn, content, chamber_id)
             conn.commit()
             conn.close()
-            flash(
-                f"Import complete: {inserted} row{'s' if inserted != 1 else ''} inserted, "
-                f"{skipped} duplicate{'s' if skipped != 1 else ''} skipped.",
-                'success'
-            )
+            parts = []
+            if inserted:
+                parts.append(f"{inserted} row{'s' if inserted != 1 else ''} inserted")
+            if updated:
+                parts.append(f"{updated} row{'s' if updated != 1 else ''} updated with CO2")
+            if skipped:
+                parts.append(f"{skipped} duplicate{'s' if skipped != 1 else ''} skipped")
+            flash(f"Import complete: {', '.join(parts) or 'nothing to import'}.", 'success')
         except Exception as exc:
             flash(f"Import failed: {exc}", 'error')
         return redirect(url_for('env_history'))
