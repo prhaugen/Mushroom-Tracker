@@ -1129,18 +1129,19 @@ def build():
         sp(10),
         h3("Environment Chart"),
         p("A line chart shows environment readings for the period the batch has been active, "
-          "overlaid with targets and the species' full acceptable range. "
-          "Up to seven trace lines are drawn (the CO2 line appears only when CO2 data exists):"),
+          "overlaid with targets, the species' full acceptable range, and phase transition markers. "
+          "Up to seven trace lines are drawn (the CO2 line appears only when CO2 data exists), "
+          "plus vertical dashed lines wherever a phase transition date is recorded:"),
         sp(6),
         data_table(
-            ["Trace", "Style", "What It Shows"],
+            ["Trace / Marker", "Style", "What It Shows"],
             [
                 ["Actual Temp",       "Solid green line",
                  "Temperature readings from the batch's chamber during the batch's active period. "
                  "Plotted on the left y-axis (°F)."],
                 ["Actual Humidity",   "Solid blue line",
                  "Humidity readings from the same period. Plotted on the right y-axis (% RH)."],
-                ["CO2",               "Solid purple line",
+                ["Ambient CO₂",       "Solid purple line",
                  "CO2 readings (ppm) plotted on an additional right y-axis. "
                  "Drawn only when CO2 data exists — either from direct readings linked to the "
                  "batch's chamber, or from an ambient (no-chamber) Govee import. "
@@ -1156,6 +1157,12 @@ def build():
                  "they differ from the target; the agent will not recommend adjustments."],
                 ["Humidity range lo/hi", "Dotted blue lines (short dot, 55% opacity)",
                  "The species' full acceptable humidity range. Same logic as temp range."],
+                ["Fruiting start",    "Amber dashed vertical line",
+                 "Marks the batch's Fruiting Start Date — when the block was moved to fruiting "
+                 "conditions. Only drawn when this date is set and falls within the chart range."],
+                ["Pinning",           "Orange dashed vertical line",
+                 "Marks when the batch status was set to Pinning — the date pins were first "
+                 "observed. Only drawn when this date is set and falls within the chart range."],
             ],
             col_widths=[3.2*cm, 3.8*cm, 9.2*cm],
         ),
@@ -1170,7 +1177,12 @@ def build():
             "The chart combines readings from two sources: the batch's assigned chamber "
             "(for the batch's active period) and any ambient sensor readings (imported with "
             "no chamber selected) covering the same date range. "
-            "Ambient readings feed the CO2 line when a standalone CO2 sensor is in use. "
+            "Ambient readings feed the Ambient CO₂ line when a standalone CO2 sensor "
+            "(such as a Govee H5182/H5183) is in use. "
+            "If a CO2 sensor and a temp/humidity sensor are both imported as ambient "
+            "and share the same timestamps, re-importing the CO2 sensor CSV will "
+            "backfill CO2 values into the existing rows rather than skipping them — "
+            "so importing both sensors in either order always produces a complete dataset. "
             "If a batch has no chamber assigned and no ambient data exists, the chart is hidden.",
             label="Note:", color=BLUE_BG, border=BLUE_BORDER
         ),
@@ -1598,11 +1610,15 @@ def build():
                  "Both export formats from the Govee app are supported."],
                 ["Deduplication",
                  "Rows whose timestamp already exists for the selected chamber (or among "
-                 "ambient readings if no chamber is selected) are skipped automatically. "
-                 "Re-importing the same file is safe -- no duplicate rows will be created."],
+                 "ambient readings if no chamber is selected) are handled automatically. "
+                 "For ambient CO2 imports: if a temp/humidity row already exists at that "
+                 "timestamp but has no CO2 value, the importer updates the existing row "
+                 "with the CO2 reading instead of skipping it. "
+                 "This means you can import a temp/humidity sensor and a CO2 sensor "
+                 "separately in any order and always get a complete dataset."],
                 ["Result summary",
-                 "After import a flash message reports exactly how many rows were inserted "
-                 "and how many were skipped as duplicates."],
+                 "After import a flash message reports inserted rows, rows updated with CO2 "
+                 "(ambient backfill), and duplicates skipped — each count only shown when non-zero."],
                 ["Column detection",
                  "Column order does not matter. The importer finds columns by keyword: "
                  "Time/Date for the timestamp, Temp for temperature, Humid for humidity, "
