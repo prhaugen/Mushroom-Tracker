@@ -1164,49 +1164,49 @@ def build():
           "a scoped environment chart, and a discussion log — "
           "all in one place without switching screens."),
         sp(10),
-        h3("Environment Chart"),
-        p("A line chart shows environment readings for the period the batch has been active, "
-          "overlaid with targets, the species' full acceptable range, and phase transition markers. "
-          "Up to seven trace lines are drawn (the CO2 line appears only when CO2 data exists), "
-          "plus vertical dashed lines wherever a phase transition date is recorded:"),
+        h3("Environment Charts"),
+        p("Three stacked line charts show environment readings for the period the batch has been "
+          "active — one each for Temperature, Humidity, and CO₂. "
+          "Separating the metrics gives each its own tightly-scaled y-axis so small "
+          "variations are visible without one reading crowding out another. "
+          "The CO₂ chart only appears when CO₂ data exists."),
         sp(6),
         data_table(
-            ["Trace / Marker", "Style", "What It Shows"],
+            ["Chart", "Traces", "What It Shows"],
             [
-                ["Actual Temp",       "Solid green line",
-                 "Temperature readings from the batch's chamber during the batch's active period. "
-                 "Plotted on the left y-axis (°F)."],
-                ["Actual Humidity",   "Solid blue line",
-                 "Humidity readings from the same period. Plotted on the right y-axis (% RH)."],
-                ["Ambient CO₂",       "Solid purple line",
-                 "CO2 readings (ppm) plotted on an additional right y-axis. "
-                 "Drawn only when CO2 data exists — either from direct readings linked to the "
-                 "batch's chamber, or from an ambient (no-chamber) Govee import. "
-                 "If no CO2 data exists the axis is hidden entirely."],
-                ["Target Temp",       "Dashed green line (long dash)",
-                 "The batch's saved Target Temp — the ideal fruiting temperature for this species."],
-                ["Target Humidity",   "Dashed blue line (long dash)",
-                 "The batch's saved Target Humidity — the ideal RH for this species."],
-                ["Temp range lo/hi",  "Dotted green lines (short dot, 55% opacity)",
-                 "The species' full acceptable temperature range from the Growing Reference. "
-                 "Only drawn when the batch species is recognized. "
-                 "Readings between these lines are within the acceptable window even if "
-                 "they differ from the target; the agent will not recommend adjustments."],
-                ["Humidity range lo/hi", "Dotted blue lines (short dot, 55% opacity)",
-                 "The species' full acceptable humidity range. Same logic as temp range."],
-                ["Fruiting start",    "Amber dashed vertical line",
-                 "Marks the batch's Fruiting Start Date — when the block was moved to fruiting "
-                 "conditions. Only drawn when this date is set and falls within the chart range."],
-                ["Pinning",           "Orange dashed vertical line",
-                 "Marks when the batch status was set to Pinning — the date pins were first "
-                 "observed. Only drawn when this date is set and falls within the chart range."],
+                ["Temperature\n(green)",
+                 "Solid line — actual readings\n"
+                 "Long-dashed line — target\n"
+                 "Shaded band — tolerance range",
+                 "Temp readings from the batch's chamber. "
+                 "The dashed line shows the batch's saved Target Temp. "
+                 "The shaded green band shows the species' full acceptable range — "
+                 "readings inside the band are within spec even if off-target."],
+                ["Humidity\n(blue)",
+                 "Solid line — actual readings\n"
+                 "Long-dashed line — target\n"
+                 "Shaded band — tolerance range",
+                 "Humidity readings from the same period. "
+                 "The dashed line shows the batch's Target Humidity. "
+                 "The shaded blue band shows the species' full acceptable RH range."],
+                ["CO₂\n(purple)",
+                 "Solid line — ambient readings",
+                 "CO₂ readings in ppm from an ambient Govee sensor. "
+                 "Only shown when CO₂ data exists for the batch's date range. "
+                 "No tolerance band — use 400 ppm (fresh air) and ~1000 ppm (FAE needed) "
+                 "as informal reference points."],
             ],
-            col_widths=[3.2*cm, 3.8*cm, 9.2*cm],
+            col_widths=[2.8*cm, 4.4*cm, 9.0*cm],
         ),
+        sp(6),
+        p("All three charts share the same x-axis time labels and phase transition markers: "
+          "an amber dashed vertical line at the Fruiting Start Date and an orange dashed line "
+          "when the batch status was set to Pinning. "
+          "Markers only appear when the date is set and falls within the chart's time range."),
         sp(8),
-        p("Resolution pills above the chart let you switch between 1-minute, 5-minute, "
+        p("Resolution pills above the charts let you switch between 1-minute, 5-minute, "
           "10-minute, 30-minute, and 60-minute averages. "
-          "The chart auto-selects a resolution based on the batch's age: "
+          "The charts auto-select a resolution based on the batch's age: "
           "batches under 2 days default to 5m; under 7 days to 10m; otherwise 30m. "
           "Click any pill to override."),
         sp(8),

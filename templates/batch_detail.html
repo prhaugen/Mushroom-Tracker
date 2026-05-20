@@ -114,8 +114,12 @@
     </div>
   </div>
   {% if batch_chart_data.labels %}
-  <div style="height:260px;margin-top:8px">
-    <canvas id="batchEnvChart"></canvas>
+  <div style="margin-top:8px;display:flex;flex-direction:column;gap:12px">
+    <div style="height:180px"><canvas id="chartTemp"></canvas></div>
+    <div style="height:180px"><canvas id="chartHum"></canvas></div>
+    {% if batch_chart_data.co2 | select | list | length > 0 %}
+    <div style="height:160px"><canvas id="chartCO2"></canvas></div>
+    {% endif %}
   </div>
   {% else %}
   <div class="empty" style="padding:24px 0">
@@ -437,166 +441,133 @@ function cancelEdit(id) {
 (function() {
   const cd = {{ batch_chart_data | tojson }};
   const n  = cd.labels.length;
+  const pt = n > 200 ? 0 : 3;
 
   function fill(val) { return val !== null ? Array(n).fill(val) : Array(n).fill(null); }
 
-  const tempVals = cd.temp.filter(v => v !== null);
-  const humVals  = cd.humidity.filter(v => v !== null);
-  const tempAll  = [cd.target_temp, cd.temp_lo, cd.temp_hi, ...tempVals].filter(v => v !== null);
-  const humAll   = [cd.target_hum,  cd.humidity_lo, cd.humidity_hi, ...humVals].filter(v => v !== null);
-
-  const tempMin = tempAll.length ? Math.floor(Math.min(...tempAll) - 1) : (cd.target_temp || 60) - 5;
-  const tempMax = tempAll.length ? Math.ceil(Math.max(...tempAll)  + 1) : (cd.target_temp || 60) + 5;
-  const humMin  = humAll.length  ? Math.max(0,   Math.floor(Math.min(...humAll) - 1)) : 75;
-  const humMax  = humAll.length  ? Math.min(100, Math.ceil(Math.max(...humAll)  + 1)) : 100;
-
-  const co2Vals = cd.co2.filter(v => v !== null);
-  const hasCO2  = co2Vals.length > 0;
-  let co2Min, co2Max;
-  if (hasCO2) {
-    co2Min = Math.max(0, Math.floor(Math.min(...co2Vals) - 50));
-    co2Max = Math.ceil(Math.max(...co2Vals) + 50);
-  }
-
-  const datasets = [];
-
-  // Actual readings
-  datasets.push({
-    label: 'Temp (°F)', data: cd.temp,
-    borderColor: '#3fb950', backgroundColor: 'rgba(63,185,80,0.05)',
-    tension: 0.3, pointRadius: n > 200 ? 0 : 3, borderWidth: 1.5,
-    yAxisID: 'yTemp',
-  });
-  datasets.push({
-    label: 'Humidity (% RH)', data: cd.humidity,
-    borderColor: '#58a6ff', backgroundColor: 'rgba(88,166,255,0.05)',
-    tension: 0.3, pointRadius: n > 200 ? 0 : 3, borderWidth: 1.5,
-    yAxisID: 'yHum',
-  });
-  if (hasCO2) {
-    datasets.push({
-      label: 'Ambient CO₂ (ppm)', data: cd.co2,
-      borderColor: '#b899d0', backgroundColor: 'rgba(184,153,208,0.05)',
-      tension: 0.3, pointRadius: n > 200 ? 0 : 3, borderWidth: 1.5,
-      yAxisID: 'yCO2',
-    });
-  }
-
-  // Target lines — long dash
-  datasets.push({
-    label: `Target ${cd.target_temp}°F`, data: fill(cd.target_temp),
-    borderColor: 'rgba(63,185,80,0.70)', borderWidth: 1.5,
-    borderDash: [8,4], pointRadius: 0, fill: false, yAxisID: 'yTemp',
-  });
-  datasets.push({
-    label: `Target ${cd.target_hum}%`, data: fill(cd.target_hum),
-    borderColor: 'rgba(88,166,255,0.70)', borderWidth: 1.5,
-    borderDash: [8,4], pointRadius: 0, fill: false, yAxisID: 'yHum',
-  });
-
-  // Acceptable range boundaries — short dot, labeled lo only, hi hidden from legend
-  if (cd.temp_lo !== null) {
-    datasets.push({
-      label: `Temp range (${cd.temp_lo}–${cd.temp_hi}°F)`,
-      data: fill(cd.temp_lo),
-      borderColor: 'rgba(63,185,80,0.55)', borderWidth: 1,
-      borderDash: [3,3], pointRadius: 0, fill: false, yAxisID: 'yTemp',
-    });
-    datasets.push({
-      label: '_temp_hi', data: fill(cd.temp_hi),
-      borderColor: 'rgba(63,185,80,0.55)', borderWidth: 1,
-      borderDash: [3,3], pointRadius: 0, fill: false, yAxisID: 'yTemp',
-    });
-  }
-  if (cd.humidity_lo !== null) {
-    datasets.push({
-      label: `RH range (${cd.humidity_lo}–${cd.humidity_hi}%)`,
-      data: fill(cd.humidity_lo),
-      borderColor: 'rgba(88,166,255,0.55)', borderWidth: 1,
-      borderDash: [3,3], pointRadius: 0, fill: false, yAxisID: 'yHum',
-    });
-    datasets.push({
-      label: '_humidity_hi', data: fill(cd.humidity_hi),
-      borderColor: 'rgba(88,166,255,0.55)', borderWidth: 1,
-      borderDash: [3,3], pointRadius: 0, fill: false, yAxisID: 'yHum',
-    });
+  function autoRange(vals, target, pad) {
+    const core = [target, ...vals].filter(v => v !== null);
+    if (!core.length) return [null, null];
+    return [Math.floor(Math.min(...core) - pad), Math.ceil(Math.max(...core) + pad)];
   }
 
   const phaseLinePlugin = {
     id: 'phaseLines',
     afterDraw(chart) {
       const { ctx, chartArea, scales: { x } } = chart;
-      const phases = [
+      [
         { date: cd.fruiting_at, label: 'Fruiting start', color: 'rgba(250,173,20,0.75)' },
         { date: cd.pinning_at,  label: 'Pinning',        color: 'rgba(255,110,55,0.85)' },
-      ].filter(p => p.date);
-      phases.forEach(({ date, label, color }) => {
+      ].filter(p => p.date).forEach(({ date, label, color }) => {
         const idx = cd.labels.findIndex(l => l.startsWith(date));
         if (idx === -1) return;
         const px = x.getPixelForIndex(idx);
         ctx.save();
-        ctx.beginPath();
-        ctx.setLineDash([5, 4]);
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 1.5;
-        ctx.moveTo(px, chartArea.top);
-        ctx.lineTo(px, chartArea.bottom);
-        ctx.stroke();
+        ctx.beginPath(); ctx.setLineDash([5,4]);
+        ctx.strokeStyle = color; ctx.lineWidth = 1.5;
+        ctx.moveTo(px, chartArea.top); ctx.lineTo(px, chartArea.bottom); ctx.stroke();
         ctx.setLineDash([]);
-        ctx.fillStyle = color;
-        ctx.font = 'bold 10px system-ui,sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(label, px, chartArea.top - 4);
+        ctx.fillStyle = color; ctx.font = 'bold 10px system-ui,sans-serif';
+        ctx.textAlign = 'center'; ctx.fillText(label, px, chartArea.top - 4);
         ctx.restore();
       });
     },
   };
 
-  new Chart(document.getElementById('batchEnvChart').getContext('2d'), {
-    type: 'line',
-    plugins: [phaseLinePlugin],
-    data: { labels: cd.labels, datasets },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
-      plugins: {
-        legend: {
-          position: 'top',
-          labels: { color: '#8b949e', font: { size: 11 }, boxWidth: 12, padding: 12 },
-          filter: item => !item.text.startsWith('_'),
-        },
-        tooltip: {
-          backgroundColor: '#1c2128', borderColor: '#30363d', borderWidth: 1,
-          titleColor: '#e6edf3', bodyColor: '#8b949e',
-          filter: item => !item.dataset.label.startsWith('_'),
-        },
-      },
-      scales: {
-        x: {
-          ticks: { color: '#8b949e', font: { size: 10 }, maxRotation: 30, maxTicksLimit: 10 },
-          grid:  { color: 'rgba(48,54,61,.4)' },
-        },
-        yTemp: {
-          type: 'linear', position: 'left', min: tempMin, max: tempMax,
-          ticks: { color: '#3fb950', font: { size: 11 }, callback: v => v + '°F' },
-          grid:  { color: 'rgba(48,54,61,.4)' },
-          title: { display: true, text: 'Temp (°F)', color: '#3fb950', font: { size: 11 } },
-        },
-        yHum: {
-          type: 'linear', position: 'right', min: humMin, max: humMax,
-          ticks: { color: '#58a6ff', font: { size: 11 }, callback: v => v + '%' },
-          grid:  { drawOnChartArea: false },
-          title: { display: true, text: 'Humidity (% RH)', color: '#58a6ff', font: { size: 11 } },
-        },
-        ...(hasCO2 ? { yCO2: {
-          type: 'linear', position: 'right', min: co2Min, max: co2Max,
-          ticks: { color: '#b899d0', font: { size: 11 }, callback: v => v + ' ppm' },
-          grid:  { drawOnChartArea: false },
-          title: { display: true, text: 'CO2 (ppm)', color: '#b899d0', font: { size: 11 } },
-        }} : {}),
-      },
+  const commonOptions = (yLabel, yColor, yCallback) => ({
+    responsive: true, maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { position: 'top', labels: { color: '#8b949e', font: { size: 11 }, boxWidth: 12, padding: 10 },
+                filter: item => !item.text.startsWith('_') },
+      tooltip: { backgroundColor: '#1c2128', borderColor: '#30363d', borderWidth: 1,
+                 titleColor: '#e6edf3', bodyColor: '#8b949e',
+                 filter: item => !item.dataset.label.startsWith('_') },
+    },
+    scales: {
+      x: { ticks: { color: '#8b949e', font: { size: 10 }, maxRotation: 30, maxTicksLimit: 10 },
+           grid:  { color: 'rgba(48,54,61,.4)' } },
+      y: { ticks: { color: yColor, font: { size: 11 }, callback: yCallback },
+           grid:  { color: 'rgba(48,54,61,.4)' },
+           title: { display: true, text: yLabel, color: yColor, font: { size: 11 } } },
     },
   });
+
+  // ── Temperature ──────────────────────────────────────────────────────────
+  const tempVals = cd.temp.filter(v => v !== null);
+  let [tMin, tMax] = autoRange(tempVals, cd.target_temp, 2);
+  const tempDatasets = [
+    { label: 'Temp (°F)', data: cd.temp,
+      borderColor: '#3fb950', backgroundColor: 'rgba(63,185,80,0.05)',
+      tension: 0.3, pointRadius: pt, borderWidth: 1.5 },
+    { label: `Target ${cd.target_temp}°F`, data: fill(cd.target_temp),
+      borderColor: 'rgba(63,185,80,0.70)', borderWidth: 1.5,
+      borderDash: [8,4], pointRadius: 0, fill: false },
+  ];
+  if (cd.temp_lo !== null) {
+    tempDatasets.push(
+      { label: `Tolerance ${cd.temp_lo}–${cd.temp_hi}°F`, data: fill(cd.temp_lo),
+        borderColor: 'rgba(63,185,80,0.35)', borderWidth: 1, borderDash: [4,3],
+        pointRadius: 0, fill: '+1', backgroundColor: 'rgba(63,185,80,0.10)' },
+      { label: '_temp_hi', data: fill(cd.temp_hi),
+        borderColor: 'rgba(63,185,80,0.35)', borderWidth: 1, borderDash: [4,3],
+        pointRadius: 0, fill: false },
+    );
+    tMin = Math.min(tMin, cd.temp_lo - 1);
+    tMax = Math.max(tMax, cd.temp_hi + 1);
+  }
+  const tempOpts = commonOptions('Temp (°F)', '#3fb950', v => v + '°F');
+  tempOpts.scales.y.min = tMin; tempOpts.scales.y.max = tMax;
+  new Chart(document.getElementById('chartTemp').getContext('2d'), {
+    type: 'line', plugins: [phaseLinePlugin],
+    data: { labels: cd.labels, datasets: tempDatasets }, options: tempOpts,
+  });
+
+  // ── Humidity ─────────────────────────────────────────────────────────────
+  const humVals = cd.humidity.filter(v => v !== null);
+  let [hMin, hMax] = autoRange(humVals, cd.target_hum, 2);
+  const humDatasets = [
+    { label: 'Humidity (% RH)', data: cd.humidity,
+      borderColor: '#58a6ff', backgroundColor: 'rgba(88,166,255,0.05)',
+      tension: 0.3, pointRadius: pt, borderWidth: 1.5 },
+    { label: `Target ${cd.target_hum}%`, data: fill(cd.target_hum),
+      borderColor: 'rgba(88,166,255,0.70)', borderWidth: 1.5,
+      borderDash: [8,4], pointRadius: 0, fill: false },
+  ];
+  if (cd.humidity_lo !== null) {
+    humDatasets.push(
+      { label: `Tolerance ${cd.humidity_lo}–${cd.humidity_hi}%`, data: fill(cd.humidity_lo),
+        borderColor: 'rgba(88,166,255,0.35)', borderWidth: 1, borderDash: [4,3],
+        pointRadius: 0, fill: '+1', backgroundColor: 'rgba(88,166,255,0.10)' },
+      { label: '_hum_hi', data: fill(cd.humidity_hi),
+        borderColor: 'rgba(88,166,255,0.35)', borderWidth: 1, borderDash: [4,3],
+        pointRadius: 0, fill: false },
+    );
+    hMin = Math.max(0,   Math.min(hMin, cd.humidity_lo - 1));
+    hMax = Math.min(100, Math.max(hMax, cd.humidity_hi + 1));
+  }
+  const humOpts = commonOptions('Humidity (% RH)', '#58a6ff', v => v + '%');
+  humOpts.scales.y.min = hMin; humOpts.scales.y.max = hMax;
+  new Chart(document.getElementById('chartHum').getContext('2d'), {
+    type: 'line', plugins: [phaseLinePlugin],
+    data: { labels: cd.labels, datasets: humDatasets }, options: humOpts,
+  });
+
+  // ── CO2 ──────────────────────────────────────────────────────────────────
+  const co2Vals = cd.co2.filter(v => v !== null);
+  if (co2Vals.length && document.getElementById('chartCO2')) {
+    const [cMin, cMax] = autoRange(co2Vals, null, 50);
+    const co2Opts = commonOptions('CO₂ (ppm)', '#b899d0', v => v + ' ppm');
+    co2Opts.scales.y.min = Math.max(0, cMin); co2Opts.scales.y.max = cMax;
+    new Chart(document.getElementById('chartCO2').getContext('2d'), {
+      type: 'line', plugins: [phaseLinePlugin],
+      data: { labels: cd.labels, datasets: [
+        { label: 'Ambient CO₂ (ppm)', data: cd.co2,
+          borderColor: '#b899d0', backgroundColor: 'rgba(184,153,208,0.05)',
+          tension: 0.3, pointRadius: pt, borderWidth: 1.5 },
+      ]}, options: co2Opts,
+    });
+  }
 })();
 </script>
 {% endif %}
