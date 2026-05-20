@@ -445,10 +445,11 @@ function cancelEdit(id) {
 
   function fill(val) { return val !== null ? Array(n).fill(val) : Array(n).fill(null); }
 
-  function autoRange(vals, target, pad) {
-    const core = [target, ...vals].filter(v => v !== null);
-    if (!core.length) return [null, null];
-    return [Math.floor(Math.min(...core) - pad), Math.ceil(Math.max(...core) + pad)];
+  // Scale to actual readings only — targets/bands draw wherever they fall
+  function autoRange(vals, pad, fallbackMin, fallbackMax) {
+    const v = vals.filter(x => x !== null && x !== undefined && !isNaN(x));
+    if (!v.length) return [fallbackMin, fallbackMax];
+    return [Math.floor(Math.min(...v) - pad), Math.ceil(Math.max(...v) + pad)];
   }
 
   const phaseLinePlugin = {
@@ -495,7 +496,8 @@ function cancelEdit(id) {
 
   // ── Temperature ──────────────────────────────────────────────────────────
   const tempVals = cd.temp.filter(v => v !== null);
-  let [tMin, tMax] = autoRange(tempVals, cd.target_temp, 2);
+  const fb_t = cd.target_temp || 72;
+  const [tMin, tMax] = autoRange(tempVals, 2, fb_t - 5, fb_t + 5);
   const tempDatasets = [
     { label: 'Temp (°F)', data: cd.temp,
       borderColor: '#3fb950', backgroundColor: 'rgba(63,185,80,0.05)',
@@ -513,8 +515,6 @@ function cancelEdit(id) {
         borderColor: 'rgba(63,185,80,0.35)', borderWidth: 1, borderDash: [4,3],
         pointRadius: 0, fill: false },
     );
-    tMin = Math.min(tMin, cd.temp_lo - 1);
-    tMax = Math.max(tMax, cd.temp_hi + 1);
   }
   const tempOpts = commonOptions('Temp (°F)', '#3fb950', v => v + '°F');
   tempOpts.scales.y.min = tMin; tempOpts.scales.y.max = tMax;
@@ -525,7 +525,8 @@ function cancelEdit(id) {
 
   // ── Humidity ─────────────────────────────────────────────────────────────
   const humVals = cd.humidity.filter(v => v !== null);
-  let [hMin, hMax] = autoRange(humVals, cd.target_hum, 2);
+  const fb_h = cd.target_hum || 90;
+  const [hMin, hMax] = autoRange(humVals, 2, Math.max(0, fb_h - 5), Math.min(100, fb_h + 5));
   const humDatasets = [
     { label: 'Humidity (% RH)', data: cd.humidity,
       borderColor: '#58a6ff', backgroundColor: 'rgba(88,166,255,0.05)',
@@ -543,8 +544,6 @@ function cancelEdit(id) {
         borderColor: 'rgba(88,166,255,0.35)', borderWidth: 1, borderDash: [4,3],
         pointRadius: 0, fill: false },
     );
-    hMin = Math.max(0,   Math.min(hMin, cd.humidity_lo - 1));
-    hMax = Math.min(100, Math.max(hMax, cd.humidity_hi + 1));
   }
   const humOpts = commonOptions('Humidity (% RH)', '#58a6ff', v => v + '%');
   humOpts.scales.y.min = hMin; humOpts.scales.y.max = hMax;
