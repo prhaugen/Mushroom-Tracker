@@ -14,6 +14,7 @@ SPECIES_TIMELINES = {
         "colonization_temp_f":  (70, 77),
         "fruiting_temp_f":      (55, 70),
         "fruiting_humidity_rh": (85, 95),
+        "fruiting_co2_ppm":     (400, 800),
     },
     "pearl oyster": {
         "colonization_days": (14, 18),
@@ -23,6 +24,7 @@ SPECIES_TIMELINES = {
         "colonization_temp_f":  (70, 77),
         "fruiting_temp_f":      (65, 75),
         "fruiting_humidity_rh": (85, 95),
+        "fruiting_co2_ppm":     (400, 800),
     },
     "pink oyster": {
         "colonization_days": (10, 14),
@@ -32,6 +34,7 @@ SPECIES_TIMELINES = {
         "colonization_temp_f":  (75, 85),
         "fruiting_temp_f":      (75, 85),
         "fruiting_humidity_rh": (85, 95),
+        "fruiting_co2_ppm":     (400, 800),
     },
     "golden oyster": {
         "colonization_days": (10, 16),
@@ -41,6 +44,7 @@ SPECIES_TIMELINES = {
         "colonization_temp_f":  (72, 80),
         "fruiting_temp_f":      (65, 75),
         "fruiting_humidity_rh": (85, 95),
+        "fruiting_co2_ppm":     (400, 800),
     },
     "lions mane": {
         "colonization_days": (18, 24),
@@ -50,6 +54,7 @@ SPECIES_TIMELINES = {
         "colonization_temp_f":  (65, 75),
         "fruiting_temp_f":      (65, 75),
         "fruiting_humidity_rh": (85, 95),
+        "fruiting_co2_ppm":     (400, 800),
     },
     "shiitake": {
         "colonization_days": (30, 45),
@@ -59,6 +64,7 @@ SPECIES_TIMELINES = {
         "colonization_temp_f":  (65, 75),
         "fruiting_temp_f":      (55, 75),
         "fruiting_humidity_rh": (80, 90),
+        "fruiting_co2_ppm":     (400, 1000),
     },
     "king oyster": {
         "colonization_days": (20, 28),
@@ -68,6 +74,7 @@ SPECIES_TIMELINES = {
         "colonization_temp_f":  (65, 75),
         "fruiting_temp_f":      (55, 65),
         "fruiting_humidity_rh": (85, 95),
+        "fruiting_co2_ppm":     (400, 1500),
     },
     "chestnut": {
         "colonization_days": (18, 25),
@@ -77,6 +84,7 @@ SPECIES_TIMELINES = {
         "colonization_temp_f":  (65, 75),
         "fruiting_temp_f":      (55, 65),
         "fruiting_humidity_rh": (85, 95),
+        "fruiting_co2_ppm":     (400, 800),
     },
     "reishi": {
         "colonization_days": (25, 40),
@@ -86,6 +94,7 @@ SPECIES_TIMELINES = {
         "colonization_temp_f":  (75, 85),
         "fruiting_temp_f":      (75, 85),
         "fruiting_humidity_rh": (85, 95),
+        "fruiting_co2_ppm":     (400, 1500),
     },
     "maitake": {
         "colonization_days": (30, 50),
@@ -95,6 +104,7 @@ SPECIES_TIMELINES = {
         "colonization_temp_f":  (65, 72),
         "fruiting_temp_f":      (55, 65),
         "fruiting_humidity_rh": (85, 95),
+        "fruiting_co2_ppm":     (400, 800),
     },
     "nameko": {
         "colonization_days": (20, 30),
@@ -104,6 +114,7 @@ SPECIES_TIMELINES = {
         "colonization_temp_f":  (65, 72),
         "fruiting_temp_f":      (55, 65),
         "fruiting_humidity_rh": (85, 95),
+        "fruiting_co2_ppm":     (400, 1000),
     },
     "pioppino": {
         "colonization_days": (20, 35),
@@ -113,6 +124,7 @@ SPECIES_TIMELINES = {
         "colonization_temp_f":  (65, 75),
         "fruiting_temp_f":      (55, 65),
         "fruiting_humidity_rh": (85, 95),
+        "fruiting_co2_ppm":     (400, 800),
     },
     "elm oyster": {
         "colonization_days": (18, 25),
@@ -122,6 +134,7 @@ SPECIES_TIMELINES = {
         "colonization_temp_f":  (65, 75),
         "fruiting_temp_f":      (60, 72),
         "fruiting_humidity_rh": (85, 95),
+        "fruiting_co2_ppm":     (400, 800),
     },
     "white oyster": {
         "colonization_days": (14, 18),
@@ -131,6 +144,7 @@ SPECIES_TIMELINES = {
         "colonization_temp_f":  (70, 77),
         "fruiting_temp_f":      (65, 75),
         "fruiting_humidity_rh": (85, 95),
+        "fruiting_co2_ppm":     (400, 800),
     },
     "black oyster": {
         "colonization_days": (14, 18),
@@ -140,6 +154,7 @@ SPECIES_TIMELINES = {
         "colonization_temp_f":  (70, 77),
         "fruiting_temp_f":      (50, 65),
         "fruiting_humidity_rh": (85, 95),
+        "fruiting_co2_ppm":     (400, 800),
     },
     "enoki": {
         "colonization_days": (18, 25),
@@ -149,6 +164,7 @@ SPECIES_TIMELINES = {
         "colonization_temp_f":  (65, 75),
         "fruiting_temp_f":      (45, 55),
         "fruiting_humidity_rh": (85, 95),
+        "fruiting_co2_ppm":     (400, 2000),
     },
     "cordyceps": {
         "colonization_days": (14, 21),
@@ -158,6 +174,7 @@ SPECIES_TIMELINES = {
         "colonization_temp_f":  (65, 75),
         "fruiting_temp_f":      (65, 75),
         "fruiting_humidity_rh": (80, 90),
+        "fruiting_co2_ppm":     (400, 800),
     },
     "turkey tail": {
         "colonization_days": (21, 35),
@@ -167,6 +184,7 @@ SPECIES_TIMELINES = {
         "colonization_temp_f":  (65, 80),
         "fruiting_temp_f":      (60, 80),
         "fruiting_humidity_rh": (70, 90),
+        "fruiting_co2_ppm":     (400, 1000),
     },
     "wine cap": {
         "colonization_days": (21, 45),
@@ -176,6 +194,7 @@ SPECIES_TIMELINES = {
         "colonization_temp_f":  (55, 75),
         "fruiting_temp_f":      (50, 75),
         "fruiting_humidity_rh": (80, 90),
+        "fruiting_co2_ppm":     (400, 800),
     },
     "bunashimeji": {
         "colonization_days": (45, 90),
@@ -185,6 +204,7 @@ SPECIES_TIMELINES = {
         "colonization_temp_f":  (65, 75),
         "fruiting_temp_f":      (55, 65),
         "fruiting_humidity_rh": (85, 95),
+        "fruiting_co2_ppm":     (400, 1000),
     },
 }
 
@@ -196,6 +216,7 @@ DEFAULT_TIMELINE = {
     "colonization_temp_f":  (65, 77),
     "fruiting_temp_f":      (65, 75),
     "fruiting_humidity_rh": (85, 95),
+    "fruiting_co2_ppm":     (400, 800),
 }
 
 ENV_GUARDRAILS = {

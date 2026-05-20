@@ -30,6 +30,8 @@ _SPECIES_DEFAULTS = {
         'temp_hi':     v['fruiting_temp_f'][1],
         'humidity_lo': v['fruiting_humidity_rh'][0],
         'humidity_hi': v['fruiting_humidity_rh'][1],
+        'co2_lo':      v['fruiting_co2_ppm'][0],
+        'co2_hi':      v['fruiting_co2_ppm'][1],
     }
     for sp, v in SPECIES_TIMELINES.items()
 }
@@ -470,30 +472,50 @@ def batch_detail(batch_id):
 
     ts0 = cs_dt.strftime('%Y-%m-%d %H:%M:%S')
     ts1 = ce_dt.strftime('%Y-%m-%d %H:%M:%S')
-    env_rows = conn.execute("""
-        SELECT logged_at, temp_f, humidity_rh, co2_ppm
-        FROM environment_logs
-        WHERE chamber_id = ? AND logged_at >= ? AND logged_at <= ?
-        UNION ALL
-        SELECT logged_at, temp_f, humidity_rh, co2_ppm
+    # Temp + humidity: prefer chamber-linked rows, fall back to ambient
+    if batch['chamber_id']:
+        ch_rows = conn.execute("""
+            SELECT logged_at, temp_f, humidity_rh
+            FROM environment_logs
+            WHERE chamber_id = ? AND logged_at >= ? AND logged_at <= ?
+            ORDER BY logged_at ASC
+        """, (batch['chamber_id'], ts0, ts1)).fetchall()
+    else:
+        ch_rows = []
+    if not ch_rows:
+        ch_rows = conn.execute("""
+            SELECT logged_at, temp_f, humidity_rh
+            FROM environment_logs
+            WHERE chamber_id IS NULL AND batch_id IS NULL
+              AND logged_at >= ? AND logged_at <= ?
+            ORDER BY logged_at ASC
+        """, (ts0, ts1)).fetchall()
+
+    # CO2: ambient sensor only
+    co2_rows = conn.execute("""
+        SELECT logged_at, co2_ppm
         FROM environment_logs
         WHERE chamber_id IS NULL AND batch_id IS NULL
+          AND co2_ppm IS NOT NULL
           AND logged_at >= ? AND logged_at <= ?
         ORDER BY logged_at ASC
-    """, (batch['chamber_id'], ts0, ts1, ts0, ts1)).fetchall()
-    env_agg = _aggregate_env_logs([dict(r) for r in env_rows], env_res)
+    """, (ts0, ts1)).fetchall()
+
+    ch_agg  = _aggregate_env_logs([dict(r) for r in ch_rows],  env_res)
+    co2_agg = _aggregate_env_logs([dict(r) for r in co2_rows], env_res)
 
     batch_chart_data = {
-        'labels':      [r['logged_at'][:16] for r in env_agg],
-        'temp':        [r['temp_f']          for r in env_agg],
-        'humidity':    [r['humidity_rh']     for r in env_agg],
-        'co2':         [r['co2_ppm']         for r in env_agg],
-        'target_temp': batch['target_temp_f'],
-        'target_hum':  batch['target_humidity_rh'],
+        'labels':      [r['logged_at'][:16] for r in ch_agg],
+        'temp':        [r['temp_f']          for r in ch_agg],
+        'humidity':    [r['humidity_rh']     for r in ch_agg],
+        'co2_labels':  [r['logged_at'][:16] for r in co2_agg],
+        'co2':         [r['co2_ppm']         for r in co2_agg],
         'temp_lo':     sp_defaults['temp_lo']     if sp_defaults else None,
         'temp_hi':     sp_defaults['temp_hi']     if sp_defaults else None,
         'humidity_lo': sp_defaults['humidity_lo'] if sp_defaults else None,
         'humidity_hi': sp_defaults['humidity_hi'] if sp_defaults else None,
+        'co2_lo':      sp_defaults['co2_lo']      if sp_defaults else None,
+        'co2_hi':      sp_defaults['co2_hi']      if sp_defaults else None,
         'fruiting_at': batch['fruiting_start_date'][:10] if batch['fruiting_start_date'] else None,
         'pinning_at':  batch['pinning_started_at'][:10]  if batch['pinning_started_at']  else None,
     }

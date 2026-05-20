@@ -1167,42 +1167,41 @@ def build():
         h3("Environment Charts"),
         p("Three stacked line charts show environment readings for the period the batch has been "
           "active — one each for Temperature, Humidity, and CO₂. "
-          "Separating the metrics gives each its own tightly-scaled y-axis so small "
-          "variations are visible without one reading crowding out another. "
-          "The CO₂ chart only appears when CO₂ data exists."),
+          "Each chart has its own y-axis scaled to the actual readings, so small "
+          "variations are visible without one metric crowding out another. "
+          "Above each chart, a header line shows the species' acceptable range for that metric "
+          "so the target is always readable even when the range lines fall outside the "
+          "visible axis area."),
         sp(6),
         data_table(
-            ["Chart", "Traces", "What It Shows"],
+            ["Chart", "Data source", "Range lines"],
             [
                 ["Temperature\n(green)",
-                 "Solid line — actual readings\n"
-                 "Long-dashed line — target\n"
-                 "Shaded band — tolerance range",
-                 "Temp readings from the batch's chamber. "
-                 "The dashed line shows the batch's saved Target Temp. "
-                 "The shaded green band shows the species' full acceptable range — "
-                 "readings inside the band are within spec even if off-target."],
+                 "Chamber sensor readings for the batch's assigned chamber. "
+                 "Falls back to ambient sensor data when no chamber-linked readings exist.",
+                 "Two dashed green lines at the species' lo and hi fruiting temperature. "
+                 "Pulled into view when within 25 °F of the actual data range."],
                 ["Humidity\n(blue)",
-                 "Solid line — actual readings\n"
-                 "Long-dashed line — target\n"
-                 "Shaded band — tolerance range",
-                 "Humidity readings from the same period. "
-                 "The dashed line shows the batch's Target Humidity. "
-                 "The shaded blue band shows the species' full acceptable RH range."],
+                 "Same chamber (or ambient fallback) source as Temperature — "
+                 "readings are from the same imported rows.",
+                 "Two dashed blue lines at the species' lo and hi fruiting RH. "
+                 "Pulled into view when within 25 % RH of the actual data range."],
                 ["CO₂\n(purple)",
-                 "Solid line — ambient readings",
-                 "CO₂ readings in ppm from an ambient Govee sensor. "
-                 "Only shown when CO₂ data exists for the batch's date range. "
-                 "No tolerance band — use 400 ppm (fresh air) and ~1000 ppm (FAE needed) "
-                 "as informal reference points."],
+                 "Ambient sensor data only (rows with no chamber assignment). "
+                 "Only rendered when CO₂ readings exist for the batch's active period.",
+                 "Two dashed purple lines at the species' lo and hi fruiting CO₂ tolerance. "
+                 "Blue Oyster and most oysters: 400–800 ppm. "
+                 "King Oyster and Reishi tolerate up to 1 500 ppm."],
             ],
-            col_widths=[2.8*cm, 4.4*cm, 9.0*cm],
+            col_widths=[2.5*cm, 5.5*cm, 8.2*cm],
         ),
         sp(6),
-        p("All three charts share the same x-axis time labels and phase transition markers: "
-          "an amber dashed vertical line at the Fruiting Start Date and an orange dashed line "
-          "when the batch status was set to Pinning. "
-          "Markers only appear when the date is set and falls within the chart's time range."),
+        p("The y-axis for each chart is computed from the actual readings ± 3 units of padding. "
+          "Range lines that fall within 25 units of the data range are pulled into view "
+          "automatically; lines further away are clipped but the species range is always "
+          "shown in text above the chart header. "
+          "This keeps the actual data readable even when readings are far from the "
+          "species ideal — for example, when humidity is well below target."),
         sp(8),
         p("Resolution pills above the charts let you switch between 1-minute, 5-minute, "
           "10-minute, 30-minute, and 60-minute averages. "
@@ -1211,16 +1210,16 @@ def build():
           "Click any pill to override."),
         sp(8),
         callout(
-            "The chart combines readings from two sources: the batch's assigned chamber "
-            "(for the batch's active period) and any ambient sensor readings (imported with "
-            "no chamber selected) covering the same date range. "
-            "Ambient readings feed the Ambient CO₂ line when a standalone CO2 sensor "
-            "(such as a Govee H5182/H5183) is in use. "
-            "If a CO2 sensor and a temp/humidity sensor are both imported as ambient "
-            "and share the same timestamps, re-importing the CO2 sensor CSV will "
-            "backfill CO2 values into the existing rows rather than skipping them — "
-            "so importing both sensors in either order always produces a complete dataset. "
-            "If a batch has no chamber assigned and no ambient data exists, the chart is hidden.",
+            "Temperature and Humidity come from chamber-linked environment logs "
+            "(rows tagged with the batch's chamber ID). "
+            "If no chamber-linked rows exist yet — for example when all data has been "
+            "imported from a Govee sensor as ambient — the charts fall back to ambient "
+            "readings so data is always visible. "
+            "CO₂ always comes from ambient rows exclusively. "
+            "When a CO₂ sensor and a temp/humidity sensor share the same import timestamps, "
+            "re-importing the CO₂ CSV backfills CO₂ values into the existing ambient rows "
+            "rather than creating duplicates, so importing both sensors in either order "
+            "produces a complete dataset.",
             label="Note:", color=BLUE_BG, border=BLUE_BORDER
         ),
         sp(12),
