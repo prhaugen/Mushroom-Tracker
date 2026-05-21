@@ -1142,6 +1142,19 @@ def build():
             label="Note:"
         ),
         sp(8),
+        h3("Starting Subsequent Flushes"),
+        p("After logging a harvest the batch moves to <b>Resting</b> automatically. "
+          "When you see new pins forming, the Batch Detail page shows a green "
+          "<b>Ready for Next Flush?</b> card with a single "
+          "<b>Pins Forming — Start Flush N</b> button. "
+          "Clicking it records today as the pinning date and moves the batch to Pinning — "
+          "framing the action as initiating the next cycle rather than reverting status."),
+        sp(4),
+        p("Each flush stores its own <b>pinning_date</b> and <b>harvest_date</b> independently, "
+          "so the chronological record across all cycles lives in the flush log, not in "
+          "batch-level fields. BE% and all per-flush reporting remain accurate across "
+          "as many rest-and-fruit cycles as the block produces."),
+        sp(8),
         h3("Cold Shocking"),
         p("Cold shocking (exposing a colonized block to cold temperatures to trigger pinning) "
           "does not need its own status. It lasts 12-24 hours and transitions immediately to Pinning, "

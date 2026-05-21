@@ -239,6 +239,21 @@
     {% endif %}
   </div>
 
+  {% if batch.status == 'resting' %}
+  <!-- Start next flush -->
+  <div class="card" style="border:1px solid var(--green-border);background:var(--green-bg)">
+    <div class="card-title" style="color:var(--green);margin-bottom:6px">Ready for Next Flush?</div>
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:14px">
+      Mark pins forming to start flush {{ (batch.total_flushes or 0) + 1 }}.
+      This records today as the pinning date and moves the batch forward.
+    </div>
+    <form method="POST" action="{{ url_for('batch_update', batch_id=batch.id) }}">
+      <input type="hidden" name="status" value="pinning">
+      <button type="submit" class="btn btn-primary">Pins Forming — Start Flush {{ (batch.total_flushes or 0) + 1 }}</button>
+    </form>
+  </div>
+  {% endif %}
+
   <!-- Update status -->
   <div class="card">
     <div class="card-title" style="margin-bottom:14px">Update Status</div>
