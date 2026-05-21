@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}{{ defn.name }} Checklist — Mushroom Tracker{% endblock %}
+{% block content %}
+
+<div class="page-head-row">
+  <div class="page-head">
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">
+      <a href="{{ url_for('checklists_list') }}" style="color:var(--text-muted);text-decoration:none">Checklists</a>
+      {% if sb %} /
+        <a href="{{ url_for('substrate_batches_list') }}" style="color:var(--text-muted);text-decoration:none">{{ sb.substrate_type or 'Substrate' }}</a>
+      {% endif %}
+    </div>
+    <div class="page-title" style="display:flex;align-items:center;gap:12px">
+      {{ defn.name }}
+      {% if run.completed_at %}
+      <span class="badge badge-done">complete</span>
+      {% else %}
+      <span class="badge badge-colonizing">in progress</span>
+      {% endif %}
+    </div>
+    {% if run.label %}
+    <div class="page-sub">{{ run.label }}</div>
+    {% endif %}
+  </div>
+  <a href="{{ url_for('substrate_batches_list') }}" class="btn btn-ghost btn-sm">Back</a>
+</div>
+
+<!-- Progress bar -->
+<div class="card mb-16" style="padding:16px 20px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <span style="font-size:13px;font-weight:600;color:var(--text)">{{ completed }} of {{ total }} steps complete</span>
+    <span style="font-size:12px;color:var(--text-muted)">Started {{ run.started_at[:16] }}</span>
+  </div>
+  <div style="height:8px;background:var(--surface-2);border-radius:4px;overflow:hidden">
+    <div style="height:100%;width:{{ (completed / total * 100)|int if total else 0 }}%;background:var(--green);border-radius:4px;transition:width .3s"></div>
+  </div>
+  {% if sb %}
+  <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border-muted);display:flex;gap:20px;font-size:12px;color:var(--text-muted)">
+    {% if sb.substrate_type %}<span><b>Type</b> {{ sb.substrate_type }}</span>{% endif %}
+    {% if sb.dry_weight_g %}<span><b>Dry weight</b> {{ sb.dry_weight_g|int }}g</span>{% endif %}
+    {% if sb.steril_method %}<span><b>Sterilization</b> {{ sb.steril_method|replace('_',' ')|title }}{% if sb.steril_duration_min %} · {{ sb.steril_duration_min }} min{% endif %}</span>{% endif %}
+    {% if sb.date_prepared %}<span><b>Date</b> {{ sb.date_prepared }}</span>{% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<!-- Step list -->
+<div class="card mb-16">
+  {% for step in steps %}
+  {% set done = step.key in done_keys %}
+  <div style="display:flex;align-items:flex-start;gap:14px;padding:14px 20px;{% if not loop.last %}border-bottom:1px solid var(--border-muted);{% endif %}{% if done %}opacity:0.7;{% endif %}">
+
+    <!-- Check indicator -->
+    <div style="flex-shrink:0;margin-top:1px">
+      {% if done %}
+      <div style="width:24px;height:24px;border-radius:50%;background:var(--green);display:flex;align-items:center;justify-content:center">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+          <path d="M2 6.5L5.5 10L11 3" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      {% else %}
+      <div style="width:24px;height:24px;border-radius:50%;border:2px solid var(--border);background:var(--surface-2)"></div>
+      {% endif %}
+    </div>
+
+    <!-- Step content -->
+    <div style="flex:1;min-width:0">
+      <div style="font-weight:600;font-size:14px;color:{% if done %}var(--text-muted){% else %}var(--text){% endif %};{% if done %}text-decoration:line-through;{% endif %}margin-bottom:3px">
+        {{ loop.index }}. {{ step.title }}
+      </div>
+      <div style="font-size:12px;color:var(--text-muted);line-height:1.5">{{ step.detail }}</div>
+    </div>
+
+    <!-- Toggle button -->
+    {% if not run.completed_at %}
+    <form method="POST" action="{{ url_for('checklist_step_toggle', run_id=run.id, step_key=step.key) }}" style="flex-shrink:0">
+      <button type="submit" class="btn {% if done %}btn-ghost{% else %}btn-primary{% endif %} btn-sm"
+              style="font-size:11px;padding:3px 10px;white-space:nowrap">
+        {{ 'Undo' if done else 'Mark done' }}
+      </button>
+    </form>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Finish / completion section -->
+{% if not run.completed_at %}
+{% if completed == total %}
+<div class="card mb-16" style="border:1px solid var(--green-border);background:var(--green-bg)">
+  <div style="padding:16px 20px">
+    <div style="font-weight:700;font-size:15px;color:var(--green);margin-bottom:4px">All steps complete</div>
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:14px">Add any final notes before archiving this checklist run.</div>
+    <form method="POST" action="{{ url_for('checklist_finish', run_id=run.id) }}">
+      <textarea name="notes" placeholder="Optional notes — e.g. any bags flagged, sterilization time, anomalies…"
+                style="width:100%;margin-bottom:10px;box-sizing:border-box"></textarea>
+      <button type="submit" class="btn btn-primary">Complete &amp; Archive</button>
+    </form>
+  </div>
+</div>
+{% else %}
+<div style="font-size:12px;color:var(--text-muted);text-align:center;padding-bottom:8px">
+  {{ total - completed }} step{{ 's' if (total - completed) != 1 }} remaining
+</div>
+{% endif %}
+{% else %}
+<div class="card mb-16">
+  <div style="padding:16px 20px">
+    <div style="font-weight:600;font-size:13px;color:var(--text-muted);margin-bottom:4px">Completed {{ run.completed_at[:16] }}</div>
+    {% if run.notes %}
+    <div style="font-size:13px;color:var(--text);white-space:pre-wrap">{{ run.notes }}</div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

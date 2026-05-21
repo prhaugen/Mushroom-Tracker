@@ -626,7 +626,8 @@ input[name="quality_rating"]{display:none}
     {% set _supply_active = request.endpoint in (
         'substrate_batches_list','substrate_batch_add','substrate_batch_edit',
         'lc_lots_list','lc_lot_add','lc_lot_edit',
-        'grain_jars_list','grain_jar_add','grain_jar_edit') %}
+        'grain_jars_list','grain_jar_add','grain_jar_edit',
+        'checklists_list','checklist_view') %}
     <div class="nav-dropdown">
       <div class="nav-link{% if _supply_active %} active{% endif %}" tabindex="0"
            style="cursor:default" role="button" aria-haspopup="true">
@@ -672,6 +673,16 @@ input[name="quality_rating"]{display:none}
             <path d="M4 10.5 h6" stroke="var(--bg)" stroke-width=".9" opacity=".2" fill="none"/>
           </svg>
           Grain
+        </a>
+        <a href="{{ url_for('checklists_list') }}"
+           class="nav-dd-item{% if request.endpoint in ('checklists_list','checklist_view') %} active{% endif %}">
+          <svg viewBox="0 0 14 14" width="13" height="13" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+            <rect x="1.5" y="1.5" width="11" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.1" opacity=".7"/>
+            <path d="M4 5l1.5 1.5L8.5 4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            <path d="M4 8.5h6" stroke="currentColor" stroke-width="1" stroke-linecap="round" opacity=".4" fill="none"/>
+            <path d="M4 10.5h4" stroke="currentColor" stroke-width="1" stroke-linecap="round" opacity=".3" fill="none"/>
+          </svg>
+          Checklists
         </a>
       </div>
     </div>

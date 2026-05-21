@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Checklists — Mushroom Tracker{% endblock %}
+{% block content %}
+<div class="page-head-row">
+  <div class="page-head">
+    <div class="page-title">Process Checklists</div>
+    <div class="page-sub">Step-by-step SOPs linked to your substrate and batch records</div>
+  </div>
+  <form method="POST" action="{{ url_for('checklist_start') }}" style="display:flex;gap:8px;align-items:center">
+    <input type="hidden" name="process_type" value="substrate_block_prep">
+    <button type="submit" class="btn btn-primary">+ New Checklist</button>
+  </form>
+</div>
+
+{% if runs %}
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Checklist</th>
+          <th>Linked To</th>
+          <th>Started</th>
+          <th>Progress</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in runs %}
+        {% set defn = process_defs.get(r.process_type, {}) %}
+        {% set total_steps = defn.get('steps', [])|length %}
+        <tr>
+          <td class="fw-600">{{ defn.get('name', r.process_type) }}</td>
+          <td class="td-m">
+            {% if r.label %}{{ r.label }}
+            {% elif r.substrate_type %}{{ r.substrate_type }}{% if r.date_prepared %} · {{ r.date_prepared }}{% endif %}
+            {% else %}—{% endif %}
+          </td>
+          <td class="td-mono">{{ r.started_at[:10] }}</td>
+          <td>
+            <span style="font-size:12px">{{ r.steps_done }}/{{ total_steps }}</span>
+            <div style="height:4px;width:80px;background:var(--surface-2);border-radius:2px;margin-top:3px;display:inline-block;vertical-align:middle">
+              <div style="height:100%;width:{{ (r.steps_done / total_steps * 100)|int if total_steps else 0 }}%;background:{% if r.completed_at %}var(--green){% else %}var(--blue){% endif %};border-radius:2px"></div>
+            </div>
+          </td>
+          <td>
+            {% if r.completed_at %}
+            <span class="badge badge-done">complete</span>
+            {% else %}
+            <span class="badge badge-colonizing">in progress</span>
+            {% endif %}
+          </td>
+          <td>
+            <a href="{{ url_for('checklist_view', run_id=r.id) }}" class="btn btn-ghost btn-sm">Open</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="card">
+  <div class="empty">
+    <div class="empty-title">No checklists yet</div>
+    <div class="empty-sub">Start a checklist to walk through a step-by-step process and keep a completion record.</div>
+    <form method="POST" action="{{ url_for('checklist_start') }}">
+      <input type="hidden" name="process_type" value="substrate_block_prep">
+      <button type="submit" class="btn btn-primary">Start Substrate Block Prep</button>
+    </form>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

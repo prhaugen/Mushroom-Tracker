@@ -69,6 +69,11 @@
             {% endif %}
           </td>
           <td style="white-space:nowrap">
+            <form method="POST" action="{{ url_for('checklist_start') }}" style="display:inline">
+              <input type="hidden" name="process_type" value="substrate_block_prep">
+              <input type="hidden" name="substrate_batch_id" value="{{ sb.id }}">
+              <button type="submit" class="btn btn-secondary btn-sm">Checklist</button>
+            </form>
             <a href="{{ url_for('substrate_batch_edit', sb_id=sb.id) }}" class="btn btn-ghost btn-sm">Edit</a>
             <form method="POST" action="{{ url_for('substrate_batch_delete', sb_id=sb.id) }}" style="display:inline"
                   onsubmit="return confirm('Delete this substrate batch?{% if sb.batch_count > 0 %} This will unlink {{ sb.batch_count }} block(s).{% endif %}')">

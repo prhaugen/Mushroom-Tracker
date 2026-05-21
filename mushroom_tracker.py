@@ -162,6 +162,22 @@ def init_db():
             key   TEXT PRIMARY KEY,
             value TEXT
         );
+        CREATE TABLE IF NOT EXISTS process_runs (
+            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+            process_type        TEXT NOT NULL,
+            substrate_batch_id  INTEGER REFERENCES substrate_batches(id),
+            label               TEXT,
+            started_at          TEXT DEFAULT (datetime('now','localtime')),
+            completed_at        TEXT,
+            notes               TEXT
+        );
+        CREATE TABLE IF NOT EXISTS process_run_steps (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            run_id       INTEGER NOT NULL REFERENCES process_runs(id) ON DELETE CASCADE,
+            step_key     TEXT NOT NULL,
+            completed_at TEXT,
+            UNIQUE(run_id, step_key)
+        );
         CREATE TABLE IF NOT EXISTS chambers (
             id                 INTEGER PRIMARY KEY AUTOINCREMENT,
             name               TEXT NOT NULL,

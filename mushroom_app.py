@@ -720,6 +720,160 @@ def api_substrate_batch(sb_id):
     })
 
 
+# ── Process Checklists ────────────────────────────────────────────────────────
+
+PROCESS_DEFINITIONS = {
+    'substrate_block_prep': {
+        'name': 'Substrate Block Prep',
+        'description': 'Mix, bag, and sterilize substrate blocks ready for inoculation.',
+        'steps': [
+            {'key': 'gather_materials',
+             'title': 'Gather materials',
+             'detail': 'Substrate ingredients (hardwood sawdust, bran, gypsum, etc.), '
+                       'spawn bags or containers, scale, mixing tub, pressure cooker or autoclave.'},
+            {'key': 'weigh_components',
+             'title': 'Weigh dry components',
+             'detail': 'Measure each dry ingredient to recipe spec. Note actual weights — '
+                       'deviations from recipe affect moisture target.'},
+            {'key': 'mix_dry',
+             'title': 'Mix dry components',
+             'detail': 'Combine all dry ingredients thoroughly before adding water. '
+                       'Uneven distribution leads to hot spots during sterilization.'},
+            {'key': 'hydrate',
+             'title': 'Hydrate to field capacity',
+             'detail': 'Add water gradually and mix. Field capacity test: squeeze a handful firmly — '
+                       'a few drops should drip, not a stream. Target 60–65% moisture content.'},
+            {'key': 'fill_bags',
+             'title': 'Fill bags / containers',
+             'detail': 'Pack substrate into spawn bags or jars. Target weight per block per your batch plan. '
+                       'Leave enough headspace to seal. Wipe bag necks clean.'},
+            {'key': 'seal_bags',
+             'title': 'Seal bags',
+             'detail': 'Fold and tape, apply filter patch, or insert polyfill collar. '
+                       'Ensure no gaps that could allow contamination post-sterilization.'},
+            {'key': 'load_sterilizer',
+             'title': 'Load sterilizer',
+             'detail': 'Arrange bags to allow steam or heat penetration between blocks. '
+                       'Do not over-pack. Taller bags should stand upright.'},
+            {'key': 'sterilize',
+             'title': 'Sterilize',
+             'detail': 'Pressure cooker: 15 psi / 250 °F for 2.5–3 hrs. '
+                       'Autoclave: follow manufacturer cycle. '
+                       'Steam pasteurization (straw/oysters): 160–180 °F for 1–2 hrs. '
+                       'Start timer once target temp/pressure is reached.'},
+            {'key': 'cool_blocks',
+             'title': 'Cool to room temperature',
+             'detail': 'Move blocks to a clean area and allow to cool fully before inoculating — '
+                       'typically 4–12 hours. Do NOT inoculate while blocks are still warm (kills spawn).'},
+            {'key': 'inspect',
+             'title': 'Inspect bags',
+             'detail': 'Check each bag for tears, standing water at the bottom, discoloration, '
+                       'or off smells. Flag suspect bags and set aside.'},
+            {'key': 'confirm_ready',
+             'title': 'Confirm ready for inoculation',
+             'detail': 'All blocks are at room temperature, sealed, and visually clear. '
+                       'Inoculation area is prepared. Proceed to spawn run.'},
+        ],
+    },
+}
+
+
+@app.route('/checklist/start', methods=['POST'])
+def checklist_start():
+    init_db()
+    process_type = request.form.get('process_type', 'substrate_block_prep')
+    sb_id = request.form.get('substrate_batch_id') or None
+    if process_type not in PROCESS_DEFINITIONS:
+        flash('Unknown process type.', 'error')
+        return redirect(url_for('substrate_batches_list'))
+    conn = get_db()
+    label = request.form.get('label', '').strip() or None
+    if not label and sb_id:
+        sb = conn.execute("SELECT date_prepared, substrate_type FROM substrate_batches WHERE id=?",
+                          (sb_id,)).fetchone()
+        if sb:
+            label = f"{sb['substrate_type'] or 'Substrate'} — {sb['date_prepared'] or 'unknown date'}"
+    cur = conn.execute(
+        "INSERT INTO process_runs (process_type, substrate_batch_id, label) VALUES (?,?,?)",
+        (process_type, sb_id, label))
+    run_id = cur.lastrowid
+    conn.commit(); conn.close()
+    return redirect(url_for('checklist_view', run_id=run_id))
+
+
+@app.route('/checklist/<int:run_id>')
+def checklist_view(run_id):
+    init_db()
+    conn = get_db()
+    run = conn.execute("SELECT * FROM process_runs WHERE id=?", (run_id,)).fetchone()
+    if not run:
+        conn.close(); flash('Checklist not found.', 'error')
+        return redirect(url_for('substrate_batches_list'))
+    sb = None
+    if run['substrate_batch_id']:
+        sb = conn.execute("SELECT * FROM substrate_batches WHERE id=?",
+                          (run['substrate_batch_id'],)).fetchone()
+    done_keys = {r['step_key'] for r in
+                 conn.execute("SELECT step_key FROM process_run_steps WHERE run_id=?",
+                              (run_id,)).fetchall()}
+    conn.close()
+    defn = PROCESS_DEFINITIONS.get(run['process_type'], {})
+    steps = defn.get('steps', [])
+    total = len(steps)
+    completed = sum(1 for s in steps if s['key'] in done_keys)
+    return render_template('checklist.html',
+                           run=run, sb=sb, defn=defn, steps=steps,
+                           done_keys=done_keys, total=total, completed=completed)
+
+
+@app.route('/checklist/<int:run_id>/step/<step_key>/toggle', methods=['POST'])
+def checklist_step_toggle(run_id, step_key):
+    conn = get_db()
+    existing = conn.execute(
+        "SELECT id FROM process_run_steps WHERE run_id=? AND step_key=?",
+        (run_id, step_key)).fetchone()
+    if existing:
+        conn.execute("DELETE FROM process_run_steps WHERE run_id=? AND step_key=?",
+                     (run_id, step_key))
+    else:
+        conn.execute(
+            "INSERT OR IGNORE INTO process_run_steps (run_id, step_key, completed_at) "
+            "VALUES (?, ?, datetime('now','localtime'))",
+            (run_id, step_key))
+    conn.commit(); conn.close()
+    return redirect(url_for('checklist_view', run_id=run_id))
+
+
+@app.route('/checklist/<int:run_id>/finish', methods=['POST'])
+def checklist_finish(run_id):
+    conn = get_db()
+    notes = request.form.get('notes', '').strip() or None
+    conn.execute(
+        "UPDATE process_runs SET completed_at=datetime('now','localtime'), notes=? WHERE id=?",
+        (notes, run_id))
+    conn.commit(); conn.close()
+    flash('Checklist completed and saved.', 'success')
+    return redirect(url_for('checklist_view', run_id=run_id))
+
+
+@app.route('/checklists')
+def checklists_list():
+    init_db()
+    conn = get_db()
+    runs = conn.execute("""
+        SELECT pr.*, sb.date_prepared, sb.substrate_type,
+               COUNT(prs.id) AS steps_done
+        FROM process_runs pr
+        LEFT JOIN substrate_batches sb ON sb.id = pr.substrate_batch_id
+        LEFT JOIN process_run_steps prs ON prs.run_id = pr.id
+        GROUP BY pr.id
+        ORDER BY pr.started_at DESC
+    """).fetchall()
+    conn.close()
+    return render_template('checklists.html', runs=runs,
+                           process_defs=PROCESS_DEFINITIONS)
+
+
 # ── Grain Jars ────────────────────────────────────────────────────────────────
 
 def _grain_jars_with_refs(conn):
