@@ -78,9 +78,10 @@
         </div>
         <div id="sourcedHint" class="fg" style="{{ '' if (editing and batch.sourced_block) else 'display:none' }}">
           <span class="form-hint" style="color:var(--blue)">
-            Status set to <b>Fruiting</b> — sourced blocks arrive fully colonized and go
-            straight into fruiting conditions.
-            If you are cold-shocking the block first, change status to <b>Colonized</b> and
+            Status set to <b>Colonized</b> — sourced blocks arrive fully colonized.
+            Use the <b>Pins Forming</b> button on the batch detail page when you see pin heads,
+            or update status to <b>Pinning</b> manually.
+            If you are cold-shocking the block first, leave status as <b>Colonized</b> and
             leave the <b>Fruiting Chamber Date</b> blank until the block enters the chamber —
             the agent uses that date to determine whether the block is in fruiting conditions,
             not just the status. Set the Fruiting Chamber Date when you place it in the chamber.
@@ -402,7 +403,7 @@ function toggleSourcedHint() {
   const checked = document.getElementById('sourcedBlock').checked;
   document.getElementById('sourcedHint').style.display = checked ? 'block' : 'none';
   const statusSel = document.querySelector('select[name="status"]');
-  if (statusSel) statusSel.value = checked ? 'fruiting' : 'colonizing';
+  if (statusSel) statusSel.value = checked ? 'colonized' : 'colonizing';
 }
 
 function handleSpeciesChange() {

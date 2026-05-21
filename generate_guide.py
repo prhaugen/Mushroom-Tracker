@@ -905,7 +905,7 @@ def build():
                  "and do not know when it was inoculated — the field is optional and "
                  "only affects colonization-time calculations, which are not meaningful "
                  "for blocks you did not colonize yourself. Set the Status field to "
-                 "reflect the block's actual current stage (Colonized or Fruiting) "
+                 "reflect the block's actual current stage (Colonized or Pinning) "
                  "rather than leaving it at Colonizing."],
                 ["Fruiting Chamber Date",     "No",
                  "The date the block was placed into the fruiting chamber (e.g. your SGFC). "
@@ -919,9 +919,12 @@ def build():
                 ["Sourced / Pre-made Block",  "No",
                  "Check this if the block was purchased from a supplier (e.g. North Spore) "
                  "rather than prepared in-house. "
-                 "Checking this box automatically sets the Initial Status to Fruiting. "
+                 "Checking this box automatically sets the Initial Status to <b>Colonized</b> — "
+                 "sourced blocks arrive fully colonized, ready to initiate fruiting conditions. "
+                 "Use the <b>Pins Forming</b> button on the Batch Detail page when pins appear, "
+                 "or update status to Pinning manually. "
                  "If you are cold-shocking the block before placing it in the chamber, "
-                 "change status to Colonized and leave Fruiting Chamber Date blank — "
+                 "leave status as Colonized and leave Fruiting Chamber Date blank — "
                  "set the Fruiting Chamber Date the day the block enters the SGFC. "
                  "The AI briefing agent uses the Fruiting Chamber Date (not status alone) "
                  "to determine whether a block is in the chamber: a block with no "
