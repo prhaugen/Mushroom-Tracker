@@ -413,12 +413,16 @@ def build():
         ("15",   "Grain Jars",                                  "18"),
         ("15.1", "Logging a Grain Jar",                         "18"),
         ("15.2", "Colonization Outcome Outcomes",               "19"),
-        ("16",   "Interactive Q&A",                            "19"),
-        ("16.1", "Opening the Chat Widget",                    "19"),
-        ("16.2", "How It Works",                               "20"),
-        ("17",   "Command-Line Interface (CLI)",                "20"),
-        ("18",   "Growing Reference",                           "21"),
-        ("19",   "Tips & Troubleshooting",                      "23"),
+        ("16",   "Process Checklists",                          "19"),
+        ("16.1", "Starting a Checklist",                        "20"),
+        ("16.2", "Working Through Steps",                       "20"),
+        ("16.3", "Completing and Archiving a Run",              "20"),
+        ("17",   "Interactive Q&A",                            "21"),
+        ("17.1", "Opening the Chat Widget",                    "21"),
+        ("17.2", "How It Works",                               "21"),
+        ("18",   "Command-Line Interface (CLI)",                "22"),
+        ("19",   "Growing Reference",                           "23"),
+        ("20",   "Tips & Troubleshooting",                      "25"),
     ]
     for num, title, pg in toc_entries:
         story.append(toc_row(num, title, pg))
@@ -2155,10 +2159,110 @@ def build():
     story.append(PageBreak())
 
     # ══════════════════════════════════════════════════════════════════════
-    # 16. INTERACTIVE Q&A
+    # 16. PROCESS CHECKLISTS
     # ══════════════════════════════════════════════════════════════════════
     story += [
-        h1("16. Interactive Q&A"),
+        h1("16. Process Checklists"),
+        rule(),
+        p("Process checklists are step-by-step SOPs you can run through inside the tracker "
+          "and have an auditable, timestamped completion record stored in the database. "
+          "Each checklist is linked to a specific preparation run — so you always know "
+          "which batches were prepared under which conditions, and whether every critical "
+          "step was followed."),
+        sp(6),
+        callout(
+            "Checklists are especially valuable for food safety documentation. "
+            "A completed checklist run proves that sterilization, cooling, and inspection steps "
+            "were performed for a specific substrate batch on a specific date.",
+            label="Why it matters:", color=GREEN_BG, border=GREEN_LIGHT
+        ),
+        sp(8),
+
+        h2("16.1  Starting a Checklist"),
+        p("There are two ways to start a checklist:"),
+        sp(4),
+        *bullet([
+            "<b>From the Substrate Batches page</b> — click the <b>Checklist</b> button in "
+            "any row. The new checklist run is automatically linked to that substrate batch "
+            "and labelled with its type and preparation date.",
+            "<b>From Supply &rarr; Checklists</b> — click <b>+ New Checklist</b> to start "
+            "an unlinked run (useful for practice runs or when the substrate batch has not "
+            "been logged yet).",
+        ]),
+        sp(6),
+        p("After starting, you are taken directly to the checklist run page where all steps "
+          "are listed in order."),
+        sp(8),
+
+        h2("16.2  Working Through Steps"),
+        p("The checklist page shows each step with its title and detail description. "
+          "Steps are completed individually — click <b>Mark done</b> next to any step "
+          "in any order. A green circle replaces the empty ring and the step text is "
+          "struck through. Click <b>Undo</b> to revert a step if you marked it in error."),
+        sp(4),
+        p("A progress bar at the top of the page updates after each step, showing "
+          "<i>X of Y steps complete</i>. If the checklist is linked to a substrate batch, "
+          "the batch details (type, dry weight, sterilization method, date) are shown "
+          "below the progress bar for reference."),
+        sp(6),
+        data_table(
+            ["Step", "What to Verify"],
+            [
+                ["Gather materials",
+                 "Substrate ingredients, spawn bags, scale, mixing tub, pressure cooker or autoclave."],
+                ["Weigh dry components",
+                 "Each dry ingredient measured to recipe spec; actual weights noted."],
+                ["Mix dry components",
+                 "All dry ingredients combined before adding water."],
+                ["Hydrate to field capacity",
+                 "Water added gradually; squeeze test — a few drops, not a stream."],
+                ["Fill bags / containers",
+                 "Target weight per block; headspace left; bag necks wiped clean."],
+                ["Seal bags",
+                 "Fold-and-tape, filter patch, or polyfill collar; no gaps."],
+                ["Load sterilizer",
+                 "Bags arranged to allow steam penetration; not over-packed."],
+                ["Sterilize",
+                 "Pressure cooker: 15 psi / 250 °F for 2.5–3 hrs. "
+                 "Autoclave: follow manufacturer cycle. "
+                 "Steam pasteurization (straw): 160–180 °F for 1–2 hrs."],
+                ["Cool to room temperature",
+                 "Blocks moved to clean area; cool 4–12 hrs. Do not inoculate while warm."],
+                ["Inspect bags",
+                 "Check for tears, pooled water, discoloration, or off-smells. Flag suspect bags."],
+                ["Confirm ready for inoculation",
+                 "All blocks at room temp, sealed, visually clear; inoculation area prepared."],
+            ],
+            col_widths=[4.2*cm, 12.0*cm],
+        ),
+        sp(8),
+
+        h2("16.3  Completing and Archiving a Run"),
+        p("When all 11 steps are marked done, a green <b>All steps complete</b> banner "
+          "appears. Add any final notes in the text area — sterilization anomalies, bags "
+          "flagged, actual cook time — then click <b>Complete &amp; Archive</b>. "
+          "The run is closed with a completion timestamp and your notes are stored permanently."),
+        sp(4),
+        p("Completed runs appear on the Checklists list page with a <b>complete</b> badge "
+          "and a filled green progress bar. You can re-open any run to review its steps and notes "
+          "but cannot toggle steps once archived."),
+        sp(6),
+        callout(
+            "The <b>process_runs</b> and <b>process_run_steps</b> tables store the full audit trail: "
+            "which run, which step, and when each step was completed. "
+            "Adding new process types (inoculation SOP, chamber setup, etc.) requires only a new "
+            "entry in the PROCESS_DEFINITIONS dictionary in mushroom_app.py — no schema changes needed.",
+            label="Developer note:", color=PURPLE_BG, border=HexColor("#c084fc")
+        ),
+    ]
+
+    story.append(PageBreak())
+
+    # ══════════════════════════════════════════════════════════════════════
+    # 17. INTERACTIVE Q&A
+    # ══════════════════════════════════════════════════════════════════════
+    story += [
+        h1("17. Interactive Q&A"),
         rule(),
         p("The <b>Ask Claude</b> chat widget lets you query your cultivation data in plain "
           "English directly from any batch detail page. Instead of writing SQL or digging "
@@ -2167,7 +2271,7 @@ def build():
           "and get a concise, data-backed answer in seconds."),
         sp(8),
 
-        h2("16.1  Opening the Chat Widget"),
+        h2("17.1  Opening the Chat Widget"),
         p("The widget is available on every <b>batch detail</b> page. Look for the green "
           "star button (&#9733;) fixed in the bottom-right corner of the screen. "
           "Click it to slide open the chat panel. The panel closes when you click the "
@@ -2197,7 +2301,7 @@ def build():
         ),
         sp(8),
 
-        h2("16.2  How It Works"),
+        h2("17.2  How It Works"),
         p("Each question is sent to a small Claude AI model via the "
           "<b>POST /ask</b> endpoint. The model is given two tools:"),
         sp(4),
@@ -2234,10 +2338,10 @@ def build():
     story.append(PageBreak())
 
     # ══════════════════════════════════════════════════════════════════════
-    # 17. CLI REFERENCE
+    # 18. CLI REFERENCE
     # ══════════════════════════════════════════════════════════════════════
     story += [
-        h1("17. Command-Line Interface (CLI)"),
+        h1("18. Command-Line Interface (CLI)"),
         rule(),
         p("The CLI (<b>mushroom_tracker.py</b>) provides the same core functions as the web app "
           "from a terminal. It is useful for quick data entry when you do not want to open "
@@ -2316,10 +2420,10 @@ def build():
     story.append(PageBreak())
 
     # ══════════════════════════════════════════════════════════════════════
-    # 18. GROWING REFERENCE
+    # 19. GROWING REFERENCE
     # ══════════════════════════════════════════════════════════════════════
     story += [
-        h1("18. Growing Reference"),
+        h1("19. Growing Reference"),
         rule(),
         h2("Optimal Fruiting Conditions by Species"),
         sp(4),
@@ -2429,10 +2533,10 @@ def build():
     story.append(PageBreak())
 
     # ══════════════════════════════════════════════════════════════════════
-    # 19. TIPS & TROUBLESHOOTING
+    # 20. TIPS & TROUBLESHOOTING
     # ══════════════════════════════════════════════════════════════════════
     story += [
-        h1("19. Tips & Troubleshooting"),
+        h1("20. Tips & Troubleshooting"),
         rule(),
         h2("Improving Your BE%"),
         *bullet([
