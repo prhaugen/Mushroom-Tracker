@@ -932,7 +932,7 @@ def flush_add(batch_id):
     default_pinning_date = batch['pinning_started_at'] or ''
     conn.close()
     return render_template('flush_form.html', batch=batch, next_flush=next_flush,
-                           default_pinning_date=default_pinning_date)
+                           default_pinning_date=default_pinning_date, flush=None)
 
 
 # ── Sales ─────────────────────────────────────────────────────────────────────
