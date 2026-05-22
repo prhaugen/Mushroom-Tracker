@@ -146,6 +146,16 @@ SPECIES_TIMELINES = {
         "fruiting_humidity_rh": (85, 95),
         "fruiting_co2_ppm":     (400, 800),
     },
+    "snow oyster": {
+        "colonization_days": (14, 18),
+        "days_to_pin":       (3, 5),
+        "days_to_harvest":   (4, 6),
+        "target_be_pct":     (70, 140),
+        "colonization_temp_f":  (70, 77),
+        "fruiting_temp_f":      (65, 75),
+        "fruiting_humidity_rh": (85, 95),
+        "fruiting_co2_ppm":     (400, 800),
+    },
     "black oyster": {
         "colonization_days": (14, 18),
         "days_to_pin":       (3, 6),
