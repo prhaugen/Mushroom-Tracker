@@ -176,6 +176,16 @@ SPECIES_TIMELINES = {
         "fruiting_humidity_rh": (85, 95),
         "fruiting_co2_ppm":     (400, 2000),
     },
+    "golden enoki": {
+        "colonization_days": (18, 25),
+        "days_to_pin":       (7, 12),
+        "days_to_harvest":   (7, 14),
+        "target_be_pct":     (30, 70),
+        "colonization_temp_f":  (65, 75),
+        "fruiting_temp_f":      (50, 65),
+        "fruiting_humidity_rh": (85, 95),
+        "fruiting_co2_ppm":     (400, 2000),
+    },
     "cordyceps": {
         "colonization_days": (14, 21),
         "days_to_pin":       (21, 35),
