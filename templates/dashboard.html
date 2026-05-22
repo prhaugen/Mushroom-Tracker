@@ -12,6 +12,17 @@
   </div>
 </div>
 
+{% if all_chambers|length > 1 %}
+<div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap">
+  {% for c in all_chambers %}
+  <a href="{{ url_for('dashboard', chamber_id=c.id) }}"
+     style="padding:5px 14px;border-radius:20px;font-size:13px;font-weight:600;text-decoration:none;border:1px solid {% if c.id == chamber.id %}var(--green){% else %}var(--border){% endif %};background:{% if c.id == chamber.id %}var(--green-bg){% else %}var(--surface-2){% endif %};color:{% if c.id == chamber.id %}var(--green){% else %}var(--text-muted){% endif %}">
+    {{ c.name }}
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+
 <div class="stats">
   <div class="stat g">
     <div class="stat-label">Total Yield</div>

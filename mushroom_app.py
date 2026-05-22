@@ -138,11 +138,13 @@ def _redir_harvest(bid): return redirect(url_for('flush_add', batch_id=bid))
 def dashboard():
     init_db()
     conn = get_db()
-    chambers = conn.execute("SELECT * FROM chambers").fetchall()
-    if not chambers:
+    all_chambers = [dict(c) for c in conn.execute("SELECT * FROM chambers").fetchall()]
+    if not all_chambers:
         conn.close(); return redirect(url_for('setup'))
 
-    chamber = dict(chambers[0])
+    requested_id = request.args.get('chamber_id', type=int)
+    chamber = next((c for c in all_chambers if c['id'] == requested_id), all_chambers[0])
+
     latest_env = conn.execute(
         "SELECT * FROM environment_logs WHERE chamber_id=? ORDER BY logged_at DESC LIMIT 1",
         (chamber['id'],)).fetchone()
@@ -151,8 +153,9 @@ def dashboard():
     recent_flushes = conn.execute("""
         SELECT f.*, b.label, b.species FROM flushes f
         JOIN batches b ON f.batch_id=b.id
+        WHERE b.chamber_id=?
         ORDER BY f.created_at DESC LIMIT 6
-    """).fetchall()
+    """, (chamber['id'],)).fetchall()
 
     total_yield  = sum(b['total_yield_g'] for b in batches)
     active_count = sum(1 for b in batches if b['status'] not in ('done','contaminated','aborted'))
@@ -161,16 +164,16 @@ def dashboard():
     first_inoc   = min((b['inoculation_date'] for b in batches if b['inoculation_date']), default=None)
     days_running = days_since(first_inoc)
 
-    # avg BE across batches that have dry_weight_g set
     be_list = [bio_efficiency(b['total_yield_g'], b['dry_weight_g'])
                for b in batches if b['dry_weight_g']]
     avg_be = round(sum(be_list)/len(be_list), 1) if be_list else None
 
-    harvest_forecast = _build_harvest_forecast(conn)
+    harvest_forecast = _build_harvest_forecast(conn, chamber_id=chamber['id'])
 
     conn.close()
     return render_template('dashboard.html',
-        chamber=chamber, latest_env=latest_env, batches=batches,
+        chamber=chamber, all_chambers=all_chambers,
+        latest_env=latest_env, batches=batches,
         recent_flushes=recent_flushes, total_yield=total_yield,
         active_count=active_count, env_count=env_count,
         days_running=days_running, avg_be=avg_be,
@@ -1215,20 +1218,30 @@ def _aggregate_env_logs(rows, bucket_min):
     return result
 
 
-def _build_harvest_forecast(conn):
+def _build_harvest_forecast(conn, chamber_id=None):
     """
-    Project harvest windows for all active batches using SPECIES_TIMELINES midpoints.
+    Project harvest windows for active batches using SPECIES_TIMELINES midpoints.
     Returns list of dicts sorted by projected_mid date.
     """
     from agent_config import DEFAULT_TIMELINE
 
-    batches = conn.execute("""
-        SELECT b.*,
-               (SELECT MAX(harvest_date) FROM flushes WHERE batch_id = b.id) AS last_harvest_date
-        FROM batches b
-        WHERE b.status IN ('colonizing','colonized','pinning','fruiting','resting')
-        ORDER BY b.id
-    """).fetchall()
+    if chamber_id is not None:
+        batches = conn.execute("""
+            SELECT b.*,
+                   (SELECT MAX(harvest_date) FROM flushes WHERE batch_id = b.id) AS last_harvest_date
+            FROM batches b
+            WHERE b.status IN ('colonizing','colonized','pinning','fruiting','resting')
+              AND b.chamber_id = ?
+            ORDER BY b.id
+        """, (chamber_id,)).fetchall()
+    else:
+        batches = conn.execute("""
+            SELECT b.*,
+                   (SELECT MAX(harvest_date) FROM flushes WHERE batch_id = b.id) AS last_harvest_date
+            FROM batches b
+            WHERE b.status IN ('colonizing','colonized','pinning','fruiting','resting')
+            ORDER BY b.id
+        """).fetchall()
 
     today = date.today()
     forecast = []

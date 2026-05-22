@@ -765,10 +765,13 @@ def build():
         h1("5. The Dashboard"),
         rule(),
         p("The Dashboard is your home screen. It gives you an at-a-glance summary of everything "
-          "happening in your setup."),
+          "happening in your setup. When you have more than one chamber, pill-shaped tabs "
+          "appear below the page header — click any tab to switch the entire dashboard "
+          "(stats, environment strip, batch grid, harvest forecast, and recent flushes) "
+          "to that chamber. With a single chamber the tabs are hidden."),
         sp(8),
         h3("Stats Row"),
-        p("Four summary cards across the top show:"),
+        p("Four summary cards across the top show stats for the selected chamber:"),
         sp(4),
         *bullet([
             "<b>Avg BE%</b> -- average biological efficiency across all batches with data",
@@ -781,6 +784,8 @@ def build():
         p("The dashboard is arranged top-to-bottom by urgency:"),
         sp(4),
         *bullet([
+            "<b>Chamber tabs</b> -- visible only when more than one chamber is configured; "
+            "selecting a tab scopes every section below it to that chamber",
             "<b>Environment strip</b> -- live temp and humidity gauges span the full width "
             "at the top so chamber status is always the first thing you see",
             "<b>Batch grid</b> -- all active batches in a full-width card below the strip",
