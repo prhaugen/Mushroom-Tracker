@@ -57,6 +57,7 @@ def _eval_contam_rate(conn, threshold: float) -> dict:
             SELECT contamination_flag
             FROM batches
             WHERE inoculation_date >= date('now', '-90 days')
+              AND inoculation_date <= date('now', '-14 days')
               AND inoculation_date IS NOT NULL
         """).fetchall()
     except Exception:
@@ -68,7 +69,7 @@ def _eval_contam_rate(conn, threshold: float) -> dict:
         return {
             'status': 'pending', 'value': None,
             'threshold': f'<{threshold}%',
-            'detail': 'No batches inoculated in the last 90 days.',
+            'detail': 'No batches old enough to evaluate (need ≥14 days post-inoculation).',
         }
 
     numer = sum(1 for r in rows if r['contamination_flag'])
@@ -86,8 +87,8 @@ def _eval_contam_rate(conn, threshold: float) -> dict:
         'value': round(rate, 1),
         'threshold': f'<{threshold}%',
         'detail': (
-            f'Contam rate: {rate:.1f}% ({numer}/{denom} batches, last 90 days). '
-            f'Target: <{threshold}%.'
+            f'Contam rate: {rate:.1f}% ({numer}/{denom} batches, 14–90 days old). '
+            f'Target: <{threshold}%. Batches under 14 days excluded — too early to evaluate.'
         ),
     }
 
