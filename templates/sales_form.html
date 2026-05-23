@@ -14,10 +14,23 @@
   <form method="POST"
         action="{{ url_for('sale_edit', sale_id=sale.id) if editing else url_for('sales_add') }}">
     <div class="fg-grid">
+
       <div class="fg">
-        <label>Batch *</label>
-        <select name="batch_id" required id="batchSelect" onchange="loadFlushes()">
-          <option value="">— select batch —</option>
+        <label>Species *</label>
+        <select name="species" id="speciesSelect" required>
+          <option value="">— select species —</option>
+          {% for s in SPECIES %}
+          {% set sp_val = sale.species if editing and sale.species else (selected_batch.species if selected_batch else '') %}
+          <option value="{{ s }}" {{ 'selected' if s == sp_val }}>{{ s }}</option>
+          {% endfor %}
+        </select>
+        <span class="form-hint">Required — auto-fills when a batch is selected</span>
+      </div>
+
+      <div class="fg">
+        <label>Batch (optional)</label>
+        <select name="batch_id" id="batchSelect" onchange="onBatchChange()">
+          <option value="">— unlinked / multi-batch sale —</option>
           {% for b in all_batches %}
           <option value="{{ b.id }}"
             {{ 'selected' if editing and sale.batch_id == b.id }}
@@ -26,7 +39,9 @@
           </option>
           {% endfor %}
         </select>
+        <span class="form-hint">Link to a batch for traceability — leave blank when selling from multiple batches</span>
       </div>
+
       <div class="fg">
         <label>Flush (optional)</label>
         <select name="flush_id" id="flushSelect">
@@ -38,11 +53,13 @@
           {% endfor %}
         </select>
       </div>
+
       <div class="fg">
         <label>Sale Date</label>
         <input type="date" name="sale_date"
                value="{{ sale.sale_date if editing and sale.sale_date else today }}">
       </div>
+
       <div class="fg">
         <label>Destination</label>
         <select name="destination">
@@ -54,23 +71,27 @@
           {% endfor %}
         </select>
       </div>
+
       <div class="fg">
         <label>Customer (optional)</label>
         <input type="text" name="customer" placeholder="e.g. Green Acres Restaurant, John Smith..."
                value="{{ sale.customer if editing and sale.customer else '' }}">
       </div>
+
       <div class="fg">
         <label>Fresh Weight Sold (g)</label>
         <input type="number" name="fresh_weight_sold_g" step="0.1" placeholder="e.g. 500"
                id="fresh_wt" oninput="updateRevenue()"
                value="{{ sale.fresh_weight_sold_g if editing and sale.fresh_weight_sold_g else '' }}">
       </div>
+
       <div class="fg">
         <label>Dried Weight Sold (g)</label>
         <input type="number" name="dried_weight_sold_g" step="0.1" placeholder="e.g. 50"
                value="{{ sale.dried_weight_sold_g if editing and sale.dried_weight_sold_g else '' }}">
         <span class="form-hint">Fresh-to-dry conversion ~8–12:1 for most species</span>
       </div>
+
       <div class="fg">
         <label>Price per lb (USD)</label>
         <input type="number" name="price_per_lb" step="0.01" placeholder="e.g. 12.00"
@@ -78,10 +99,12 @@
                value="{{ '%.2f'|format(sale.price_per_lb) if editing and sale.price_per_lb else '' }}">
         <span class="form-hint">Typical retail: $8–20/lb fresh oysters</span>
       </div>
+
       <div class="fg">
         <label>Estimated Revenue</label>
         <div id="rev_preview" style="padding:9px 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);font-size:14px;font-weight:600;color:var(--green)">—</div>
       </div>
+
       <div class="fg full">
         <label>Notes (optional)</label>
         <textarea name="notes" placeholder="Market location, quality feedback, special requests...">{{ sale.notes if editing and sale.notes else '' }}</textarea>
@@ -95,6 +118,26 @@
 </div>
 
 <script>
+const batchSpeciesMap = {{ batch_species_map | safe }};
+
+function onBatchChange() {
+  const batchSel = document.getElementById('batchSelect');
+  const speciesSel = document.getElementById('speciesSelect');
+  const bid = batchSel.value;
+  if (bid && batchSpeciesMap[bid]) {
+    const sp = batchSpeciesMap[bid];
+    for (let i = 0; i < speciesSel.options.length; i++) {
+      if (speciesSel.options[i].value === sp) {
+        speciesSel.selectedIndex = i;
+        break;
+      }
+    }
+  }
+  // Reset flush dropdown when batch changes
+  document.getElementById('flushSelect').innerHTML =
+    '<option value="">— all / not flush-specific —</option>';
+}
+
 function updateRevenue() {
   const fw = parseFloat(document.getElementById('fresh_wt').value);
   const price = parseFloat(document.getElementById('price_lb').value);
@@ -106,11 +149,6 @@ function updateRevenue() {
     el.textContent = '—';
   }
 }
-function loadFlushes() {
-  const sel = document.getElementById('flushSelect');
-  sel.innerHTML = '<option value="">— select batch first, then reload —</option>';
-}
-// Trigger on load to show revenue for edit mode
 updateRevenue();
 </script>
 {% endblock %}

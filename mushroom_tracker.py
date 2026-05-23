@@ -370,10 +370,12 @@ def init_db():
         if col not in existing:
             c.execute(f"ALTER TABLE environment_logs ADD COLUMN {col} {typedef}")
 
-    # Non-destructive column addition for sales — customer field
+    # Non-destructive column additions for sales
     existing_s = {r[1] for r in c.execute("PRAGMA table_info(sales)")}
     if "customer" not in existing_s:
         c.execute("ALTER TABLE sales ADD COLUMN customer TEXT")
+    if "species" not in existing_s:
+        c.execute("ALTER TABLE sales ADD COLUMN species TEXT")
 
     # Non-destructive column additions for chambers
     existing_c = {r[1] for r in c.execute("PRAGMA table_info(chambers)")}

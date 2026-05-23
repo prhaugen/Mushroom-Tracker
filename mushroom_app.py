@@ -1098,16 +1098,50 @@ def sales_list():
     init_db()
     conn = get_db()
     rows = conn.execute("""
-        SELECT s.*, b.label, b.species, f.flush_number
+        SELECT s.*, b.label, f.flush_number,
+               COALESCE(s.species, b.species) AS display_species
         FROM sales s
-        JOIN batches b ON s.batch_id=b.id
+        LEFT JOIN batches b ON s.batch_id=b.id
         LEFT JOIN flushes f ON s.flush_id=f.id
         ORDER BY s.sale_date DESC
     """).fetchall()
     total_revenue = sum((r['price_per_lb'] or 0) * (r['fresh_weight_sold_g'] or 0) / 453.592
                         for r in rows)
+
+    # Per-species summary: last 30 days harvested vs sold
+    cutoff = str(date.today() - timedelta(days=30))
+    harvested = conn.execute("""
+        SELECT b.species, SUM(f.fresh_weight_g) AS total_g
+        FROM flushes f JOIN batches b ON f.batch_id=b.id
+        WHERE f.harvest_date >= ?
+        GROUP BY b.species
+    """, (cutoff,)).fetchall()
+    sold = conn.execute("""
+        SELECT COALESCE(s.species, b.species) AS species,
+               SUM(s.fresh_weight_sold_g) AS total_g
+        FROM sales s LEFT JOIN batches b ON s.batch_id=b.id
+        WHERE s.sale_date >= ?
+          AND COALESCE(s.species, b.species) IS NOT NULL
+        GROUP BY COALESCE(s.species, b.species)
+    """, (cutoff,)).fetchall()
+
+    sold_map = {r['species']: r['total_g'] or 0 for r in sold}
+    species_summary = []
+    for r in harvested:
+        sp = r['species']
+        harv = r['total_g'] or 0
+        sol = sold_map.get(sp, 0)
+        species_summary.append({
+            'species': sp,
+            'harvested_g': harv,
+            'sold_g': sol,
+            'on_hand_g': max(harv - sol, 0),
+        })
+    species_summary.sort(key=lambda x: x['on_hand_g'], reverse=True)
+
     conn.close()
-    return render_template('sales_list.html', sales=rows, total_revenue=total_revenue)
+    return render_template('sales_list.html', sales=rows, total_revenue=total_revenue,
+                           species_summary=species_summary)
 
 
 @app.route('/sales/add', methods=['GET','POST'])
@@ -1121,16 +1155,18 @@ def sales_add(batch_id=None):
     if batch_id:
         flushes_for_batch = conn.execute(
             "SELECT * FROM flushes WHERE batch_id=? ORDER BY flush_number", (batch_id,)).fetchall()
+    batch_species_map = {str(b['id']): b['species'] for b in all_batches}
 
     if request.method == 'POST':
         f = request.form
-        bid = int(f['batch_id'])
+        bid = int(f['batch_id']) if f.get('batch_id') else None
+        species = f.get('species') or None
         fresh_g = float(f['fresh_weight_sold_g']) if f.get('fresh_weight_sold_g') else None
         dried_g = float(f['dried_weight_sold_g']) if f.get('dried_weight_sold_g') else None
         conn.execute("""INSERT INTO sales
             (batch_id,flush_id,sale_date,destination,customer,
-             fresh_weight_sold_g,dried_weight_sold_g,price_per_lb,notes)
-            VALUES(?,?,?,?,?,?,?,?,?)""",
+             fresh_weight_sold_g,dried_weight_sold_g,price_per_lb,notes,species)
+            VALUES(?,?,?,?,?,?,?,?,?,?)""",
             (bid,
              int(f['flush_id']) if f.get('flush_id') else None,
              f.get('sale_date') or str(date.today()),
@@ -1138,7 +1174,8 @@ def sales_add(batch_id=None):
              f.get('customer') or None,
              fresh_g, dried_g,
              float(f['price_per_lb']) if f.get('price_per_lb') else None,
-             f.get('notes') or None))
+             f.get('notes') or None,
+             species))
         conn.commit(); conn.close()
         flash('Sale recorded.', 'success')
         return redirect(url_for('sales_list'))
@@ -1147,7 +1184,8 @@ def sales_add(batch_id=None):
     return render_template('sales_form.html',
         all_batches=all_batches, selected_batch=selected_batch,
         flushes_for_batch=flushes_for_batch, sale=None,
-        today=str(date.today()))
+        today=str(date.today()),
+        batch_species_map=json.dumps(batch_species_map))
 
 
 # ── Environment ───────────────────────────────────────────────────────────────
@@ -1741,15 +1779,17 @@ def sale_edit(sale_id):
     flushes_for_batch = conn.execute(
         "SELECT * FROM flushes WHERE batch_id=? ORDER BY flush_number",
         (sale['batch_id'],)).fetchall()
+    batch_species_map = {str(b['id']): b['species'] for b in all_batches}
     if request.method == 'POST':
         f = request.form
+        bid = int(f['batch_id']) if f.get('batch_id') else None
         conn.execute("""UPDATE sales SET
             batch_id=?,flush_id=?,sale_date=?,
             destination=?,customer=?,
             fresh_weight_sold_g=?,dried_weight_sold_g=?,
-            price_per_lb=?,notes=?
+            price_per_lb=?,notes=?,species=?
             WHERE id=?""",
-            (int(f['batch_id']),
+            (bid,
              int(f['flush_id']) if f.get('flush_id') else None,
              f.get('sale_date') or str(date.today()),
              f.get('destination') or None,
@@ -1757,7 +1797,9 @@ def sale_edit(sale_id):
              float(f['fresh_weight_sold_g']) if f.get('fresh_weight_sold_g') else None,
              float(f['dried_weight_sold_g']) if f.get('dried_weight_sold_g') else None,
              float(f['price_per_lb']) if f.get('price_per_lb') else None,
-             f.get('notes') or None, sale_id))
+             f.get('notes') or None,
+             f.get('species') or None,
+             sale_id))
         conn.commit(); conn.close()
         flash('Sale updated.', 'success')
         return redirect(url_for('sales_list'))
@@ -1765,7 +1807,8 @@ def sale_edit(sale_id):
     return render_template('sales_form.html',
         all_batches=all_batches, selected_batch=None,
         flushes_for_batch=flushes_for_batch, sale=sale,
-        today=str(date.today()))
+        today=str(date.today()),
+        batch_species_map=json.dumps(batch_species_map))
 
 
 @app.route('/sales/<int:sale_id>/delete', methods=['POST'])
