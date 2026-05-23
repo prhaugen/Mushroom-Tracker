@@ -264,6 +264,21 @@ def _get_all_flushes_per_batch(conn, batch_ids: list) -> dict:
     return result
 
 
+def _get_recent_retired_flushes(conn, days: int = 30) -> list:
+    """Flushes from done/contaminated/aborted batches harvested in the last N days."""
+    cutoff = str(date.today() - timedelta(days=days))
+    rows = conn.execute("""
+        SELECT f.*, b.label, b.species, b.status AS batch_status,
+               b.dry_weight_g, b.contamination_type
+        FROM flushes f
+        JOIN batches b ON f.batch_id = b.id
+        WHERE b.status IN ('done', 'contaminated', 'aborted')
+          AND f.harvest_date >= ?
+        ORDER BY f.harvest_date DESC
+    """, (cutoff,)).fetchall()
+    return [dict(r) for r in rows]
+
+
 def _get_env_summary(conn, batch_info_map: dict):
     """
     batch_info_map: {batch_id: {'chamber_id': int, 'status': str, 'species': str}}
@@ -571,8 +586,9 @@ def get_snapshot(conn) -> dict:
         for b in active_batches
     }
 
-    latest_flushes  = _get_latest_flush_per_batch(conn, batch_ids)
-    all_flushes     = _get_all_flushes_per_batch(conn, batch_ids)
+    latest_flushes        = _get_latest_flush_per_batch(conn, batch_ids)
+    all_flushes           = _get_all_flushes_per_batch(conn, batch_ids)
+    recent_retired_flushes = _get_recent_retired_flushes(conn)
     env_summaries, env_flags = _get_env_summary(conn, batch_info_map)
     contamination   = _get_contamination_summary(conn)
     historical      = _get_historical_averages(conn)
@@ -593,11 +609,12 @@ def get_snapshot(conn) -> dict:
     roadmap_status = _get_roadmap_status(conn)
 
     snapshot = {
-        'snapshot_date':         str(date.today()),
-        'active_batches':        active_batches,
-        'env_flags':             env_flags,
-        'contamination_recent':  contamination,
-        'historical_averages':   historical,
+        'snapshot_date':                str(date.today()),
+        'active_batches':               active_batches,
+        'recent_retired_flushes':       recent_retired_flushes,
+        'env_flags':                    env_flags,
+        'contamination_recent':         contamination,
+        'historical_averages':          historical,
         'goals_and_thresholds': {
             'species_timelines':    SPECIES_TIMELINES,
             'default_timeline':     DEFAULT_TIMELINE,
