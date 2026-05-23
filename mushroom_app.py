@@ -1146,7 +1146,8 @@ def sales_add(batch_id=None):
     conn.close()
     return render_template('sales_form.html',
         all_batches=all_batches, selected_batch=selected_batch,
-        flushes_for_batch=flushes_for_batch)
+        flushes_for_batch=flushes_for_batch, sale=None,
+        today=str(date.today()))
 
 
 # ── Environment ───────────────────────────────────────────────────────────────
@@ -1763,7 +1764,8 @@ def sale_edit(sale_id):
     conn.close()
     return render_template('sales_form.html',
         all_batches=all_batches, selected_batch=None,
-        flushes_for_batch=flushes_for_batch, sale=sale)
+        flushes_for_batch=flushes_for_batch, sale=sale,
+        today=str(date.today()))
 
 
 @app.route('/sales/<int:sale_id>/delete', methods=['POST'])
