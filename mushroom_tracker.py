@@ -412,6 +412,14 @@ def init_db():
             c.execute("INSERT INTO batch_notes (batch_id, body, created_at) VALUES (?, ?, ?)",
                       (row[0], row[1], row[2]))
 
+    # Performance indexes — CREATE INDEX IF NOT EXISTS is a no-op when already present
+    c.execute("""CREATE INDEX IF NOT EXISTS idx_env_logs_chamber_time
+                 ON environment_logs(chamber_id, logged_at)""")
+    c.execute("""CREATE INDEX IF NOT EXISTS idx_env_logs_batch
+                 ON environment_logs(batch_id)""")
+    c.execute("""CREATE INDEX IF NOT EXISTS idx_flushes_harvest_date
+                 ON flushes(harvest_date)""")
+
     # Seed roadmap milestones on first run
     if c.execute("SELECT COUNT(*) FROM roadmap_milestones").fetchone()[0] == 0:
         _seed_roadmap(c)

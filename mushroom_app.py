@@ -2293,5 +2293,6 @@ def ask():
 
 if __name__ == '__main__':
     init_db()
+    from waitress import serve
     print("\n  Mushroom Tracker v2 running at http://localhost:5000\n")
-    app.run(host='0.0.0.0', port=5000)
+    serve(app, host='0.0.0.0', port=5000, threads=8)
