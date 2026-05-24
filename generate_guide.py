@@ -505,7 +505,7 @@ def build():
         p("Python 3.9 or later is required. Install the dependencies with:"),
         sp(4),
         code_block([
-            "python -m pip install flask rich",
+            "python -m pip install flask rich waitress",
             "",
             "# For the AI Daily Briefing agent:",
             "python -m pip install anthropic apscheduler",
@@ -515,6 +515,7 @@ def build():
         ]),
         sp(6),
         p("<b>flask</b> powers the web app. <b>rich</b> powers the CLI terminal output. "
+          "<b>waitress</b> is the production WSGI server that handles concurrent requests. "
           "<b>anthropic</b> is the Python SDK for the Claude API used by the AI briefing agent. "
           "<b>apscheduler</b> runs the 06:00 daily briefing schedule. "
           "The database engine (sqlite3) is part of Python's standard library and requires "
@@ -529,6 +530,9 @@ def build():
         code_block(["python mushroom_app.py"]),
         sp(4),
         p("Then open your browser to <b>http://localhost:5000</b>. "
+          "The app is served by <b>Waitress</b>, a multi-threaded WSGI server, "
+          "so concurrent requests (multiple browser tabs, background briefing fetches) "
+          "are handled without queuing. "
           "The server runs locally and is only accessible on your machine. "
           "Keep the terminal window open while using the app."),
         sp(4),
