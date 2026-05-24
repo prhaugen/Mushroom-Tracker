@@ -953,6 +953,12 @@ def build():
                 ["Colonization Chamber",      "No",
                  "The chamber where this batch colonized, if different from the fruiting chamber. "
                  "Only shown when more than one chamber is configured."],
+                ["Shelf",                     "No",
+                 "The shelf number where this block is placed — 1 = bottom, higher numbers = higher shelves. "
+                 "Free integer; enter any number that matches your physical shelf labels. "
+                 "When set, the environment charts on the Batch Detail page filter sensor readings to "
+                 "rows logged from the same shelf number (or rows with no shelf set), "
+                 "so a top-shelf sensor does not distort data for a bottom-shelf block."],
                 ["Target Temp (F)",           "No",
                  "Ideal fruiting temp for this species. "
                  "Auto-filled from species defaults when you select a species — "
@@ -1250,7 +1256,11 @@ def build():
             "When a CO₂ sensor and a temp/humidity sensor share the same import timestamps, "
             "re-importing the CO₂ CSV backfills CO₂ values into the existing ambient rows "
             "rather than creating duplicates, so importing both sensors in either order "
-            "produces a complete dataset.",
+            "produces a complete dataset. "
+            "<b>Shelf filtering:</b> if the batch has a shelf number set, the chart only "
+            "includes environment readings from that shelf number — plus any readings that "
+            "have no shelf assigned — so sensors on different shelves do not interfere "
+            "with each other's data.",
             label="Note:", color=BLUE_BG, border=BLUE_BORDER
         ),
         sp(12),
@@ -1529,6 +1539,11 @@ def build():
                 ["Linked Batch",       "No",
                  "Optionally associate this reading with a specific batch "
                  "rather than the whole chamber."],
+                ["Shelf",              "No",
+                 "The sensor's physical position — 1 = bottom shelf. "
+                 "Record this when you have multiple sensors at different heights in the same chamber. "
+                 "Shelf-tagged readings are filtered on the Batch Detail charts "
+                 "so each block's chart shows only the sensor nearest to it."],
                 ["Temperature (F)",    "Yes", "Use a digital probe thermometer placed inside the chamber."],
                 ["Humidity (% RH)",    "Yes",
                  "Use a digital hygrometer. Analog gauges are often inaccurate."],
@@ -1625,7 +1640,9 @@ def build():
         h2("11.2  All Readings Table"),
         p("Below the chart, the <b>All Readings</b> panel lists every stored environment reading "
           "in reverse-chronological order. The table is collapsible and paginated so it stays "
-          "manageable as your reading count grows."),
+          "manageable as your reading count grows. "
+          "A <b>Shelf</b> column shows the sensor position for each reading — "
+          "blank when no shelf was recorded."),
         sp(6),
         data_table(
             ["Control", "Behavior"],
@@ -1668,6 +1685,11 @@ def build():
                  "Readings can be linked to a specific chamber or stored as <b>Ambient</b> "
                  "(no chamber) for standalone sensors. Ambient is the default -- "
                  "select a chamber only if the sensor lives inside one."],
+                ["Shelf",
+                 "Optionally tag all imported rows with a shelf number (1 = bottom). "
+                 "Use this when each sensor is dedicated to a specific shelf in the chamber. "
+                 "Imported rows carry the same shelf number throughout the file -- "
+                 "import each sensor's CSV separately and assign the correct shelf to each."],
                 ["CO2 support",
                  "If the export contains a CO2 or Carbon column it is captured automatically "
                  "and stored in co2_ppm. Exports without a CO2 column (H5179) still import cleanly."],

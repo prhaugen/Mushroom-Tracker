@@ -99,6 +99,7 @@
             <th>Temp (F)</th>
             <th>Humidity (%)</th>
             <th>CO2 (ppm)</th>
+            <th>Shelf</th>
             <th>Batch</th>
             <th>Notes</th>
             <th></th>
@@ -117,6 +118,7 @@
               {{ "%.1f"|format(log.humidity_rh) }}
             </td>
             <td class="td-muted">{{ log.co2_ppm|int if log.co2_ppm else '—' }}</td>
+            <td class="td-muted">{{ log.shelf if log.shelf else '—' }}</td>
             <td class="td-muted">{{ log.batch_label or '—' }}</td>
             <td class="td-muted">{{ log.notes or '' }}</td>
             <td style="white-space:nowrap">

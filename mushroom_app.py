@@ -379,8 +379,8 @@ def batch_add():
              steril_method,steril_temp_f,steril_duration_min,
              inoculation_date,spawn_type,spawn_strain,spawn_rate_pct,spawn_source,spawn_lot,
              colonization_start_date,fruiting_start_date,sourced_block,status,notes,
-             substrate_batch_id)
-            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+             substrate_batch_id,shelf)
+            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (fruiting_chamber_id,
              int(f['colonization_chamber_id']) if f.get('colonization_chamber_id') else None,
              f['label'], species, f.get('strain') or None,
@@ -402,7 +402,8 @@ def batch_add():
              f.get('fruiting_start_date') or None,
              1 if f.get('sourced_block') else 0,
              f.get('status','colonizing'), f.get('notes') or None,
-             int(f['substrate_batch_id']) if f.get('substrate_batch_id') else None))
+             int(f['substrate_batch_id']) if f.get('substrate_batch_id') else None,
+             int(f['shelf']) if f.get('shelf') else None))
         conn.commit(); conn.close()
         flash(f"Batch '{f['label']}' added.", 'success')
         return redirect(url_for('batches'))
@@ -477,12 +478,22 @@ def batch_detail(batch_id):
     ts1 = ce_dt.strftime('%Y-%m-%d %H:%M:%S')
     # Temp + humidity: prefer chamber-linked rows, fall back to ambient
     if batch['chamber_id']:
-        ch_rows = conn.execute("""
-            SELECT logged_at, temp_f, humidity_rh
-            FROM environment_logs
-            WHERE chamber_id = ? AND logged_at >= ? AND logged_at <= ?
-            ORDER BY logged_at ASC
-        """, (batch['chamber_id'], ts0, ts1)).fetchall()
+        batch_shelf = batch['shelf'] if batch['shelf'] else None
+        if batch_shelf:
+            ch_rows = conn.execute("""
+                SELECT logged_at, temp_f, humidity_rh
+                FROM environment_logs
+                WHERE chamber_id = ? AND logged_at >= ? AND logged_at <= ?
+                  AND (shelf = ? OR shelf IS NULL)
+                ORDER BY logged_at ASC
+            """, (batch['chamber_id'], ts0, ts1, batch_shelf)).fetchall()
+        else:
+            ch_rows = conn.execute("""
+                SELECT logged_at, temp_f, humidity_rh
+                FROM environment_logs
+                WHERE chamber_id = ? AND logged_at >= ? AND logged_at <= ?
+                ORDER BY logged_at ASC
+            """, (batch['chamber_id'], ts0, ts1)).fetchall()
     else:
         ch_rows = []
     if not ch_rows:
@@ -1203,8 +1214,8 @@ def env_log():
         f = request.form
         conn.execute("""INSERT INTO environment_logs
             (chamber_id,batch_id,phase,temp_f,humidity_rh,co2_ppm,
-             fae_fan_cycles_day,light_hours,misting_count,notes)
-            VALUES(?,?,?,?,?,?,?,?,?,?)""",
+             fae_fan_cycles_day,light_hours,misting_count,notes,shelf)
+            VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
             (chamber['id'],
              int(f['batch_id']) if f.get('batch_id') else None,
              f.get('phase','fruiting'),
@@ -1213,7 +1224,8 @@ def env_log():
              int(f['fae_fan_cycles_day']) if f.get('fae_fan_cycles_day') else None,
              float(f['light_hours']) if f.get('light_hours') else None,
              int(f['misting_count']) if f.get('misting_count') else None,
-             f.get('notes') or None))
+             f.get('notes') or None,
+             int(f['shelf']) if f.get('shelf') else None))
         conn.commit(); conn.close()
         flash('Environment reading saved.', 'success')
         return redirect(url_for('dashboard'))
@@ -1626,7 +1638,7 @@ def batch_edit(batch_id):
             steril_method=?,steril_temp_f=?,steril_duration_min=?,
             inoculation_date=?,spawn_type=?,spawn_strain=?,spawn_rate_pct=?,
             spawn_source=?,spawn_lot=?,fruiting_start_date=?,sourced_block=?,notes=?,
-            substrate_batch_id=?
+            substrate_batch_id=?,shelf=?
             WHERE id=?""",
             (edit_chamber_id,
              f['label'], species, f.get('strain') or None,
@@ -1649,6 +1661,7 @@ def batch_edit(batch_id):
              1 if f.get('sourced_block') else 0,
              f.get('notes') or None,
              int(f['substrate_batch_id']) if f.get('substrate_batch_id') else None,
+             int(f['shelf']) if f.get('shelf') else None,
              batch_id))
         conn.commit(); conn.close()
         flash(f"Batch '{f['label']}' updated.", 'success')
@@ -1741,7 +1754,7 @@ def env_edit(log_id):
         f = request.form
         conn.execute("""UPDATE environment_logs SET
             batch_id=?,phase=?,temp_f=?,humidity_rh=?,co2_ppm=?,
-            fae_fan_cycles_day=?,light_hours=?,misting_count=?,notes=?
+            fae_fan_cycles_day=?,light_hours=?,misting_count=?,notes=?,shelf=?
             WHERE id=?""",
             (int(f['batch_id']) if f.get('batch_id') else None,
              f.get('phase','fruiting'),
@@ -1750,7 +1763,9 @@ def env_edit(log_id):
              int(f['fae_fan_cycles_day']) if f.get('fae_fan_cycles_day') else None,
              float(f['light_hours']) if f.get('light_hours') else None,
              int(f['misting_count']) if f.get('misting_count') else None,
-             f.get('notes') or None, log_id))
+             f.get('notes') or None,
+             int(f['shelf']) if f.get('shelf') else None,
+             log_id))
         conn.commit(); conn.close()
         flash('Environment reading updated.', 'success')
         return redirect(url_for('env_history'))
@@ -1900,7 +1915,7 @@ if not app.debug or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
 
 # ── Govee CSV Import ──────────────────────────────────────────────────────────
 
-def _parse_govee_csv(conn, content, chamber_id):
+def _parse_govee_csv(conn, content, chamber_id, shelf=None):
     """Parse a Govee H5179 CSV export and insert new rows. Returns (inserted, skipped)."""
     reader = csv.reader(io.StringIO(content))
     ts_col = temp_col = hum_col = co2_col = None
@@ -2002,9 +2017,9 @@ def _parse_govee_csv(conn, content, chamber_id):
                 pass
 
         conn.execute(
-            "INSERT INTO environment_logs (chamber_id, logged_at, phase, temp_f, humidity_rh, co2_ppm) "
-            "VALUES (?, ?, 'fruiting', ?, ?, ?)",
-            (chamber_id, ts_str, temp_val, hum_val, co2_val)
+            "INSERT INTO environment_logs (chamber_id, logged_at, phase, temp_f, humidity_rh, co2_ppm, shelf) "
+            "VALUES (?, ?, 'fruiting', ?, ?, ?, ?)",
+            (chamber_id, ts_str, temp_val, hum_val, co2_val, shelf)
         )
         existing.add(ts_str)
         inserted += 1
@@ -2022,6 +2037,8 @@ def env_import():
     if request.method == 'POST':
         raw_id     = request.form.get('chamber_id')
         chamber_id = int(raw_id) if raw_id else None
+        raw_shelf  = request.form.get('shelf')
+        shelf      = int(raw_shelf) if raw_shelf else None
         f = request.files.get('csv_file')
         if not f or not f.filename:
             flash('No file selected.', 'error')
@@ -2032,7 +2049,7 @@ def env_import():
         try:
             content  = f.stream.read().decode('utf-8-sig')
             conn     = get_db()
-            inserted, updated, skipped = _parse_govee_csv(conn, content, chamber_id)
+            inserted, updated, skipped = _parse_govee_csv(conn, content, chamber_id, shelf=shelf)
             conn.commit()
             conn.close()
             parts = []

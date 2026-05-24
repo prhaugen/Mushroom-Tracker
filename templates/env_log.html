@@ -42,6 +42,12 @@
           </select>
         </div>
         <div class="fg">
+          <label>Shelf (optional)</label>
+          <input type="number" name="shelf" step="1" min="1" placeholder="e.g. 1"
+                 value="{{ log.shelf if editing and log.shelf else '' }}">
+          <span class="form-hint">Sensor position — 1 = bottom shelf</span>
+        </div>
+        <div class="fg">
           <label>Temperature (F) *</label>
           <input type="number" name="temp_f" id="temp_f" step="0.1"
                  placeholder="{{ chamber.target_temp_f }}" required oninput="updateFeedback()"

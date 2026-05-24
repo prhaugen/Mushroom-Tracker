@@ -366,6 +366,7 @@ def init_db():
         "fae_fan_cycles_day": "INTEGER",
         "light_hours": "REAL",
         "misting_count": "INTEGER",
+        "shelf": "INTEGER",
     }.items():
         if col not in existing:
             c.execute(f"ALTER TABLE environment_logs ADD COLUMN {col} {typedef}")
@@ -394,6 +395,7 @@ def init_db():
         "sourced_block": "INTEGER DEFAULT 0",
         "block_end_date": "TEXT",
         "substrate_batch_id": "INTEGER REFERENCES substrate_batches(id)",
+        "shelf": "INTEGER",
     }.items():
         if col not in existing_b:
             c.execute(f"ALTER TABLE batches ADD COLUMN {col} {typedef}")

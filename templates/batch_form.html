@@ -122,6 +122,13 @@
         <input type="hidden" name="chamber_id" value="{{ chamber.id }}">
         {% endif %}
 
+        <div class="fg">
+          <label>Shelf (optional)</label>
+          <input type="number" name="shelf" step="1" min="1" placeholder="e.g. 2"
+                 value="{{ batch.shelf if editing and batch.shelf else '' }}">
+          <span class="form-hint">Block placement — 1 = bottom shelf. Used to filter environment charts by sensor position.</span>
+        </div>
+
         <!-- Chamber fit recommendation card (filled by JS after species selection) -->
         <div id="chamber-rec-wrap" style="display:none;grid-column:1/-1">
           <div style="border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;background:var(--card-bg)">
