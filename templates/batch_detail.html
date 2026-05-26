@@ -193,6 +193,11 @@
       {% if batch.spawn_lot %}
       <div><div class="detail-lbl">Spawn Lot</div><div class="detail-val" style="font-family:monospace;font-size:12px">{{ batch.spawn_lot }}</div></div>
       {% endif %}
+      {% if batch.cut_type %}
+      <div><div class="detail-lbl">Cut Type</div><div class="detail-val">{{ batch.cut_type | replace('_',' ') | title }}{% if batch.num_cuts %} &nbsp;·&nbsp; {{ batch.num_cuts }} cut{{ 's' if batch.num_cuts != 1 }}</div>{% else %}</div>{% endif %}</div>
+      {% elif batch.num_cuts %}
+      <div><div class="detail-lbl">Cuts</div><div class="detail-val">{{ batch.num_cuts }}</div></div>
+      {% endif %}
     </div>
     {% if batch.substrate_other %}
     <div class="mt-12"><div class="detail-lbl">Other</div><div class="detail-val" style="font-weight:400;color:var(--text-muted)">{{ batch.substrate_other }}</div></div>

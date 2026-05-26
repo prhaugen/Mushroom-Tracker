@@ -39,6 +39,7 @@ LIFECYCLE   = ["colonizing","colonized","pinning","fruiting","resting"]
 SPAWN_TYPES = ["grain","sawdust","plug","liquid_culture","agar","other"]
 STERIL_METHODS = ["pressure_cooker","autoclave","pasteurization","lime_treat","cold_water","none"]
 DESTINATIONS   = ["farmers_market","restaurant","personal","wholesale","csa","other"]
+CUT_TYPES      = ["top","large_x","small_x","u","horizontal"]
 SPECIES = [
     "Blue Oyster",
     "Pearl Oyster",
@@ -396,6 +397,8 @@ def init_db():
         "block_end_date": "TEXT",
         "substrate_batch_id": "INTEGER REFERENCES substrate_batches(id)",
         "shelf": "INTEGER",
+        "cut_type": "TEXT",
+        "num_cuts": "INTEGER",
     }.items():
         if col not in existing_b:
             c.execute(f"ALTER TABLE batches ADD COLUMN {col} {typedef}")

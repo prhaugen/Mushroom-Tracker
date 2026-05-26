@@ -344,9 +344,34 @@
       </div>
     </div>
 
-    <!-- Section 5: Notes -->
+    <!-- Section 5: Fruiting Setup -->
     <div class="form-section">
-      <div class="section-label">5 — Notes</div>
+      <div class="section-label">5 — Fruiting Setup</div>
+      <div class="fg-grid">
+        <div class="fg">
+          <label>Cut Type</label>
+          <select name="cut_type">
+            <option value="">— select —</option>
+            {% for ct in CUT_TYPES %}
+            <option value="{{ ct }}" {{ 'selected' if editing and batch.cut_type == ct }}>
+              {{ ct | replace('_',' ') | title }}
+            </option>
+            {% endfor %}
+          </select>
+          <span class="form-hint">How the block was opened for fruiting</span>
+        </div>
+        <div class="fg">
+          <label>Number of Cuts</label>
+          <input type="number" name="num_cuts" step="1" min="1" placeholder="e.g. 1"
+                 value="{{ batch.num_cuts if editing and batch.num_cuts else '' }}">
+          <span class="form-hint">Total cuts made on the block</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 6: Notes -->
+    <div class="form-section">
+      <div class="section-label">6 — Notes</div>
       <div class="fg">
         <label>Notes</label>
         <textarea name="notes" placeholder="Anything else worth tracking — bag weight, prep observations, unusual materials...">{{ batch.notes if editing and batch.notes else '' }}</textarea>

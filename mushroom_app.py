@@ -15,7 +15,7 @@ from roadmap_gates import evaluate_gates
 from agent_config import SPECIES_TIMELINES
 from mushroom_tracker import (init_db, bio_efficiency,
                                STATUSES, LIFECYCLE, SPAWN_TYPES,
-                               STERIL_METHODS, DESTINATIONS, CHAMBER_TYPES,
+                               STERIL_METHODS, DESTINATIONS, CHAMBER_TYPES, CUT_TYPES,
                                SPECIES, next_batch_label, get_all_species,
                                get_substrate_other_options, get_spawn_source_options)
 
@@ -379,8 +379,8 @@ def batch_add():
              steril_method,steril_temp_f,steril_duration_min,
              inoculation_date,spawn_type,spawn_strain,spawn_rate_pct,spawn_source,spawn_lot,
              colonization_start_date,fruiting_start_date,sourced_block,status,notes,
-             substrate_batch_id,shelf)
-            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+             substrate_batch_id,shelf,cut_type,num_cuts)
+            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (fruiting_chamber_id,
              int(f['colonization_chamber_id']) if f.get('colonization_chamber_id') else None,
              f['label'], species, f.get('strain') or None,
@@ -403,14 +403,17 @@ def batch_add():
              1 if f.get('sourced_block') else 0,
              f.get('status','colonizing'), f.get('notes') or None,
              int(f['substrate_batch_id']) if f.get('substrate_batch_id') else None,
-             int(f['shelf']) if f.get('shelf') else None))
+             int(f['shelf']) if f.get('shelf') else None,
+             f.get('cut_type') or None,
+             int(f['num_cuts']) if f.get('num_cuts') else None))
         conn.commit(); conn.close()
         flash(f"Batch '{f['label']}' added.", 'success')
         return redirect(url_for('batches'))
 
     return render_template('batch_form.html', chamber=chamber, batch=None, all_chambers=all_chambers,
                            all_substrate_batches=all_substrate_batches,
-                           species_defaults=json.dumps(_SPECIES_DEFAULTS))
+                           species_defaults=json.dumps(_SPECIES_DEFAULTS),
+                           CUT_TYPES=CUT_TYPES)
 
 
 @app.route('/batch/<int:batch_id>')
@@ -1642,7 +1645,7 @@ def batch_edit(batch_id):
             steril_method=?,steril_temp_f=?,steril_duration_min=?,
             inoculation_date=?,spawn_type=?,spawn_strain=?,spawn_rate_pct=?,
             spawn_source=?,spawn_lot=?,fruiting_start_date=?,sourced_block=?,notes=?,
-            substrate_batch_id=?,shelf=?
+            substrate_batch_id=?,shelf=?,cut_type=?,num_cuts=?
             WHERE id=?""",
             (edit_chamber_id,
              f['label'], species, f.get('strain') or None,
@@ -1666,6 +1669,8 @@ def batch_edit(batch_id):
              f.get('notes') or None,
              int(f['substrate_batch_id']) if f.get('substrate_batch_id') else None,
              int(f['shelf']) if f.get('shelf') else None,
+             f.get('cut_type') or None,
+             int(f['num_cuts']) if f.get('num_cuts') else None,
              batch_id))
         conn.commit(); conn.close()
         flash(f"Batch '{f['label']}' updated.", 'success')
@@ -1673,7 +1678,8 @@ def batch_edit(batch_id):
     conn.close()
     return render_template('batch_form.html', chamber=chamber, batch=batch, all_chambers=all_chambers,
                            all_substrate_batches=all_substrate_batches,
-                           species_defaults=json.dumps(_SPECIES_DEFAULTS))
+                           species_defaults=json.dumps(_SPECIES_DEFAULTS),
+                           CUT_TYPES=CUT_TYPES)
 
 
 @app.route('/batch/<int:batch_id>/delete', methods=['POST'])
