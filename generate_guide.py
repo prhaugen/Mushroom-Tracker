@@ -388,9 +388,10 @@ def build():
         ("6.2",  "Substrate Composition",                       "8"),
         ("6.3",  "Sterilization Details",                       "8"),
         ("6.4",  "Spawn Details",                               "8"),
-        ("6.5",  "Batch Lifecycle",                             "9"),
-        ("6.6",  "Updating Batch Status",                       "9"),
-        ("6.7",  "Batch Detail Page",                           "10"),
+        ("6.5",  "Fruiting Setup",                              "9"),
+        ("6.6",  "Batch Lifecycle",                             "9"),
+        ("6.7",  "Updating Batch Status",                       "10"),
+        ("6.8",  "Batch Detail Page",                           "10"),
         ("7",    "Logging Flushes",                             "11"),
         ("8",    "Sales Tracking",                              "11"),
         ("9",    "Logging Environment Readings",                "12"),
@@ -1110,10 +1111,35 @@ def build():
         ),
     ]
 
+    story += [
+        sp(10),
+        h2("6.5  Fruiting Setup"),
+        p("Record how the block was opened for fruiting. "
+          "These fields help correlate cutting technique with pin site distribution, "
+          "yield, and contamination risk across batches."),
+        sp(6),
+        data_table(
+            ["Field", "Required", "Notes"],
+            [
+                ["Cut Type", "No",
+                 "How the block was opened. Options: "
+                 "<b>Top</b> — opening cut across the top of the bag; "
+                 "<b>Large X</b> — full-width X cut on a side face; "
+                 "<b>Small X</b> — smaller X cut, typically 2-3 inches; "
+                 "<b>U</b> — U-shaped flap cut; "
+                 "<b>Horizontal</b> — straight horizontal slit across a face."],
+                ["Number of Cuts", "No",
+                 "Total number of cuts made on the block. "
+                 "Record this to compare single-site vs. multi-site pinning outcomes."],
+            ],
+            col_widths=[3.5*cm, 2*cm, 10.7*cm],
+        ),
+    ]
+
     story.append(PageBreak())
 
     story += [
-        h2("6.5  Batch Lifecycle"),
+        h2("6.6  Batch Lifecycle"),
         p("Each batch moves through a defined lifecycle. "
           "The Batch Detail page shows a visual timeline with the current stage highlighted."),
         sp(8),
@@ -1145,7 +1171,7 @@ def build():
 
     story += [
         sp(10),
-        h2("6.6  Updating Batch Status"),
+        h2("6.7  Updating Batch Status"),
         p("Open the Batch Detail page and use the <b>Update Status</b> section. "
           "Select the new status and optionally add notes."),
         sp(6),
@@ -1200,7 +1226,7 @@ def build():
     # 6.7 BATCH DETAIL PAGE
     # ══════════════════════════════════════════════════════════════════════
     story += [
-        h2("6.7  Batch Detail Page"),
+        h2("6.8  Batch Detail Page"),
         p("The Batch Detail page is the main view for a single batch. "
           "It shows the lifecycle timeline, substrate and spawn summary, flush log, sales, "
           "a scoped environment chart, and a discussion log — "
