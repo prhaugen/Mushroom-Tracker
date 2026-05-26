@@ -669,6 +669,11 @@ def call_claude(snapshot: dict) -> dict:
         lines = raw.split('\n')
         raw = '\n'.join(lines[1:-1] if lines[-1].strip() == '```' else lines[1:])
 
+    # Literal newlines inside JSON string values are invalid — replace them with
+    # a space. JSON structure uses {} [] , : as delimiters, not newlines, so this
+    # is safe. Escaped \n sequences (two chars) are unaffected.
+    raw = ' '.join(raw.splitlines())
+
     return json.loads(raw)
 
 
