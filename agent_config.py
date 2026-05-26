@@ -54,7 +54,7 @@ SPECIES_TIMELINES = {
         "colonization_temp_f":  (65, 75),
         "fruiting_temp_f":      (65, 75),
         "fruiting_humidity_rh": (85, 95),
-        "fruiting_co2_ppm":     (400, 800),
+        "fruiting_co2_ppm":     (400, 1500),
     },
     "shiitake": {
         "colonization_days": (30, 45),
