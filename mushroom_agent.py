@@ -653,10 +653,16 @@ def call_claude(snapshot: dict) -> dict:
     client = anthropic.Anthropic(api_key=api_key)
     message = client.messages.create(
         model="claude-sonnet-4-6",
-        max_tokens=2048,
+        max_tokens=4096,
         system=SYSTEM_PROMPT,
         messages=[{"role": "user", "content": json.dumps(snapshot, default=str)}],
     )
+
+    if message.stop_reason == 'max_tokens':
+        raise RuntimeError(
+            "Briefing response was truncated (max_tokens reached). "
+            "The snapshot may be too large — consider reducing recent_env_logs history."
+        )
 
     raw = message.content[0].text.strip()
     if raw.startswith("```"):
