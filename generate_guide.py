@@ -678,7 +678,8 @@ def build():
                 ["King Oyster",   "70 - 90%",
                  "Valued for thick stems. Low FAE encourages longer, meatier fruiting bodies."],
                 ["Lions Mane",    "40 - 100%",
-                 "Lower BE than oysters but commands premium pricing. Sensitive to CO2."],
+                 "Lower BE than oysters but commands premium pricing. "
+                 "More CO2-tolerant than oysters — fruits well up to ~1500 ppm."],
                 ["Elm Oyster",    "40 - 80%",
                  "Slower colonizer. Cooler fruiting than other oysters. Less data available."],
                 ["Chestnut",      "50 - 100%",
@@ -2515,7 +2516,9 @@ def build():
                 ["King Oyster",    "55-65",   "85-95%",  "Low-Med", "70-90%",
                  "Thick stems are the main product. Low FAE produces longer, meatier stems."],
                 ["Lions Mane",     "65-75",   "85-95%",  "Low-Med", "40-100%",
-                 "Sensitive to CO2 -- causes elongated spines if too high."],
+                 "More CO2-tolerant than oysters — acceptable range 400-1500 ppm. "
+                 "Elevated CO2 (1000-1500 ppm) promotes longer teeth; above ~1500 ppm "
+                 "can cause browning or stunted growth."],
                 ["Shiitake",       "55-75",   "80-90%",  "Medium",  "40-100%",
                  "Needs cold shocking (50F for 12-24h) to initiate."],
                 ["Chestnut",       "55-65",   "85-95%",  "Medium",  "50-100%",
