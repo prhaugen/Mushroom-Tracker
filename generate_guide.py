@@ -1591,6 +1591,11 @@ def build():
           "is running above or below the target. "
           "Below the chart, the All Readings table lists every reading with color-coded values."),
         sp(8),
+        p("When more than one chamber is configured, pill-shaped tabs appear below the page header. "
+          "Click any tab to switch the chart and the All Readings table to that chamber. "
+          "The selected chamber is preserved when you change the date range or resolution — "
+          "the filter form carries it through automatically."),
+        sp(8),
         *bullet([
             "Temperature values more than 3F from the batch target display in <b>amber</b>",
             "Humidity values below 80% display in <b>red</b>",

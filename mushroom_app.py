@@ -1397,8 +1397,13 @@ def _build_harvest_forecast(conn, chamber_id=None):
 @app.route('/env/history')
 def env_history():
     init_db()
-    chamber = get_primary_chamber()
-    if not chamber: return redirect(url_for('setup'))
+    conn = get_db()
+    all_chambers = conn.execute("SELECT * FROM chambers ORDER BY id").fetchall()
+    if not all_chambers:
+        conn.close(); return redirect(url_for('setup'))
+
+    requested_id = request.args.get('chamber_id', type=int)
+    chamber = next((c for c in all_chambers if c['id'] == requested_id), None) or all_chambers[0]
 
     now = datetime.now()
     default_start = (now - timedelta(hours=24)).strftime('%Y-%m-%dT%H:%M')
@@ -1425,7 +1430,6 @@ def env_history():
     start_db = start_dt.strftime('%Y-%m-%d %H:%M:%S')
     end_db   = end_dt.strftime('%Y-%m-%d %H:%M:%S')
 
-    conn = get_db()
     logs = conn.execute("""
         SELECT e.*, b.label batch_label FROM environment_logs e
         LEFT JOIN batches b ON e.batch_id=b.id
@@ -1456,8 +1460,8 @@ def env_history():
         'target_batch':    f"{recent_batch['label']} ({recent_batch['species']})" if recent_batch else None,
     }
     conn.close()
-    return render_template('env_history.html', chamber=chamber, logs=logs,
-                           chart_data=chart_data,
+    return render_template('env_history.html', chamber=chamber, all_chambers=all_chambers,
+                           logs=logs, chart_data=chart_data,
                            start_str=start_str, end_str=end_str,
                            res=res, resolutions=_ENV_RESOLUTIONS)
 

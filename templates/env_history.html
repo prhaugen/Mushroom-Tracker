@@ -13,6 +13,17 @@
   </div>
 </div>
 
+{% if all_chambers|length > 1 %}
+<div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap">
+  {% for c in all_chambers %}
+  <a href="{{ url_for('env_history', chamber_id=c.id) }}"
+     style="padding:5px 14px;border-radius:20px;font-size:13px;font-weight:600;text-decoration:none;border:1px solid {{ 'var(--green)' if c.id == chamber.id else 'var(--border)' }};background:{{ 'var(--green-bg)' if c.id == chamber.id else 'var(--surface-2)' }};color:{{ 'var(--green)' if c.id == chamber.id else 'var(--text-muted)' }}">
+    {{ c.name }}
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+
 {% if logs %}
 <div class="card mb-16">
   <div style="margin-bottom:14px">
@@ -28,6 +39,7 @@
 
     <form method="GET" action="{{ url_for('env_history') }}"
           style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <input type="hidden" name="chamber_id" value="{{ chamber.id }}">
       <div style="display:flex;align-items:center;gap:6px">
         <label style="font-size:11px;color:var(--text-muted);white-space:nowrap">From</label>
         <input type="datetime-local" name="start" value="{{ start_str }}"
