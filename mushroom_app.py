@@ -1353,15 +1353,16 @@ def _build_harvest_forecast(conn, chamber_id=None):
 
             elif status == 'fruiting':
                 if b['pinning_started_at']:
-                    # Known pin date: project full days_to_harvest from pin start
-                    base = date.fromisoformat(b['pinning_started_at'][:10])
-                    proj_mid = base + timedelta(days=round(har_mid))
-                    proj_lo  = base + timedelta(days=har_lo)
-                    proj_hi  = base + timedelta(days=har_hi)
-                    note = 'Fruiting — est. days to harvest'
+                    pin_date = date.fromisoformat(b['pinning_started_at'][:10])
+                    elapsed  = (today - pin_date).days
+                    rem_lo   = max(0, har_lo - elapsed)
+                    rem_hi   = max(0, har_hi - elapsed)
+                    proj_lo  = today + timedelta(days=rem_lo)
+                    proj_hi  = today + timedelta(days=rem_hi)
+                    proj_mid = today + timedelta(days=round((rem_lo + rem_hi) / 2))
+                    note = 'Fruiting — est. remaining days to harvest'
                 else:
-                    # No pin date: batch is already actively fruiting, so harvest
-                    # is closer than a freshly-pinning batch — use half the window
+                    # No pin date recorded — batch is actively fruiting, use half window
                     proj_mid = today + timedelta(days=round(har_mid / 2))
                     proj_lo  = today
                     proj_hi  = today + timedelta(days=har_hi)
