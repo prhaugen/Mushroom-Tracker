@@ -1350,11 +1350,13 @@ def _build_harvest_forecast(conn, chamber_id=None):
                 note = 'Pinning — harvest window close'
 
             elif status == 'fruiting':
-                proj_mid = today
-                proj_lo  = today
-                proj_hi  = today + timedelta(days=har_hi)
-                confidence = 'Imminent'
-                note = 'Fruiting now'
+                fruiting_start = b['fruiting_start_date'] or str(today)
+                base = date.fromisoformat(fruiting_start[:10])
+                proj_mid = base + timedelta(days=round(har_mid))
+                proj_lo  = base + timedelta(days=har_lo)
+                proj_hi  = base + timedelta(days=har_hi)
+                confidence = 'High'
+                note = 'Fruiting — est. days to harvest'
 
             elif status == 'resting' and b['last_harvest_date']:
                 base = date.fromisoformat(b['last_harvest_date'][:10]) + timedelta(days=7)
