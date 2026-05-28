@@ -413,7 +413,7 @@ def batch_add():
     return render_template('batch_form.html', chamber=chamber, batch=None, all_chambers=all_chambers,
                            all_substrate_batches=all_substrate_batches,
                            species_defaults=json.dumps(_SPECIES_DEFAULTS),
-                           CUT_TYPES=CUT_TYPES)
+                           CUT_TYPES=CUT_TYPES, today=str(date.today()))
 
 
 @app.route('/batch/<int:batch_id>')
@@ -560,6 +560,8 @@ def batch_update(batch_id):
         updates['colonization_end_date'] = today
     if new_status == 'pinning':
         updates['pinning_started_at'] = today
+    if new_status == 'fruiting' and not batch['fruiting_start_date']:
+        updates['fruiting_start_date'] = today
     if new_status == 'done' and not batch['block_end_date']:
         updates['block_end_date'] = today
     if new_status == 'contaminated':
@@ -1681,7 +1683,7 @@ def batch_edit(batch_id):
     return render_template('batch_form.html', chamber=chamber, batch=batch, all_chambers=all_chambers,
                            all_substrate_batches=all_substrate_batches,
                            species_defaults=json.dumps(_SPECIES_DEFAULTS),
-                           CUT_TYPES=CUT_TYPES)
+                           CUT_TYPES=CUT_TYPES, today=str(date.today()))
 
 
 @app.route('/batch/<int:batch_id>/delete', methods=['POST'])
