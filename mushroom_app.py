@@ -1936,6 +1936,195 @@ if not app.debug or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
         logging.getLogger(__name__).warning("Could not start briefing scheduler: %s", _e)
 
 
+# ── Govee API ─────────────────────────────────────────────────────────────────
+
+_GOVEE_BASE = "https://openapi.api.govee.com/router/api/v1"
+
+
+def _get_govee_key() -> str | None:
+    key = os.environ.get('GOVEE_API_KEY')
+    if key:
+        return key
+    try:
+        import winreg
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, 'Environment') as reg:
+            value, _ = winreg.QueryValueEx(reg, 'GOVEE_API_KEY')
+            return value
+    except Exception:
+        return None
+
+
+def _govee_request(path: str, api_key: str, body: dict | None = None) -> dict:
+    import urllib.request, urllib.error
+    headers = {'Govee-API-Key': api_key, 'Content-Type': 'application/json'}
+    data = json.dumps(body).encode() if body else None
+    method = 'POST' if body else 'GET'
+    req = urllib.request.Request(_GOVEE_BASE + path, data=data,
+                                 headers=headers, method=method)
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        return json.loads(resp.read().decode())
+
+
+def _govee_list_devices(api_key: str) -> list:
+    data = _govee_request('/user/devices', api_key)
+    return data.get('data', [])
+
+
+def _govee_get_state(api_key: str, device_id: str, sku: str) -> dict:
+    import uuid
+    body = {'requestId': str(uuid.uuid4()),
+            'payload': {'sku': sku, 'device': device_id}}
+    data = _govee_request('/device/state', api_key, body)
+    caps = data.get('payload', {}).get('capabilities', [])
+    result = {}
+    for cap in caps:
+        inst = cap.get('instance', '')
+        val  = cap.get('state', {}).get('value')
+        if inst == 'sensorTemperature':
+            result['temp_f'] = val
+        elif inst == 'sensorHumidity':
+            result['humidity_rh'] = val
+        elif inst == 'carbonDioxideConcentration':
+            result['co2_ppm'] = val
+    return result
+
+
+def govee_sync_all(app=None):
+    """Fetch current readings for all enabled Govee devices and insert into env logs.
+    Returns (inserted, skipped, errors) counts."""
+    api_key = _get_govee_key()
+    if not api_key:
+        return 0, 0, ['GOVEE_API_KEY not set']
+
+    ctx = app.app_context() if app else None
+    if ctx:
+        ctx.push()
+
+    try:
+        conn = get_db()
+        devices = conn.execute(
+            "SELECT * FROM govee_devices WHERE enabled=1"
+        ).fetchall()
+
+        inserted = skipped = 0
+        errors = []
+        now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+        for dev in devices:
+            try:
+                readings = _govee_get_state(api_key, dev['device_id'], dev['sku'])
+                if not readings.get('temp_f') or not readings.get('humidity_rh'):
+                    skipped += 1
+                    continue
+
+                # Skip if a reading for this chamber exists within the last 8 minutes
+                recent = conn.execute("""
+                    SELECT id FROM environment_logs
+                    WHERE chamber_id=? AND shelf IS ?
+                      AND logged_at >= datetime('now', '-8 minutes')
+                    LIMIT 1
+                """, (dev['chamber_id'], dev['shelf'])).fetchone()
+                if recent:
+                    skipped += 1
+                    continue
+
+                conn.execute("""
+                    INSERT INTO environment_logs
+                    (chamber_id, logged_at, phase, temp_f, humidity_rh, co2_ppm, shelf)
+                    VALUES (?, ?, 'fruiting', ?, ?, ?, ?)
+                """, (dev['chamber_id'], now_str,
+                      readings['temp_f'], readings['humidity_rh'],
+                      readings.get('co2_ppm'), dev['shelf']))
+
+                conn.execute(
+                    "UPDATE govee_devices SET last_synced=? WHERE device_id=?",
+                    (now_str, dev['device_id']))
+                inserted += 1
+
+            except Exception as e:
+                errors.append(f"{dev['device_name']}: {e}")
+
+        conn.commit()
+        conn.close()
+        return inserted, skipped, errors
+    finally:
+        if ctx:
+            ctx.pop()
+
+
+@app.route('/env/govee', methods=['GET', 'POST'])
+def govee_setup():
+    init_db()
+    api_key = _get_govee_key()
+    conn = get_db()
+    chambers = conn.execute("SELECT * FROM chambers ORDER BY id").fetchall()
+    configured = {r['device_id']: dict(r) for r in
+                  conn.execute("SELECT * FROM govee_devices").fetchall()}
+
+    if request.method == 'POST':
+        action = request.form.get('action')
+
+        if action == 'refresh':
+            # Re-fetch device list from Govee API and upsert names/skus
+            if not api_key:
+                flash('GOVEE_API_KEY environment variable is not set.', 'error')
+            else:
+                try:
+                    devices = _govee_list_devices(api_key)
+                    for d in devices:
+                        did  = d.get('device', '')
+                        sku  = d.get('sku', '')
+                        name = d.get('deviceName', did)
+                        existing = conn.execute(
+                            "SELECT device_id FROM govee_devices WHERE device_id=?", (did,)
+                        ).fetchone()
+                        if existing:
+                            conn.execute(
+                                "UPDATE govee_devices SET sku=?, device_name=? WHERE device_id=?",
+                                (sku, name, did))
+                        else:
+                            conn.execute(
+                                "INSERT INTO govee_devices (device_id, sku, device_name) VALUES (?,?,?)",
+                                (did, sku, name))
+                    conn.commit()
+                    flash(f'Found {len(devices)} device(s) from Govee API.', 'success')
+                except Exception as e:
+                    flash(f'Govee API error: {e}', 'error')
+
+        elif action == 'save':
+            # Save chamber + shelf mappings for each device
+            for key in request.form:
+                if key.startswith('chamber_'):
+                    did = key[len('chamber_'):]
+                    chamber_val = request.form.get(key)
+                    shelf_val   = request.form.get(f'shelf_{did}')
+                    enabled_val = 1 if request.form.get(f'enabled_{did}') else 0
+                    chamber_id  = int(chamber_val) if chamber_val else None
+                    shelf       = int(shelf_val) if shelf_val else None
+                    conn.execute("""
+                        UPDATE govee_devices
+                        SET chamber_id=?, shelf=?, enabled=?
+                        WHERE device_id=?
+                    """, (chamber_id, shelf, enabled_val, did))
+            conn.commit()
+            flash('Sensor mappings saved.', 'success')
+
+        elif action == 'sync':
+            ins, skp, errs = govee_sync_all()
+            if errs:
+                flash(f'Sync errors: {"; ".join(errs)}', 'error')
+            else:
+                flash(f'Sync complete — {ins} reading(s) inserted, {skp} skipped.', 'success')
+
+        conn.close()
+        return redirect(url_for('govee_setup'))
+
+    devices = conn.execute("SELECT * FROM govee_devices ORDER BY device_name").fetchall()
+    conn.close()
+    return render_template('govee_setup.html', devices=devices, chambers=chambers,
+                           api_key_set=bool(api_key))
+
+
 # ── Govee CSV Import ──────────────────────────────────────────────────────────
 
 def _parse_govee_csv(conn, content, chamber_id, shelf=None):

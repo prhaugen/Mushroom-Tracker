@@ -403,6 +403,17 @@ def init_db():
         if col not in existing_b:
             c.execute(f"ALTER TABLE batches ADD COLUMN {col} {typedef}")
 
+    # Govee device → chamber mapping table
+    c.execute("""CREATE TABLE IF NOT EXISTS govee_devices (
+        device_id   TEXT PRIMARY KEY,
+        sku         TEXT,
+        device_name TEXT,
+        chamber_id  INTEGER REFERENCES chambers(id),
+        shelf       INTEGER,
+        enabled     INTEGER DEFAULT 1,
+        last_synced TEXT
+    )""")
+
     # Non-destructive column addition for batch_notes — edit support
     existing_bn = {r[1] for r in c.execute("PRAGMA table_info(batch_notes)")}
     if "updated_at" not in existing_bn:

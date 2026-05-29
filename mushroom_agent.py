@@ -727,19 +727,32 @@ def init_scheduler(app):
         from apscheduler.schedulers.background import BackgroundScheduler
         import atexit
 
-        def _job():
+        def _briefing_job():
             with app.app_context():
                 try:
                     run_briefing(triggered_by='scheduler')
                 except Exception as exc:
                     logger.error("Scheduled briefing failed: %s", exc)
 
+        def _govee_job():
+            try:
+                from mushroom_app import govee_sync_all
+                ins, skp, errs = govee_sync_all(app)
+                if errs:
+                    logger.warning("Govee sync errors: %s", "; ".join(errs))
+                elif ins:
+                    logger.info("Govee sync: %d inserted, %d skipped", ins, skp)
+            except Exception as exc:
+                logger.error("Govee poll failed: %s", exc)
+
         scheduler = BackgroundScheduler(daemon=True)
-        scheduler.add_job(_job, trigger='cron', hour=6, minute=0,
+        scheduler.add_job(_briefing_job, trigger='cron', hour=6, minute=0,
                           id='daily_briefing', replace_existing=True)
+        scheduler.add_job(_govee_job, trigger='interval', minutes=10,
+                          id='govee_poll', replace_existing=True)
         scheduler.start()
         atexit.register(scheduler.shutdown)
-        logger.info("Briefing scheduler started — daily at 06:00")
+        logger.info("Scheduler started — briefing at 06:00, Govee poll every 10 min")
         return scheduler
     except ImportError:
         logger.warning(
