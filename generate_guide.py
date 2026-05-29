@@ -398,7 +398,7 @@ def build():
         ("10",   "Environment History",                         "12"),
         ("11.1", "Chart Controls",                               "13"),
         ("11.2", "All Readings Table",                          "13"),
-        ("11.3", "Importing from a Govee Sensor",                "13"),
+        ("11.3", "Govee Sensor Integration",                      "13"),
         ("11",   "Reports",                                     "14"),
         ("12",   "AI Daily Briefing",                           "14"),
         ("12.1", "What It Does",                                "14"),
@@ -1699,63 +1699,78 @@ def build():
 
     story += [
         sp(10),
-        h2("11.3  Importing from a Govee Sensor"),
-        p("If you use a Govee WiFi sensor, you can bulk-import its history directly from a CSV "
-          "export rather than logging readings manually. Supported sensors include the "
-          "<b>H5179</b> (temperature and humidity) and CO2-capable models such as the "
-          "<b>H5182 / H5183</b>. "
-          "Click the <b>Import Govee CSV</b> button on the Environment History page."),
+        h2("11.3  Govee Sensor Integration"),
+        p("The app supports two complementary ways to get Govee sensor data into the "
+          "environment log: <b>automatic API polling</b> for live data going forward, "
+          "and <b>CSV import</b> for backfilling historical gaps."),
+        sp(10),
+        h3("Auto-Sync (Govee API)"),
+        p("Click <b>Govee Auto-Sync</b> on the Environment History page to open the sensor "
+          "setup page. This is the recommended approach for keeping data current without "
+          "manual exports."),
         sp(6),
-        h3("How to export from the Govee app"),
+        data_table(
+            ["Step", "Detail"],
+            [
+                ["1 — Refresh Devices",
+                 "Click <b>Refresh Devices from API</b> to pull your sensor list directly "
+                 "from the Govee cloud. All H5179 and H5140 sensors on your account appear "
+                 "automatically. Requires GOVEE_API_KEY to be set as a Windows user "
+                 "environment variable (same pattern as the Anthropic key)."],
+                ["2 — Map sensors",
+                 "For each sensor, choose a <b>Chamber / Location</b>: select a named chamber "
+                 "if the sensor lives inside one, or choose <b>Ambient (no chamber)</b> for "
+                 "standalone sensors. Optionally set a <b>Shelf</b> number (1 = bottom) so "
+                 "readings are correctly filtered on Batch Detail charts when multiple sensors "
+                 "are at different heights. Enable the checkbox for each sensor to poll."],
+                ["3 — Save Mappings",
+                 "Click <b>Save Mappings</b> to store the configuration. "
+                 "The app will now poll all enabled sensors every <b>10 minutes</b> "
+                 "automatically whenever the server is running."],
+                ["Sync Now",
+                 "Click <b>Sync Now</b> to immediately pull a reading from all enabled sensors "
+                 "without waiting for the next scheduled poll. Useful after first setup or "
+                 "after a server restart."],
+                ["Deduplication",
+                 "A reading is skipped if one already exists for the same chamber and shelf "
+                 "within the last 8 minutes, preventing duplicates when Sync Now is "
+                 "clicked close to a scheduled poll."],
+            ],
+            col_widths=[3.5*cm, 12.7*cm],
+        ),
+        sp(10),
+        h3("CSV Import (Historical Backfill)"),
+        p("To fill gaps before auto-sync was set up, export a date range from the Govee app "
+          "and use the <b>Import CSV</b> button. Supported sensors include the "
+          "<b>H5179</b> (temperature and humidity) and CO2-capable models such as the "
+          "<b>H5182 / H5183</b>."),
+        sp(6),
         *bullet([
             "Open the Govee Home app and tap your sensor device",
             "Tap the graph icon to open the history view",
-            "Select a date range",
-            "Tap <b>Export</b> -- the app saves a .csv file to your device",
+            "Select a date range and tap <b>Export</b>",
+            "Upload the .csv file using the Import CSV page — select the matching chamber and shelf",
         ]),
         sp(8),
         data_table(
             ["Feature", "Detail"],
             [
-                ["Chamber selection",
-                 "Readings can be linked to a specific chamber or stored as <b>Ambient</b> "
-                 "(no chamber) for standalone sensors. Ambient is the default -- "
-                 "select a chamber only if the sensor lives inside one."],
+                ["Chamber / Ambient",
+                 "Link readings to a specific chamber or store as Ambient for standalone sensors."],
                 ["Shelf",
-                 "Optionally tag all imported rows with a shelf number (1 = bottom). "
-                 "Use this when each sensor is dedicated to a specific shelf in the chamber. "
-                 "Imported rows carry the same shelf number throughout the file -- "
-                 "import each sensor's CSV separately and assign the correct shelf to each."],
+                 "Tag all imported rows with a shelf number. "
+                 "Import each sensor's CSV separately and assign the correct shelf to each."],
                 ["CO2 support",
-                 "If the export contains a CO2 or Carbon column it is captured automatically "
-                 "and stored in co2_ppm. Exports without a CO2 column (H5179) still import cleanly."],
-                ["Unit detection",
-                 "The importer reads the column header to determine whether temperature "
-                 "is in Fahrenheit or Celsius and converts automatically. "
-                 "Both export formats from the Govee app are supported."],
+                 "A CO2 or Carbon column is captured automatically if present. "
+                 "Exports without CO2 (H5179) still import cleanly."],
                 ["Deduplication",
-                 "Rows whose timestamp already exists for the selected chamber (or among "
-                 "ambient readings if no chamber is selected) are handled automatically. "
-                 "For ambient CO2 imports: if a temp/humidity row already exists at that "
-                 "timestamp but has no CO2 value, the importer updates the existing row "
-                 "with the CO2 reading instead of skipping it. "
-                 "This means you can import a temp/humidity sensor and a CO2 sensor "
-                 "separately in any order and always get a complete dataset."],
-                ["Result summary",
-                 "After import a flash message reports inserted rows, rows updated with CO2 "
-                 "(ambient backfill), and duplicates skipped — each count only shown when non-zero."],
-                ["Column detection",
-                 "Column order does not matter. The importer finds columns by keyword: "
-                 "Time/Date for the timestamp, Temp for temperature, Humid for humidity, "
-                 "CO2 or Carbon for CO2 readings."],
-                ["Phase",
-                 "All imported rows are tagged with phase = fruiting. "
-                 "Edit individual readings afterwards if a different phase applies."],
+                 "Existing timestamps are skipped. For ambient CO2 imports, the importer "
+                 "backfills CO2 into an existing temp/humidity row at the same timestamp "
+                 "rather than inserting a duplicate — import both sensors in any order "
+                 "and the dataset merges correctly."],
                 ["AI Briefing integration",
-                 "Govee-imported readings are automatically included in the AI Daily Briefing's "
-                 "environmental analysis. The agent queries sensor data by chamber, so all imported "
-                 "rows feed into daily alerts and out-of-range detection — "
-                 "no extra steps are needed after importing."],
+                 "Both auto-synced and CSV-imported readings feed into the daily briefing's "
+                 "environmental alerts automatically — no extra steps needed."],
             ],
             col_widths=[3.5*cm, 12.7*cm],
         ),
