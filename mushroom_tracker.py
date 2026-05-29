@@ -409,10 +409,14 @@ def init_db():
         sku         TEXT,
         device_name TEXT,
         chamber_id  INTEGER REFERENCES chambers(id),
+        is_ambient  INTEGER DEFAULT 0,
         shelf       INTEGER,
         enabled     INTEGER DEFAULT 1,
         last_synced TEXT
     )""")
+    existing_gd = {r[1] for r in c.execute("PRAGMA table_info(govee_devices)")}
+    if "is_ambient" not in existing_gd:
+        c.execute("ALTER TABLE govee_devices ADD COLUMN is_ambient INTEGER DEFAULT 0")
 
     # Non-destructive column addition for batch_notes — edit support
     existing_bn = {r[1] for r in c.execute("PRAGMA table_info(batch_notes)")}

@@ -40,7 +40,7 @@
           <tr>
             <th>Device Name</th>
             <th>Model</th>
-            <th>Chamber</th>
+            <th>Chamber / Location</th>
             <th>Shelf</th>
             <th style="text-align:center">Enabled</th>
             <th>Last Synced</th>
@@ -55,6 +55,7 @@
               <select name="chamber_{{ dev.device_id }}"
                       style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:12px;outline:none;min-width:140px">
                 <option value="">— not mapped —</option>
+                <option value="ambient" {{ 'selected' if dev.is_ambient }}>Ambient (no chamber)</option>
                 {% for ch in chambers %}
                 <option value="{{ ch.id }}" {{ 'selected' if dev.chamber_id == ch.id }}>
                   {{ ch.name }}

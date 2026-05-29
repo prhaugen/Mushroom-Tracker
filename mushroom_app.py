@@ -2017,13 +2017,14 @@ def govee_sync_all(app=None):
                     skipped += 1
                     continue
 
-                # Skip if a reading for this chamber exists within the last 8 minutes
+                # Skip if a reading for this chamber/ambient slot exists within the last 8 minutes
+                chamber_id = dev['chamber_id']  # NULL for ambient
                 recent = conn.execute("""
                     SELECT id FROM environment_logs
-                    WHERE chamber_id=? AND shelf IS ?
+                    WHERE chamber_id IS ? AND shelf IS ?
                       AND logged_at >= datetime('now', '-8 minutes')
                     LIMIT 1
-                """, (dev['chamber_id'], dev['shelf'])).fetchone()
+                """, (chamber_id, dev['shelf'])).fetchone()
                 if recent:
                     skipped += 1
                     continue
@@ -2032,7 +2033,7 @@ def govee_sync_all(app=None):
                     INSERT INTO environment_logs
                     (chamber_id, logged_at, phase, temp_f, humidity_rh, co2_ppm, shelf)
                     VALUES (?, ?, 'fruiting', ?, ?, ?, ?)
-                """, (dev['chamber_id'], now_str,
+                """, (chamber_id, now_str,
                       readings['temp_f'], readings['humidity_rh'],
                       readings.get('co2_ppm'), dev['shelf']))
 
@@ -2095,17 +2096,18 @@ def govee_setup():
             # Save chamber + shelf mappings for each device
             for key in request.form:
                 if key.startswith('chamber_'):
-                    did = key[len('chamber_'):]
+                    did         = key[len('chamber_'):]
                     chamber_val = request.form.get(key)
                     shelf_val   = request.form.get(f'shelf_{did}')
                     enabled_val = 1 if request.form.get(f'enabled_{did}') else 0
-                    chamber_id  = int(chamber_val) if chamber_val else None
+                    is_ambient  = 1 if chamber_val == 'ambient' else 0
+                    chamber_id  = None if (not chamber_val or chamber_val == 'ambient') else int(chamber_val)
                     shelf       = int(shelf_val) if shelf_val else None
                     conn.execute("""
                         UPDATE govee_devices
-                        SET chamber_id=?, shelf=?, enabled=?
+                        SET chamber_id=?, is_ambient=?, shelf=?, enabled=?
                         WHERE device_id=?
-                    """, (chamber_id, shelf, enabled_val, did))
+                    """, (chamber_id, is_ambient, shelf, enabled_val, did))
             conn.commit()
             flash('Sensor mappings saved.', 'success')
 
