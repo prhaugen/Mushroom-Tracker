@@ -493,9 +493,9 @@ function cancelEdit(id) {
       let yMin = Math.floor(dMin - 3);
       let yMax = Math.ceil(dMax + 3);
 
-      // Pull axis out to include range lines only when they're within 25 units
-      if (lo != null && lo < yMin && (yMin - lo) <= 25) yMin = Math.floor(lo - 2);
-      if (hi != null && hi > yMax && (hi - yMax) <= 25) yMax = Math.ceil(hi + 2);
+      // Always expand axis to include range reference lines when they exist
+      if (lo != null && lo < yMin) yMin = Math.floor(lo - 2);
+      if (hi != null && hi > yMax) yMax = Math.ceil(hi + 2);
 
       const n = labels.length;
       const flat = v => Array(n).fill(v);
