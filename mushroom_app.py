@@ -2355,7 +2355,7 @@ def _send_ntfy_alert(chamber_name: str, param: str, value: float,
             f"https://ntfy.sh/{topic}",
             data=body,
             headers={
-                'Title':    f"Alert: {chamber_name} {param_name}",
+                'Title':    f"Alert: {chamber_name} {param_name}".encode('ascii', 'replace').decode(),
                 'Priority': 'high',
                 'Tags':     'warning,mushroom',
             },
@@ -2462,7 +2462,7 @@ def alert_settings():
                 body = b"MT-1: Temperature 58.0\xc2\xb0F (ok 65-75\xc2\xb0F)\nOut of range ~30 min\nLM-001 (Lions Mane)"
                 try:
                     req = _ur.Request(f"https://ntfy.sh/{topic}", data=body,
-                                      headers={'Title': 'Test Alert — Mushroom Tracker',
+                                      headers={'Title': 'Test Alert - Mushroom Tracker',
                                                'Priority': 'high', 'Tags': 'mushroom'},
                                       method='POST')
                     _ur.urlopen(req, timeout=10)
