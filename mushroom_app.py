@@ -2452,10 +2452,23 @@ def alert_settings():
             topic = request.form.get('alert_ntfy_topic', '').strip()
             if topic:
                 _set_app_setting(conn, 'alert_ntfy_topic', topic)
+                _set_app_setting(conn, 'alert_enabled', '1' if request.form.get('alert_enabled') else '0')
                 conn.commit()
-            _send_ntfy_alert('Test Chamber', 'temp', 58.0, 65.0, 75.0,
-                             'LM-001', 'Lions Mane', 3, '°F')
-            flash('Test notification sent — check your ntfy app.', 'success')
+            if not topic:
+                flash('Enter a topic name before testing.', 'error')
+            else:
+                # Send directly with the form topic — no DB read needed
+                import urllib.request as _ur
+                body = b"MT-1: Temperature 58.0\xc2\xb0F (ok 65-75\xc2\xb0F)\nOut of range ~30 min\nLM-001 (Lions Mane)"
+                try:
+                    req = _ur.Request(f"https://ntfy.sh/{topic}", data=body,
+                                      headers={'Title': 'Test Alert — Mushroom Tracker',
+                                               'Priority': 'high', 'Tags': 'mushroom'},
+                                      method='POST')
+                    _ur.urlopen(req, timeout=10)
+                    flash('Test notification sent — check your ntfy app.', 'success')
+                except Exception as e:
+                    flash(f'ntfy error: {e}', 'error')
         conn.close()
         return redirect(url_for('alert_settings'))
 

@@ -10,7 +10,6 @@
 
 <div class="card mb-16 form-wrap">
   <form method="POST" action="{{ url_for('alert_settings') }}">
-    <input type="hidden" name="action" value="save">
     <div class="fg-grid">
 
       <div class="fg full" style="display:flex;align-items:center;gap:10px;padding-top:4px">
@@ -39,23 +38,10 @@
     </div>
 
     <div class="form-actions" style="gap:10px">
-      <button type="submit" class="btn btn-primary">Save Settings</button>
+      <button type="submit" name="action" value="save" class="btn btn-primary">Save Settings</button>
+      <button type="submit" name="action" value="test" class="btn btn-ghost">Send Test Notification</button>
     </div>
   </form>
-
-  <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border-muted)">
-    <form method="POST" action="{{ url_for('alert_settings') }}" style="display:inline">
-      <input type="hidden" name="action" value="test">
-      <input type="hidden" name="alert_ntfy_topic" value="{{ settings.get('alert_ntfy_topic','') }}">
-      <button type="submit" class="btn btn-ghost btn-sm"
-              {{ 'disabled' if not settings.get('alert_ntfy_topic') }}>
-        Send Test Notification
-      </button>
-    </form>
-    <span style="font-size:11px;color:var(--text-muted);margin-left:8px">
-      Sends a sample Lions Mane temperature alert to your ntfy topic
-    </span>
-  </div>
 </div>
 
 <div class="card mb-16">
