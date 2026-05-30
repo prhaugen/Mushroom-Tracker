@@ -2332,6 +2332,56 @@ def _set_app_setting(conn, key: str, value: str):
     conn.execute("INSERT OR REPLACE INTO app_settings (key,value) VALUES (?,?)", (key, value))
 
 
+def _get_gmail_password() -> str | None:
+    pw = os.environ.get('GMAIL_APP_PASSWORD')
+    if pw:
+        return pw
+    try:
+        import winreg
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, 'Environment') as reg:
+            value, _ = winreg.QueryValueEx(reg, 'GMAIL_APP_PASSWORD')
+            return value
+    except Exception:
+        return None
+
+
+def _send_alert_email(chamber_name: str, param: str, value: float,
+                      lo: float, hi: float, batch_label: str,
+                      species: str, streak: int, unit: str):
+    import logging, smtplib
+    from email.mime.text import MIMEText
+    log      = logging.getLogger(__name__)
+    gmail    = _get_app_setting('alert_gmail')
+    gmail_pw = _get_gmail_password()
+    if not gmail:
+        log.warning("Email alert skipped — alert_gmail not configured"); return
+    if not gmail_pw:
+        log.warning("Email alert skipped — GMAIL_APP_PASSWORD not set"); return
+
+    param_name = {'temp': 'Temperature', 'humidity': 'Humidity', 'co2': 'CO2'}.get(param, param)
+    minutes    = streak * 10
+    body = (
+        f"Mushroom Tracker Alert\n\n"
+        f"Chamber: {chamber_name}\n"
+        f"Parameter: {param_name}\n"
+        f"Reading: {value:.1f}{unit}  (acceptable range: {lo}-{hi}{unit})\n"
+        f"Out of range for approximately {minutes} minutes\n"
+        f"Affected batch: {batch_label} ({species})"
+    )
+    try:
+        msg = MIMEText(body)
+        msg['From']    = gmail
+        msg['To']      = gmail
+        msg['Subject'] = f"Alert: {chamber_name} {param_name} out of range"
+        with smtplib.SMTP('smtp.gmail.com', 587) as server:
+            server.ehlo(); server.starttls()
+            server.login(gmail, gmail_pw)
+            server.sendmail(gmail, [gmail], msg.as_string())
+        log.info("Email alert sent: %s %s=%.1f%s", chamber_name, param, value, unit)
+    except Exception as e:
+        log.error("Email alert failed: %s", e)
+
+
 def _send_ntfy_alert(chamber_name: str, param: str, value: float,
                      lo: float, hi: float, batch_label: str,
                      species: str, streak: int, unit: str):
@@ -2422,6 +2472,7 @@ def _check_env_alerts(conn, chamber_id: int, temp_f, humidity_rh, co2_ppm=None):
             (chamber_id, param, streak, alerted, val, lo, hi, now_str))
         if streak >= 3 and not alerted:
             _send_ntfy_alert(chamber_name, param, val, lo, hi, label, species, streak, unit)
+            _send_alert_email(chamber_name, param, val, lo, hi, label, species, streak, unit)
             conn.execute(
                 "UPDATE env_alert_state SET alerted=1 WHERE chamber_id=? AND parameter=?",
                 (chamber_id, param))
@@ -2443,32 +2494,42 @@ def alert_settings():
     if request.method == 'POST':
         action = request.form.get('action')
         if action == 'save':
-            _set_app_setting(conn, 'alert_phone',   request.form.get('alert_phone', '').strip())
-            _set_app_setting(conn, 'alert_gmail',   request.form.get('alert_gmail', '').strip())
+            _set_app_setting(conn, 'alert_ntfy_topic', request.form.get('alert_ntfy_topic', '').strip())
+            _set_app_setting(conn, 'alert_gmail',      request.form.get('alert_gmail', '').strip())
             _set_app_setting(conn, 'alert_enabled', '1' if request.form.get('alert_enabled') else '0')
             conn.commit()
             flash('Alert settings saved.', 'success')
         elif action == 'test':
             topic = request.form.get('alert_ntfy_topic', '').strip()
+            gmail = request.form.get('alert_gmail', '').strip()
             if topic:
                 _set_app_setting(conn, 'alert_ntfy_topic', topic)
-                _set_app_setting(conn, 'alert_enabled', '1' if request.form.get('alert_enabled') else '0')
-                conn.commit()
-            if not topic:
-                flash('Enter a topic name before testing.', 'error')
-            else:
-                # Send directly with the form topic — no DB read needed
+            if gmail:
+                _set_app_setting(conn, 'alert_gmail', gmail)
+            _set_app_setting(conn, 'alert_enabled', '1' if request.form.get('alert_enabled') else '0')
+            conn.commit()
+            results = []
+            # ntfy test
+            if topic:
                 import urllib.request as _ur
-                body = b"MT-1: Temperature 58.0\xc2\xb0F (ok 65-75\xc2\xb0F)\nOut of range ~30 min\nLM-001 (Lions Mane)"
+                body = b"MT-1: Temperature 58.0F (ok 65-75F)\nOut of range ~30 min\nLM-001 (Lions Mane)"
                 try:
                     req = _ur.Request(f"https://ntfy.sh/{topic}", data=body,
                                       headers={'Title': 'Test Alert - Mushroom Tracker',
                                                'Priority': 'high', 'Tags': 'mushroom'},
                                       method='POST')
                     _ur.urlopen(req, timeout=10)
-                    flash('Test notification sent — check your ntfy app.', 'success')
+                    results.append('ntfy notification sent')
                 except Exception as e:
-                    flash(f'ntfy error: {e}', 'error')
+                    results.append(f'ntfy error: {e}')
+            # email test
+            if gmail and _get_gmail_password():
+                _send_alert_email('Test Chamber', 'temp', 58.0, 65.0, 75.0,
+                                  'LM-001', 'Lions Mane', 3, 'F')
+                results.append('email sent')
+            elif gmail:
+                results.append('email skipped — GMAIL_APP_PASSWORD not set')
+            flash(', '.join(results) if results else 'Nothing sent — enter a topic or Gmail address.', 'success')
         conn.close()
         return redirect(url_for('alert_settings'))
 
@@ -2481,7 +2542,7 @@ def alert_settings():
     """).fetchall()
     conn.close()
     return render_template('alert_settings.html', settings=settings,
-                           alert_state=alert_state)
+                           alert_state=alert_state, gmail_pw_set=bool(_get_gmail_password()))
 
 
 # ── Govee CSV Import ──────────────────────────────────────────────────────────

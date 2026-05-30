@@ -21,20 +21,24 @@
       </div>
 
       <div class="fg">
-        <label>ntfy Topic</label>
+        <label>ntfy Topic (push notification)</label>
         <input type="text" name="alert_ntfy_topic" placeholder="e.g. mushroom-tracker-sgfc"
                value="{{ settings.get('alert_ntfy_topic','') }}">
         <span class="form-hint">
-          Pick any unique name — open the ntfy app, tap <b>+</b>, and subscribe to this exact topic
+          Install the free <b>ntfy</b> app, tap <b>+</b>, subscribe to this topic — instant push with no carrier dependency
         </span>
       </div>
 
-    </div>
+      <div class="fg">
+        <label>Gmail Address (email alert)</label>
+        <input type="email" name="alert_gmail" placeholder="yourname@gmail.com"
+               value="{{ settings.get('alert_gmail','engineer.haugen@gmail.com') }}">
+        <span class="form-hint">
+          Sends an email to this address — requires <b>GMAIL_APP_PASSWORD</b> env var
+          {% if gmail_pw_set %}<span style="color:var(--green)">&#10003; set</span>{% else %}<span style="color:var(--amber)">not set</span>{% endif %}
+        </span>
+      </div>
 
-    <div class="callout callout-blue" style="margin:16px 0 20px">
-      <b>Setup:</b> Install the free <b>ntfy</b> app on your phone
-      (iOS App Store or Google Play), tap <b>+</b>, enter your topic name, and subscribe.
-      Notifications arrive instantly with no account or carrier dependency.
     </div>
 
     <div class="form-actions" style="gap:10px">
