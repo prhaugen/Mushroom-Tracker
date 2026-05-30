@@ -531,15 +531,18 @@ def batch_detail(batch_id):
     co2_agg = _aggregate_env_logs([dict(r) for r in co2_rows], env_res)
 
     multi_shelf = len(ch_series) > 1
-    # Build series arrays for the template
-    temp_series = [{'shelf': s['shelf'],
-                    'labels': [r['logged_at'][:16] for r in s['agg']],
-                    'data':   [r['temp_f']          for r in s['agg']]}
-                   for s in ch_series]
-    hum_series  = [{'shelf': s['shelf'],
-                    'labels': [r['logged_at'][:16] for r in s['agg']],
-                    'data':   [r['humidity_rh']     for r in s['agg']]}
-                   for s in ch_series]
+    # Build a unified sorted label set so all series share the same x-axis.
+    # Shelves with no reading at a given timestamp get None (Chart.js skips it).
+    all_labels = sorted({r['logged_at'][:16] for s in ch_series for r in s['agg']})
+    temp_series = []
+    hum_series  = []
+    for s in ch_series:
+        t_map = {r['logged_at'][:16]: r['temp_f']      for r in s['agg']}
+        h_map = {r['logged_at'][:16]: r['humidity_rh'] for r in s['agg']}
+        temp_series.append({'shelf': s['shelf'], 'labels': all_labels,
+                            'data': [t_map.get(lbl) for lbl in all_labels]})
+        hum_series.append( {'shelf': s['shelf'], 'labels': all_labels,
+                            'data': [h_map.get(lbl) for lbl in all_labels]})
 
     batch_chart_data = {
         'multi_shelf': multi_shelf,

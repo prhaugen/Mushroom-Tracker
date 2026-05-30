@@ -500,15 +500,15 @@ function cancelEdit(id) {
       if (lo != null && lo < yMin) yMin = Math.floor(lo - 2);
       if (hi != null && hi > yMax) yMax = Math.ceil(hi + 2);
 
-      // Use the longest label array as x-axis
-      const labels = series.reduce((a, s) => s.labels.length > a.length ? s.labels : a, []);
+      // All series share a unified label set built in the backend
+      const labels = series[0].labels;
       const n = labels.length;
       const flat = v => Array(n).fill(v);
 
       const datasets = series.map((s, i) => {
         const clr = series.length > 1 ? SHELF_COLORS[i % SHELF_COLORS.length] : baseClr;
         const lbl = s.shelf != null ? `${yTitle} — Shelf ${s.shelf}` : yTitle;
-        return { label: lbl, data: s.data,
+        return { label: lbl, data: s.data, spanGaps: false,
                  borderColor: clr, backgroundColor: clr + '1a',
                  tension: 0.3, pointRadius: n > 200 ? 0 : 3, borderWidth: 1.5 };
       });
