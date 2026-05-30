@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}Alert Settings — Mushroom Tracker{% endblock %}
+{% block content %}
+<div class="page-head-row">
+  <div class="page-head">
+    <div class="page-title">Alert Settings</div>
+    <div class="page-sub">SMS notifications via Gmail when environment readings go out of range</div>
+  </div>
+</div>
+
+<div class="card mb-16 form-wrap">
+  <form method="POST" action="{{ url_for('alert_settings') }}">
+    <input type="hidden" name="action" value="save">
+    <div class="fg-grid">
+
+      <div class="fg full" style="display:flex;align-items:center;gap:10px;padding-top:4px">
+        <input type="checkbox" name="alert_enabled" id="alertEnabled" value="1"
+               {{ 'checked' if settings.get('alert_enabled') == '1' }}>
+        <label for="alertEnabled" style="margin:0;font-weight:600;cursor:pointer;font-size:14px">
+          Alerts enabled
+        </label>
+      </div>
+
+      <div class="fg">
+        <label>Your Mobile Number</label>
+        <input type="tel" name="alert_phone" placeholder="e.g. 6125551234"
+               value="{{ settings.get('alert_phone','') }}">
+        <span class="form-hint">10 digits, no spaces or dashes — sends to <em>number</em>@txt.att.net</span>
+      </div>
+
+      <div class="fg">
+        <label>Gmail Address (sender)</label>
+        <input type="email" name="alert_gmail" placeholder="yourname@gmail.com"
+               value="{{ settings.get('alert_gmail','engineer.haugen@gmail.com') }}">
+        <span class="form-hint">The Gmail account whose App Password is set in GMAIL_APP_PASSWORD</span>
+      </div>
+
+    </div>
+
+    <div class="callout {{ 'callout-green' if gmail_pw_set else 'callout-amber' }}" style="margin:16px 0 20px">
+      {% if gmail_pw_set %}
+      GMAIL_APP_PASSWORD is set. &#10003;
+      {% else %}
+      <b>GMAIL_APP_PASSWORD not set.</b>
+      Go to <b>Google Account → Security → 2-Step Verification → App Passwords</b>,
+      create a password for "Mail", then add it as a Windows user environment variable
+      named <code>GMAIL_APP_PASSWORD</code> and restart the app.
+      {% endif %}
+    </div>
+
+    <div class="form-actions" style="gap:10px">
+      <button type="submit" class="btn btn-primary">Save Settings</button>
+    </div>
+  </form>
+
+  <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border-muted)">
+    <form method="POST" action="{{ url_for('alert_settings') }}" style="display:inline">
+      <input type="hidden" name="action" value="test">
+      <input type="hidden" name="alert_phone" value="{{ settings.get('alert_phone','') }}">
+      <input type="hidden" name="alert_gmail" value="{{ settings.get('alert_gmail','') }}">
+      <button type="submit" class="btn btn-ghost btn-sm" {{ 'disabled' if not gmail_pw_set }}>
+        Send Test SMS
+      </button>
+    </form>
+    <span style="font-size:11px;color:var(--text-muted);margin-left:8px">
+      Sends a sample Lions Mane temperature alert to verify your setup
+    </span>
+  </div>
+</div>
+
+<div class="card mb-16">
+  <div class="card-head" style="margin-bottom:14px">
+    <span class="card-title">How alerts work</span>
+  </div>
+  <div style="font-size:13px;color:var(--text-muted);line-height:1.7">
+    <p style="margin:0 0 8px">
+      After each Govee sensor sync (every 10 minutes), the app compares the reading against
+      the fruiting temperature and humidity ranges for every active batch in that chamber.
+      If a reading is out of range, a <b>streak counter</b> increments.
+      At <b>3 consecutive violations (~30 minutes)</b> you receive one SMS.
+    </p>
+    <p style="margin:0 0 8px">
+      The alert is not repeated until the reading returns to range and goes out again —
+      so a chamber that stays cold won't flood your phone.
+      When the reading recovers, the streak and alert flag reset automatically.
+    </p>
+    <p style="margin:0">
+      <b>Parameters monitored:</b> Temperature (°F), Humidity (% RH), and CO₂ (ppm) when available.
+      Thresholds are the species' full acceptable fruiting range from the species configuration,
+      not the batch target midpoint.
+    </p>
+  </div>
+</div>
+
+{% if alert_state %}
+<div class="card">
+  <div class="card-head" style="margin-bottom:14px">
+    <span class="card-title">Current Alert State</span>
+    <span style="font-size:11px;color:var(--text-muted)">resets when readings return in range</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Chamber</th>
+          <th>Parameter</th>
+          <th>Streak</th>
+          <th>Last Value</th>
+          <th>Range</th>
+          <th>Alerted</th>
+          <th>Updated</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in alert_state %}
+        <tr>
+          <td class="fw-600">{{ row.chamber_name }}</td>
+          <td class="td-m">{{ row.parameter | title }}</td>
+          <td>
+            <span style="font-weight:600;color:{{ 'var(--red)' if row.streak >= 3 else 'var(--amber)' if row.streak > 0 else 'var(--text-muted)' }}">
+              {{ row.streak }}
+            </span>
+          </td>
+          <td>{{ "%.1f"|format(row.last_value) if row.last_value is not none else '—' }}</td>
+          <td class="td-m">{{ row.range_lo }}–{{ row.range_hi }}</td>
+          <td>{{ '✓ sent' if row.alerted else '—' }}</td>
+          <td class="td-m">{{ row.updated_at[:16] if row.updated_at else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

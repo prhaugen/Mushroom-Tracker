@@ -435,6 +435,25 @@ def init_db():
         enabled   INTEGER DEFAULT 1
     )""")
 
+    # App-wide key-value settings (non-sensitive)
+    c.execute("""CREATE TABLE IF NOT EXISTS app_settings (
+        key   TEXT PRIMARY KEY,
+        value TEXT
+    )""")
+
+    # Per-chamber per-parameter out-of-range streak tracking for SMS alerts
+    c.execute("""CREATE TABLE IF NOT EXISTS env_alert_state (
+        chamber_id  INTEGER,
+        parameter   TEXT,
+        streak      INTEGER DEFAULT 0,
+        alerted     INTEGER DEFAULT 0,
+        last_value  REAL,
+        range_lo    REAL,
+        range_hi    REAL,
+        updated_at  TEXT,
+        PRIMARY KEY (chamber_id, parameter)
+    )""")
+
     # Non-destructive column addition for batch_notes — edit support
     existing_bn = {r[1] for r in c.execute("PRAGMA table_info(batch_notes)")}
     if "updated_at" not in existing_bn:

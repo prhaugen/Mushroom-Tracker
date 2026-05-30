@@ -2078,6 +2078,11 @@ def govee_sync_all(app=None):
                     (now_str, dev['device_id']))
                 inserted += 1
 
+                if chamber_id:
+                    _check_env_alerts(conn, chamber_id,
+                                      readings['temp_f'], readings['humidity_rh'],
+                                      readings.get('co2_ppm'))
+
             except Exception as e:
                 errors.append(f"{dev['device_name']}: {e}")
 
@@ -2309,6 +2314,184 @@ def govee_setup():
     conn.close()
     return render_template('govee_setup.html', devices=devices, chambers=chambers,
                            api_key_set=bool(api_key))
+
+
+# ── SMS Alerts ────────────────────────────────────────────────────────────────
+
+def _get_app_setting(key: str, default=None):
+    try:
+        conn = get_db()
+        row = conn.execute("SELECT value FROM app_settings WHERE key=?", (key,)).fetchone()
+        conn.close()
+        return row['value'] if row else default
+    except Exception:
+        return default
+
+
+def _set_app_setting(conn, key: str, value: str):
+    conn.execute("INSERT OR REPLACE INTO app_settings (key,value) VALUES (?,?)", (key, value))
+
+
+def _get_gmail_password() -> str | None:
+    pw = os.environ.get('GMAIL_APP_PASSWORD')
+    if pw:
+        return pw
+    try:
+        import winreg
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, 'Environment') as reg:
+            value, _ = winreg.QueryValueEx(reg, 'GMAIL_APP_PASSWORD')
+            return value
+    except Exception:
+        return None
+
+
+def _send_alert_sms(chamber_name: str, param: str, value: float,
+                    lo: float, hi: float, batch_label: str,
+                    species: str, streak: int, unit: str):
+    import logging, smtplib
+    from email.mime.text import MIMEText
+
+    phone    = _get_app_setting('alert_phone')
+    gmail    = _get_app_setting('alert_gmail', 'engineer.haugen@gmail.com')
+    gmail_pw = _get_gmail_password()
+    log      = logging.getLogger(__name__)
+
+    if not phone:
+        log.warning("SMS alert skipped — alert_phone not configured"); return
+    if not gmail_pw:
+        log.warning("SMS alert skipped — GMAIL_APP_PASSWORD not set"); return
+
+    param_name = {'temp': 'Temperature', 'humidity': 'Humidity', 'co2': 'CO2'}.get(param, param)
+    minutes    = streak * 10
+
+    body = (
+        f"Mushroom Tracker\n"
+        f"{chamber_name}: {param_name} {value:.1f}{unit} "
+        f"(ok: {lo}-{hi}{unit})\n"
+        f"Out of range ~{minutes} min\n"
+        f"{batch_label} ({species})"
+    )
+    to_addr = f"{phone}@txt.att.net"
+
+    try:
+        msg = MIMEText(body)
+        msg['From']    = gmail
+        msg['To']      = to_addr
+        msg['Subject'] = f"Alert: {chamber_name} {param_name}"
+        with smtplib.SMTP('smtp.gmail.com', 587) as server:
+            server.ehlo(); server.starttls()
+            server.login(gmail, gmail_pw)
+            server.sendmail(gmail, [to_addr], msg.as_string())
+        log.info("SMS alert sent: %s %s=%.1f%s streak=%d", chamber_name, param, value, unit, streak)
+    except Exception as e:
+        log.error("SMS send failed: %s", e)
+
+
+def _check_env_alerts(conn, chamber_id: int, temp_f, humidity_rh, co2_ppm=None):
+    """Check a new reading against active-batch thresholds; SMS after 3 consecutive violations."""
+    from agent_config import SPECIES_TIMELINES, DEFAULT_TIMELINE
+
+    if not _get_app_setting('alert_enabled', '0') == '1':
+        return
+
+    chamber = conn.execute("SELECT name FROM chambers WHERE id=?", (chamber_id,)).fetchone()
+    if not chamber:
+        return
+    chamber_name = chamber['name']
+
+    batches = conn.execute("""
+        SELECT label, species FROM batches
+        WHERE chamber_id=? AND status NOT IN ('done','contaminated','aborted')
+    """, (chamber_id,)).fetchall()
+    if not batches:
+        return
+
+    # Collect violations — first batch whose range is broken wins the message
+    violations = {}
+    for batch in batches:
+        sp_key = (batch['species'] or '').lower()
+        tl     = SPECIES_TIMELINES.get(sp_key, DEFAULT_TIMELINE)
+
+        t_lo, t_hi = tl['fruiting_temp_f']
+        h_lo, h_hi = tl['fruiting_humidity_rh']
+        c_lo, c_hi = tl['fruiting_co2_ppm']
+
+        if temp_f is not None and 'temp' not in violations:
+            if temp_f < t_lo or temp_f > t_hi:
+                violations['temp'] = (temp_f, t_lo, t_hi, batch['label'], batch['species'], '°F')
+
+        if humidity_rh is not None and 'humidity' not in violations:
+            if humidity_rh < h_lo or humidity_rh > h_hi:
+                violations['humidity'] = (humidity_rh, h_lo, h_hi, batch['label'], batch['species'], '%')
+
+        if co2_ppm is not None and 'co2' not in violations:
+            if co2_ppm < c_lo or co2_ppm > c_hi:
+                violations['co2'] = (co2_ppm, c_lo, c_hi, batch['label'], batch['species'], ' ppm')
+
+    now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+    for param, (val, lo, hi, label, species, unit) in violations.items():
+        row    = conn.execute(
+            "SELECT streak, alerted FROM env_alert_state WHERE chamber_id=? AND parameter=?",
+            (chamber_id, param)).fetchone()
+        streak  = (row['streak'] + 1) if row else 1
+        alerted = row['alerted'] if row else 0
+        conn.execute("""INSERT OR REPLACE INTO env_alert_state
+            (chamber_id, parameter, streak, alerted, last_value, range_lo, range_hi, updated_at)
+            VALUES (?,?,?,?,?,?,?,?)""",
+            (chamber_id, param, streak, alerted, val, lo, hi, now_str))
+        if streak >= 3 and not alerted:
+            _send_alert_sms(chamber_name, param, val, lo, hi, label, species, streak, unit)
+            conn.execute(
+                "UPDATE env_alert_state SET alerted=1 WHERE chamber_id=? AND parameter=?",
+                (chamber_id, param))
+
+    # Reset any parameter now back in range
+    for param in ('temp', 'humidity', 'co2'):
+        if param not in violations:
+            conn.execute("""UPDATE env_alert_state SET streak=0, alerted=0, updated_at=?
+                WHERE chamber_id=? AND parameter=?""", (now_str, chamber_id, param))
+
+    conn.commit()
+
+
+@app.route('/settings/alerts', methods=['GET', 'POST'])
+def alert_settings():
+    init_db()
+    conn = get_db()
+
+    if request.method == 'POST':
+        action = request.form.get('action')
+        if action == 'save':
+            _set_app_setting(conn, 'alert_phone',   request.form.get('alert_phone', '').strip())
+            _set_app_setting(conn, 'alert_gmail',   request.form.get('alert_gmail', '').strip())
+            _set_app_setting(conn, 'alert_enabled', '1' if request.form.get('alert_enabled') else '0')
+            conn.commit()
+            flash('Alert settings saved.', 'success')
+        elif action == 'test':
+            phone = request.form.get('alert_phone', '').strip()
+            gmail = request.form.get('alert_gmail', '').strip()
+            if phone:
+                _set_app_setting(conn, 'alert_phone',  phone)
+                _set_app_setting(conn, 'alert_gmail',  gmail)
+                conn.commit()
+            _send_alert_sms('Test Chamber', 'temp', 58.0, 65.0, 75.0,
+                            'LM-001', 'Lions Mane', 3, '°F')
+            flash('Test SMS sent — check your phone.', 'success')
+        conn.close()
+        return redirect(url_for('alert_settings'))
+
+    settings = {r['key']: r['value'] for r in conn.execute("SELECT key,value FROM app_settings").fetchall()}
+    alert_state = conn.execute("""
+        SELECT a.*, c.name AS chamber_name
+        FROM env_alert_state a
+        JOIN chambers c ON c.id = a.chamber_id
+        ORDER BY a.updated_at DESC
+    """).fetchall()
+    conn.close()
+    gmail_pw_set = bool(_get_gmail_password())
+    return render_template('alert_settings.html', settings=settings,
+                           alert_state=alert_state, gmail_pw_set=gmail_pw_set)
 
 
 # ── Govee CSV Import ──────────────────────────────────────────────────────────
