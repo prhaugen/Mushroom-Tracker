@@ -479,34 +479,45 @@ def batch_detail(batch_id):
 
     ts0 = cs_dt.strftime('%Y-%m-%d %H:%M:%S')
     ts1 = ce_dt.strftime('%Y-%m-%d %H:%M:%S')
-    # Temp + humidity: prefer chamber-linked rows, fall back to ambient
+    # Temp + humidity: fetch all chamber rows with shelf info, then split by shelf
+    ch_series = []
     if batch['chamber_id']:
-        batch_shelf = batch['shelf'] if batch['shelf'] else None
-        if batch_shelf:
-            ch_rows = conn.execute("""
-                SELECT logged_at, temp_f, humidity_rh
-                FROM environment_logs
-                WHERE chamber_id = ? AND logged_at >= ? AND logged_at <= ?
-                  AND (shelf = ? OR shelf IS NULL)
-                ORDER BY logged_at ASC
-            """, (batch['chamber_id'], ts0, ts1, batch_shelf)).fetchall()
+        all_ch = conn.execute("""
+            SELECT logged_at, temp_f, humidity_rh, shelf
+            FROM environment_logs
+            WHERE chamber_id = ? AND logged_at >= ? AND logged_at <= ?
+            ORDER BY logged_at ASC
+        """, (batch['chamber_id'], ts0, ts1)).fetchall()
+
+        # Group by shelf — shelves with data get their own series
+        shelf_groups = {}
+        for r in all_ch:
+            key = r['shelf'] if r['shelf'] is not None else '__none__'
+            shelf_groups.setdefault(key, []).append(dict(r))
+
+        tagged_shelves = sorted(k for k in shelf_groups if k != '__none__')
+
+        if len(tagged_shelves) > 1:
+            # Multiple sensors — one series per shelf
+            for s in tagged_shelves:
+                agg = _aggregate_env_logs(shelf_groups[s], env_res)
+                ch_series.append({'shelf': s, 'agg': agg})
         else:
-            ch_rows = conn.execute("""
-                SELECT logged_at, temp_f, humidity_rh
-                FROM environment_logs
-                WHERE chamber_id = ? AND logged_at >= ? AND logged_at <= ?
-                ORDER BY logged_at ASC
-            """, (batch['chamber_id'], ts0, ts1)).fetchall()
-    else:
-        ch_rows = []
-    if not ch_rows:
-        ch_rows = conn.execute("""
+            # Single shelf or no shelf tags — aggregate everything together
+            agg = _aggregate_env_logs([dict(r) for r in all_ch], env_res)
+            ch_series.append({'shelf': None, 'agg': agg})
+
+    if not any(s['agg'] for s in ch_series):
+        # Fall back to ambient if no chamber data
+        amb = conn.execute("""
             SELECT logged_at, temp_f, humidity_rh
             FROM environment_logs
             WHERE chamber_id IS NULL AND batch_id IS NULL
               AND logged_at >= ? AND logged_at <= ?
             ORDER BY logged_at ASC
         """, (ts0, ts1)).fetchall()
+        agg = _aggregate_env_logs([dict(r) for r in amb], env_res)
+        ch_series = [{'shelf': None, 'agg': agg}]
 
     # CO2: ambient sensor only
     co2_rows = conn.execute("""
@@ -517,14 +528,27 @@ def batch_detail(batch_id):
           AND logged_at >= ? AND logged_at <= ?
         ORDER BY logged_at ASC
     """, (ts0, ts1)).fetchall()
-
-    ch_agg  = _aggregate_env_logs([dict(r) for r in ch_rows],  env_res)
     co2_agg = _aggregate_env_logs([dict(r) for r in co2_rows], env_res)
 
+    multi_shelf = len(ch_series) > 1
+    # Build series arrays for the template
+    temp_series = [{'shelf': s['shelf'],
+                    'labels': [r['logged_at'][:16] for r in s['agg']],
+                    'data':   [r['temp_f']          for r in s['agg']]}
+                   for s in ch_series]
+    hum_series  = [{'shelf': s['shelf'],
+                    'labels': [r['logged_at'][:16] for r in s['agg']],
+                    'data':   [r['humidity_rh']     for r in s['agg']]}
+                   for s in ch_series]
+
     batch_chart_data = {
-        'labels':      [r['logged_at'][:16] for r in ch_agg],
-        'temp':        [r['temp_f']          for r in ch_agg],
-        'humidity':    [r['humidity_rh']     for r in ch_agg],
+        'multi_shelf': multi_shelf,
+        'temp_series': temp_series,
+        'hum_series':  hum_series,
+        # Single-series convenience keys (first shelf, for backward compat)
+        'labels':      temp_series[0]['labels'] if temp_series else [],
+        'temp':        temp_series[0]['data']   if temp_series else [],
+        'humidity':    hum_series[0]['data']    if hum_series  else [],
         'co2_labels':  [r['logged_at'][:16] for r in co2_agg],
         'co2':         [r['co2_ppm']         for r in co2_agg],
         'temp_lo':     sp_defaults['temp_lo']     if sp_defaults else None,

@@ -476,34 +476,43 @@ function cancelEdit(id) {
 }
 </script>
 
-{% if batch_chart_data.labels or batch_chart_data.co2 %}
+{% if batch_chart_data.temp_series or batch_chart_data.co2 %}
 <script>
 (function () {
   const cd = {{ batch_chart_data | tojson }};
 
-  function buildChart(id, labels, data, lineClr, rangeClr, yTitle, tickFn, lo, hi) {
+  // Palette for multi-shelf series (index 0, 1, 2...)
+  const SHELF_COLORS = ['#3fb950','#f0883e','#58a6ff','#e3b341','#b899d0'];
+
+  function buildChart(id, series, baseClr, rangeClr, yTitle, tickFn, lo, hi) {
     try {
       const el = document.getElementById(id);
-      if (!el || !labels || !labels.length) return;
-      const vals = data.filter(v => v != null && isFinite(v));
-      if (!vals.length) return;
+      if (!el || !series || !series.length) return;
 
-      const dMin = Math.min(...vals);
-      const dMax = Math.max(...vals);
+      // Merge all values across series for axis scaling
+      const allVals = series.flatMap(s => s.data.filter(v => v != null && isFinite(v)));
+      if (!allVals.length) return;
+
+      const dMin = Math.min(...allVals);
+      const dMax = Math.max(...allVals);
       let yMin = Math.floor(dMin - 3);
       let yMax = Math.ceil(dMax + 3);
-
-      // Always expand axis to include range reference lines when they exist
       if (lo != null && lo < yMin) yMin = Math.floor(lo - 2);
       if (hi != null && hi > yMax) yMax = Math.ceil(hi + 2);
 
+      // Use the longest label array as x-axis
+      const labels = series.reduce((a, s) => s.labels.length > a.length ? s.labels : a, []);
       const n = labels.length;
       const flat = v => Array(n).fill(v);
-      const datasets = [
-        { label: yTitle, data,
-          borderColor: lineClr, backgroundColor: lineClr + '1a',
-          tension: 0.3, pointRadius: n > 200 ? 0 : 3, borderWidth: 1.5 }
-      ];
+
+      const datasets = series.map((s, i) => {
+        const clr = series.length > 1 ? SHELF_COLORS[i % SHELF_COLORS.length] : baseClr;
+        const lbl = s.shelf != null ? `${yTitle} — Shelf ${s.shelf}` : yTitle;
+        return { label: lbl, data: s.data,
+                 borderColor: clr, backgroundColor: clr + '1a',
+                 tension: 0.3, pointRadius: n > 200 ? 0 : 3, borderWidth: 1.5 };
+      });
+
       if (lo != null) {
         datasets.push(
           { label: 'Low ' + lo,  data: flat(lo), borderColor: rangeClr,
@@ -528,9 +537,9 @@ function cancelEdit(id) {
             x: { ticks: { color: '#8b949e', font: { size: 10 }, maxRotation: 30, maxTicksLimit: 10 },
                  grid: { color: 'rgba(48,54,61,.4)' } },
             y: { min: yMin, max: yMax,
-                 ticks: { color: lineClr, font: { size: 11 }, callback: tickFn },
+                 ticks: { color: series.length > 1 ? '#8b949e' : baseClr, font: { size: 11 }, callback: tickFn },
                  grid: { color: 'rgba(48,54,61,.4)' },
-                 title: { display: true, text: yTitle, color: lineClr, font: { size: 11 } } }
+                 title: { display: true, text: yTitle, color: series.length > 1 ? '#8b949e' : baseClr, font: { size: 11 } } }
           }
         }
       });
@@ -539,13 +548,15 @@ function cancelEdit(id) {
     }
   }
 
-  buildChart('chartTemp', cd.labels, cd.temp, '#3fb950', 'rgba(63,185,80,0.55)',
+  buildChart('chartTemp', cd.temp_series, '#3fb950', 'rgba(63,185,80,0.55)',
              'Temp (°F)', v => v + '°F', cd.temp_lo, cd.temp_hi);
 
-  buildChart('chartHum', cd.labels, cd.humidity, '#58a6ff', 'rgba(88,166,255,0.55)',
+  buildChart('chartHum', cd.hum_series, '#58a6ff', 'rgba(88,166,255,0.55)',
              'Humidity (% RH)', v => v + '%', cd.humidity_lo, cd.humidity_hi);
 
-  buildChart('chartCO2', cd.co2_labels, cd.co2, '#b899d0', 'rgba(184,153,208,0.55)',
+  buildChart('chartCO2',
+             [{ shelf: null, labels: cd.co2_labels, data: cd.co2 }],
+             '#b899d0', 'rgba(184,153,208,0.55)',
              'CO₂ (ppm)', v => v + ' ppm', cd.co2_lo, cd.co2_hi);
 })();
 </script>
