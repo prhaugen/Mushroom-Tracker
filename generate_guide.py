@@ -1246,36 +1246,35 @@ def build():
             [
                 ["Temperature\n(green)",
                  "Chamber sensor readings for the batch's assigned chamber. "
-                 "Falls back to ambient sensor data when no chamber-linked readings exist.",
-                 "Two dashed green lines at the species' lo and hi fruiting temperature. "
-                 "Pulled into view when within 25 °F of the actual data range."],
+                 "Falls back to ambient sensor data when no chamber-linked readings exist. "
+                 "When the chamber has sensors on multiple shelves, each shelf is shown as "
+                 "a separate colored line (Shelf 1 = green, Shelf 5 = orange, etc.).",
+                 "Two dashed lines at the species' lo and hi fruiting temperature. "
+                 "The y-axis always expands to include these lines."],
                 ["Humidity\n(blue)",
-                 "Same chamber (or ambient fallback) source as Temperature — "
-                 "readings are from the same imported rows.",
-                 "Two dashed blue lines at the species' lo and hi fruiting RH. "
-                 "Pulled into view when within 25 % RH of the actual data range."],
+                 "Same chamber (or ambient fallback) source as Temperature. "
+                 "Multi-shelf sensors also show as separate lines.",
+                 "Two dashed lines at the species' lo and hi fruiting RH."],
                 ["CO₂\n(purple)",
                  "Ambient sensor data only (rows with no chamber assignment). "
                  "Only rendered when CO₂ readings exist for the batch's active period.",
                  "Two dashed purple lines at the species' lo and hi fruiting CO₂ tolerance. "
-                 "Blue Oyster and most oysters: 400–800 ppm. "
-                 "King Oyster and Reishi tolerate up to 1 500 ppm."],
+                 "Lions Mane: 400–1 500 ppm. Most oysters: 400–800 ppm."],
             ],
-            col_widths=[2.5*cm, 5.5*cm, 8.2*cm],
+            col_widths=[2.5*cm, 6*cm, 7.7*cm],
         ),
         sp(6),
-        p("The y-axis for each chart is computed from the actual readings ± 3 units of padding. "
-          "Range lines that fall within 25 units of the data range are pulled into view "
-          "automatically; lines further away are clipped but the species range is always "
-          "shown in text above the chart header. "
-          "This keeps the actual data readable even when readings are far from the "
-          "species ideal — for example, when humidity is well below target."),
+        p("The y-axis for each chart is computed from the actual readings ± 3 units of padding "
+          "and always expands to include the species range reference lines, "
+          "so the dashed targets are visible regardless of how far readings are from the species ideal."),
         sp(8),
         p("Resolution pills above the charts let you switch between 1-minute, 5-minute, "
           "10-minute, 30-minute, and 60-minute averages. "
           "The charts auto-select a resolution based on the batch's age: "
           "batches under 2 days default to 5m; under 7 days to 10m; otherwise 30m. "
-          "Click any pill to override."),
+          "A <b>↻ refresh pill</b> at the right end of the row reloads the page at the "
+          "current resolution, pulling any new sensor readings that arrived since the page "
+          "was last loaded — useful when auto-polling is running."),
         sp(8),
         callout(
             "Temperature and Humidity come from chamber-linked environment logs "
@@ -1288,10 +1287,10 @@ def build():
             "re-importing the CO₂ CSV backfills CO₂ values into the existing ambient rows "
             "rather than creating duplicates, so importing both sensors in either order "
             "produces a complete dataset. "
-            "<b>Shelf filtering:</b> if the batch has a shelf number set, the chart only "
-            "includes environment readings from that shelf number — plus any readings that "
-            "have no shelf assigned — so sensors on different shelves do not interfere "
-            "with each other's data.",
+            "<b>Multi-shelf display:</b> when a chamber has sensors on multiple shelves, "
+            "each shelf's readings are shown as a separate line with its own color. "
+            "Each series is aligned to a shared time axis so shelves with less history "
+            "correctly appear at their actual dates rather than at the start of the chart.",
             label="Note:", color=BLUE_BG, border=BLUE_BORDER
         ),
         sp(12),
