@@ -2371,7 +2371,7 @@ def _send_alert_sms(chamber_name: str, param: str, value: float,
         f"Out of range ~{minutes} min\n"
         f"{batch_label} ({species})"
     )
-    to_addr = f"{phone}@txt.att.net"
+    to_addr = f"{phone}@mms.att.net"
 
     try:
         msg = MIMEText(body)
