@@ -2332,59 +2332,39 @@ def _set_app_setting(conn, key: str, value: str):
     conn.execute("INSERT OR REPLACE INTO app_settings (key,value) VALUES (?,?)", (key, value))
 
 
-def _get_gmail_password() -> str | None:
-    pw = os.environ.get('GMAIL_APP_PASSWORD')
-    if pw:
-        return pw
-    try:
-        import winreg
-        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, 'Environment') as reg:
-            value, _ = winreg.QueryValueEx(reg, 'GMAIL_APP_PASSWORD')
-            return value
-    except Exception:
-        return None
-
-
-def _send_alert_sms(chamber_name: str, param: str, value: float,
-                    lo: float, hi: float, batch_label: str,
-                    species: str, streak: int, unit: str):
-    import logging, smtplib
-    from email.mime.text import MIMEText
-
-    phone    = _get_app_setting('alert_phone')
-    gmail    = _get_app_setting('alert_gmail', 'engineer.haugen@gmail.com')
-    gmail_pw = _get_gmail_password()
-    log      = logging.getLogger(__name__)
-
-    if not phone:
-        log.warning("SMS alert skipped — alert_phone not configured"); return
-    if not gmail_pw:
-        log.warning("SMS alert skipped — GMAIL_APP_PASSWORD not set"); return
+def _send_ntfy_alert(chamber_name: str, param: str, value: float,
+                     lo: float, hi: float, batch_label: str,
+                     species: str, streak: int, unit: str):
+    import logging, urllib.request
+    log   = logging.getLogger(__name__)
+    topic = _get_app_setting('alert_ntfy_topic')
+    if not topic:
+        log.warning("ntfy alert skipped — alert_ntfy_topic not configured"); return
 
     param_name = {'temp': 'Temperature', 'humidity': 'Humidity', 'co2': 'CO2'}.get(param, param)
     minutes    = streak * 10
-
     body = (
-        f"Mushroom Tracker\n"
         f"{chamber_name}: {param_name} {value:.1f}{unit} "
-        f"(ok: {lo}-{hi}{unit})\n"
+        f"(ok {lo}-{hi}{unit})\n"
         f"Out of range ~{minutes} min\n"
         f"{batch_label} ({species})"
-    )
-    to_addr = f"{phone}@mms.att.net"
+    ).encode('utf-8')
 
     try:
-        msg = MIMEText(body)
-        msg['From']    = gmail
-        msg['To']      = to_addr
-        msg['Subject'] = f"Alert: {chamber_name} {param_name}"
-        with smtplib.SMTP('smtp.gmail.com', 587) as server:
-            server.ehlo(); server.starttls()
-            server.login(gmail, gmail_pw)
-            server.sendmail(gmail, [to_addr], msg.as_string())
-        log.info("SMS alert sent: %s %s=%.1f%s streak=%d", chamber_name, param, value, unit, streak)
+        req = urllib.request.Request(
+            f"https://ntfy.sh/{topic}",
+            data=body,
+            headers={
+                'Title':    f"Alert: {chamber_name} {param_name}",
+                'Priority': 'high',
+                'Tags':     'warning,mushroom',
+            },
+            method='POST'
+        )
+        urllib.request.urlopen(req, timeout=10)
+        log.info("ntfy alert sent: %s %s=%.1f%s streak=%d", chamber_name, param, value, unit, streak)
     except Exception as e:
-        log.error("SMS send failed: %s", e)
+        log.error("ntfy send failed: %s", e)
 
 
 def _check_env_alerts(conn, chamber_id: int, temp_f, humidity_rh, co2_ppm=None):
@@ -2441,7 +2421,7 @@ def _check_env_alerts(conn, chamber_id: int, temp_f, humidity_rh, co2_ppm=None):
             VALUES (?,?,?,?,?,?,?,?)""",
             (chamber_id, param, streak, alerted, val, lo, hi, now_str))
         if streak >= 3 and not alerted:
-            _send_alert_sms(chamber_name, param, val, lo, hi, label, species, streak, unit)
+            _send_ntfy_alert(chamber_name, param, val, lo, hi, label, species, streak, unit)
             conn.execute(
                 "UPDATE env_alert_state SET alerted=1 WHERE chamber_id=? AND parameter=?",
                 (chamber_id, param))
@@ -2469,15 +2449,13 @@ def alert_settings():
             conn.commit()
             flash('Alert settings saved.', 'success')
         elif action == 'test':
-            phone = request.form.get('alert_phone', '').strip()
-            gmail = request.form.get('alert_gmail', '').strip()
-            if phone:
-                _set_app_setting(conn, 'alert_phone',  phone)
-                _set_app_setting(conn, 'alert_gmail',  gmail)
+            topic = request.form.get('alert_ntfy_topic', '').strip()
+            if topic:
+                _set_app_setting(conn, 'alert_ntfy_topic', topic)
                 conn.commit()
-            _send_alert_sms('Test Chamber', 'temp', 58.0, 65.0, 75.0,
-                            'LM-001', 'Lions Mane', 3, '°F')
-            flash('Test SMS sent — check your phone.', 'success')
+            _send_ntfy_alert('Test Chamber', 'temp', 58.0, 65.0, 75.0,
+                             'LM-001', 'Lions Mane', 3, '°F')
+            flash('Test notification sent — check your ntfy app.', 'success')
         conn.close()
         return redirect(url_for('alert_settings'))
 
@@ -2489,9 +2467,8 @@ def alert_settings():
         ORDER BY a.updated_at DESC
     """).fetchall()
     conn.close()
-    gmail_pw_set = bool(_get_gmail_password())
     return render_template('alert_settings.html', settings=settings,
-                           alert_state=alert_state, gmail_pw_set=gmail_pw_set)
+                           alert_state=alert_state)
 
 
 # ── Govee CSV Import ──────────────────────────────────────────────────────────
