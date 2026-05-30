@@ -79,6 +79,32 @@
     <a href="{{ url_for('env_log') }}" class="btn btn-primary">Log Now</a>
   </div>
   {% endif %}
+
+  {% if chamber_lights %}
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid var(--border-muted)">
+    {% for dev in chamber_lights %}
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r)">
+      <span style="font-size:13px;font-weight:600;color:var(--text-muted)">{{ dev.role | default(dev.device_type, true) | title }}</span>
+      <span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;
+                   color:{{ 'var(--green)' if dev.power_state else 'var(--text-dim)' }}">
+        <span style="width:8px;height:8px;border-radius:50%;display:inline-block;
+                     background:{{ 'var(--green)' if dev.power_state else 'var(--border)' }}"></span>
+        {{ 'ON' if dev.power_state else 'OFF' if dev.power_state is not none else '?' }}
+      </span>
+      {% if dev.on_time and dev.off_time and dev.sched_enabled %}
+      <span style="font-size:10px;color:var(--text-dim)">{{ dev.on_time }}–{{ dev.off_time }}</span>
+      {% endif %}
+      <form method="POST" action="{{ url_for('govee_toggle', device_id=dev.device_id) }}" style="margin:0">
+        <button type="submit" class="btn btn-sm {{ 'btn-danger' if dev.power_state else 'btn-primary' }}"
+                style="padding:3px 10px;font-size:11px">
+          {{ 'Off' if dev.power_state else 'On' }}
+        </button>
+      </form>
+    </div>
+    {% endfor %}
+    <a href="{{ url_for('govee_lights') }}" class="btn btn-ghost btn-sm" style="align-self:center">Manage</a>
+  </div>
+  {% endif %}
 </div>
 
 <!-- Batches — full width -->

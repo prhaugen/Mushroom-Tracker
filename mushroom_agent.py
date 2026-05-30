@@ -722,6 +722,74 @@ def run_briefing(triggered_by: str = 'scheduler') -> dict:
 
 # ── Scheduler ─────────────────────────────────────────────────────────────────
 
+def _load_light_schedules(scheduler, app, conn):
+    """Add/replace APScheduler cron jobs for all enabled light schedules."""
+    rows = conn.execute("""
+        SELECT s.device_id, s.on_time, s.off_time,
+               d.sku, d.device_name
+        FROM light_schedules s
+        JOIN govee_devices d ON d.device_id = s.device_id
+        WHERE s.enabled = 1 AND s.on_time IS NOT NULL AND s.off_time IS NOT NULL
+    """).fetchall()
+
+    for row in rows:
+        did  = row['device_id']
+        sku  = row['sku']
+        name = row['device_name']
+
+        def _make_job(device_id, device_sku, state):
+            def _job():
+                try:
+                    from mushroom_app import _get_govee_key, _govee_control, get_db
+                    api_key = _get_govee_key()
+                    if api_key:
+                        _govee_control(api_key, device_id, device_sku, 'powerSwitch', state)
+                        with app.app_context():
+                            conn2 = get_db()
+                            from datetime import datetime as _dt
+                            conn2.execute(
+                                "UPDATE govee_devices SET power_state=?, power_state_at=? WHERE device_id=?",
+                                (state, _dt.now().strftime('%Y-%m-%d %H:%M:%S'), device_id))
+                            conn2.commit(); conn2.close()
+                        logger.info("Light schedule: %s → %s", device_id, 'ON' if state else 'OFF')
+                except Exception as exc:
+                    logger.error("Light schedule job failed: %s", exc)
+            return _job
+
+        try:
+            on_h,  on_m  = (int(x) for x in row['on_time'].split(':'))
+            off_h, off_m = (int(x) for x in row['off_time'].split(':'))
+            scheduler.add_job(_make_job(did, sku, 1), trigger='cron',
+                              hour=on_h,  minute=on_m,
+                              id=f'light_on_{did}',  replace_existing=True)
+            scheduler.add_job(_make_job(did, sku, 0), trigger='cron',
+                              hour=off_h, minute=off_m,
+                              id=f'light_off_{did}', replace_existing=True)
+            logger.info("Light schedule loaded: %s on=%s off=%s", name, row['on_time'], row['off_time'])
+        except Exception as exc:
+            logger.warning("Could not load schedule for %s: %s", did, exc)
+
+
+def reload_light_schedules(conn):
+    """Reload light schedule jobs into the running scheduler (called after schedule save)."""
+    global _scheduler
+    try:
+        _scheduler = globals().get('_scheduler') or _find_scheduler()
+        if _scheduler:
+            import mushroom_app as _ma
+            _load_light_schedules(_scheduler, _ma.app, conn)
+    except Exception as exc:
+        logger.warning("reload_light_schedules failed: %s", exc)
+
+
+def _find_scheduler():
+    try:
+        import mushroom_app as _ma
+        return getattr(_ma, '_scheduler', None)
+    except Exception:
+        return None
+
+
 def init_scheduler(app):
     try:
         from apscheduler.schedulers.background import BackgroundScheduler
@@ -753,6 +821,18 @@ def init_scheduler(app):
         scheduler.start()
         atexit.register(scheduler.shutdown)
         logger.info("Scheduler started — briefing at 06:00, Govee poll every 10 min")
+
+        # Load light schedules from DB
+        try:
+            import sqlite3 as _sq
+            import mushroom_tracker as _mt
+            _conn = _sq.connect(str(_mt.DB_PATH))
+            _conn.row_factory = _sq.Row
+            _load_light_schedules(scheduler, app, _conn)
+            _conn.close()
+        except Exception as _le:
+            logger.warning("Could not load light schedules: %s", _le)
+
         return scheduler
     except ImportError:
         logger.warning(

@@ -170,6 +170,14 @@ def dashboard():
 
     harvest_forecast = _build_harvest_forecast(conn, chamber_id=chamber['id'])
 
+    chamber_lights = conn.execute("""
+        SELECT d.*, s.on_time, s.off_time, s.enabled AS sched_enabled
+        FROM govee_devices d
+        LEFT JOIN light_schedules s ON s.device_id = d.device_id
+        WHERE d.chamber_id = ? AND d.device_type IN ('light','switch') AND d.enabled = 1
+        ORDER BY d.device_name
+    """, (chamber['id'],)).fetchall()
+
     conn.close()
     return render_template('dashboard.html',
         chamber=chamber, all_chambers=all_chambers,
@@ -177,7 +185,8 @@ def dashboard():
         recent_flushes=recent_flushes, total_yield=total_yield,
         active_count=active_count, env_count=env_count,
         days_running=days_running, avg_be=avg_be,
-        harvest_forecast=harvest_forecast)
+        harvest_forecast=harvest_forecast,
+        chamber_lights=chamber_lights)
 
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
@@ -2080,6 +2089,153 @@ def govee_sync_all(app=None):
             ctx.pop()
 
 
+_GOVEE_LIGHT_SKUS  = {'H6159','H6160','H6163','H6170','H6182','H619B',
+                      'H7005','H7021','H7041','H7042','H7065'}
+_GOVEE_SWITCH_SKUS = {'H5083','H5086','H5080'}
+
+
+def _govee_device_type(sku: str) -> str:
+    if sku in _GOVEE_LIGHT_SKUS:  return 'light'
+    if sku in _GOVEE_SWITCH_SKUS: return 'switch'
+    return 'sensor'
+
+
+def _govee_control(api_key: str, device_id: str, sku: str, instance: str, value) -> dict:
+    import uuid
+    cap_type = ('devices.capabilities.on_off' if instance == 'powerSwitch'
+                else 'devices.capabilities.range'  if instance == 'brightness'
+                else 'devices.capabilities.color_setting')
+    body = {'requestId': str(uuid.uuid4()),
+            'payload': {'sku': sku, 'device': device_id,
+                        'capability': {'type': cap_type, 'instance': instance, 'value': value}}}
+    return _govee_request('/device/control', api_key, body)
+
+
+def _govee_fetch_power_state(api_key: str, device_id: str, sku: str) -> int | None:
+    import uuid
+    body = {'requestId': str(uuid.uuid4()),
+            'payload': {'sku': sku, 'device': device_id}}
+    try:
+        data = _govee_request('/device/state', api_key, body)
+        for cap in data.get('payload', {}).get('capabilities', []):
+            if cap.get('instance') == 'powerSwitch':
+                return cap.get('state', {}).get('value')
+    except Exception:
+        pass
+    return None
+
+
+def _govee_refresh_power_states(conn):
+    """Fetch and cache current power state for all light/switch devices."""
+    api_key = _get_govee_key()
+    if not api_key:
+        return
+    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    devices = conn.execute(
+        "SELECT device_id, sku FROM govee_devices WHERE device_type IN ('light','switch') AND enabled=1"
+    ).fetchall()
+    for dev in devices:
+        state = _govee_fetch_power_state(api_key, dev['device_id'], dev['sku'])
+        if state is not None:
+            conn.execute(
+                "UPDATE govee_devices SET power_state=?, power_state_at=? WHERE device_id=?",
+                (state, now, dev['device_id']))
+    conn.commit()
+
+
+@app.route('/govee/toggle/<device_id>', methods=['POST'])
+def govee_toggle(device_id):
+    init_db()
+    api_key = _get_govee_key()
+    if not api_key:
+        flash('GOVEE_API_KEY not set.', 'error')
+        return redirect(request.referrer or url_for('dashboard'))
+    conn = get_db()
+    dev = conn.execute("SELECT * FROM govee_devices WHERE device_id=?", (device_id,)).fetchone()
+    if not dev:
+        conn.close()
+        flash('Device not found.', 'error')
+        return redirect(request.referrer or url_for('dashboard'))
+    new_state = 0 if dev['power_state'] else 1
+    try:
+        _govee_control(api_key, device_id, dev['sku'], 'powerSwitch', new_state)
+        now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        conn.execute("UPDATE govee_devices SET power_state=?, power_state_at=? WHERE device_id=?",
+                     (new_state, now, device_id))
+        conn.commit()
+        flash(f"{'On' if new_state else 'Off'} — {dev['device_name']}", 'success')
+    except Exception as e:
+        flash(f'Control error: {e}', 'error')
+    conn.close()
+    return redirect(request.referrer or url_for('dashboard'))
+
+
+@app.route('/govee/lights', methods=['GET', 'POST'])
+def govee_lights():
+    init_db()
+    api_key = _get_govee_key()
+    conn = get_db()
+    chambers = conn.execute("SELECT * FROM chambers ORDER BY id").fetchall()
+
+    if request.method == 'POST':
+        action = request.form.get('action')
+
+        if action == 'save_devices':
+            for key in request.form:
+                if key.startswith('chamber_'):
+                    did         = key[len('chamber_'):]
+                    chamber_val = request.form.get(key)
+                    role_val    = request.form.get(f'role_{did}') or None
+                    enabled_val = 1 if request.form.get(f'enabled_{did}') else 0
+                    chamber_id  = int(chamber_val) if chamber_val else None
+                    conn.execute("""UPDATE govee_devices
+                        SET chamber_id=?, role=?, enabled=? WHERE device_id=?""",
+                        (chamber_id, role_val, enabled_val, did))
+            conn.commit()
+            flash('Device settings saved.', 'success')
+
+        elif action == 'save_schedule':
+            did      = request.form.get('device_id')
+            on_time  = request.form.get('on_time') or None
+            off_time = request.form.get('off_time') or None
+            enabled  = 1 if request.form.get('schedule_enabled') else 0
+            existing = conn.execute(
+                "SELECT id FROM light_schedules WHERE device_id=?", (did,)).fetchone()
+            if existing:
+                conn.execute(
+                    "UPDATE light_schedules SET on_time=?, off_time=?, enabled=? WHERE device_id=?",
+                    (on_time, off_time, enabled, did))
+            else:
+                conn.execute(
+                    "INSERT INTO light_schedules (device_id, on_time, off_time, enabled) VALUES (?,?,?,?)",
+                    (did, on_time, off_time, enabled))
+            conn.commit()
+            flash('Schedule saved.', 'success')
+            # Reload scheduler jobs
+            try:
+                from mushroom_agent import reload_light_schedules
+                reload_light_schedules(conn)
+            except Exception:
+                pass
+
+        elif action == 'refresh_states':
+            _govee_refresh_power_states(conn)
+            flash('Power states refreshed.', 'success')
+
+        conn.close()
+        return redirect(url_for('govee_lights'))
+
+    devices = conn.execute(
+        "SELECT d.*, s.on_time, s.off_time, s.enabled AS sched_enabled "
+        "FROM govee_devices d "
+        "LEFT JOIN light_schedules s ON s.device_id = d.device_id "
+        "WHERE d.device_type IN ('light','switch') ORDER BY d.device_name"
+    ).fetchall()
+    conn.close()
+    return render_template('govee_lights.html', devices=devices, chambers=chambers,
+                           api_key_set=bool(api_key))
+
+
 @app.route('/env/govee', methods=['GET', 'POST'])
 def govee_setup():
     init_db()
@@ -2106,14 +2262,15 @@ def govee_setup():
                         existing = conn.execute(
                             "SELECT device_id FROM govee_devices WHERE device_id=?", (did,)
                         ).fetchone()
+                        dtype = _govee_device_type(sku)
                         if existing:
                             conn.execute(
-                                "UPDATE govee_devices SET sku=?, device_name=? WHERE device_id=?",
-                                (sku, name, did))
+                                "UPDATE govee_devices SET sku=?, device_name=?, device_type=? WHERE device_id=?",
+                                (sku, name, dtype, did))
                         else:
                             conn.execute(
-                                "INSERT INTO govee_devices (device_id, sku, device_name) VALUES (?,?,?)",
-                                (did, sku, name))
+                                "INSERT INTO govee_devices (device_id, sku, device_name, device_type) VALUES (?,?,?,?)",
+                                (did, sku, name, dtype))
                     conn.commit()
                     flash(f'Found {len(devices)} device(s) from Govee API.', 'success')
                 except Exception as e:

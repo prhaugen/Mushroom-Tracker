@@ -415,8 +415,25 @@ def init_db():
         last_synced TEXT
     )""")
     existing_gd = {r[1] for r in c.execute("PRAGMA table_info(govee_devices)")}
-    if "is_ambient" not in existing_gd:
+    if "is_ambient"    not in existing_gd:
         c.execute("ALTER TABLE govee_devices ADD COLUMN is_ambient INTEGER DEFAULT 0")
+    if "device_type"   not in existing_gd:
+        c.execute("ALTER TABLE govee_devices ADD COLUMN device_type TEXT DEFAULT 'sensor'")
+    if "role"          not in existing_gd:
+        c.execute("ALTER TABLE govee_devices ADD COLUMN role TEXT")
+    if "power_state"   not in existing_gd:
+        c.execute("ALTER TABLE govee_devices ADD COLUMN power_state INTEGER")
+    if "power_state_at" not in existing_gd:
+        c.execute("ALTER TABLE govee_devices ADD COLUMN power_state_at TEXT")
+
+    # Light schedules
+    c.execute("""CREATE TABLE IF NOT EXISTS light_schedules (
+        id        INTEGER PRIMARY KEY,
+        device_id TEXT REFERENCES govee_devices(device_id),
+        on_time   TEXT,
+        off_time  TEXT,
+        enabled   INTEGER DEFAULT 1
+    )""")
 
     # Non-destructive column addition for batch_notes — edit support
     existing_bn = {r[1] for r in c.execute("PRAGMA table_info(batch_notes)")}

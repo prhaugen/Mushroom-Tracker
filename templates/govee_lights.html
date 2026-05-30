@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block title %}Light Control — Mushroom Tracker{% endblock %}
+{% block content %}
+<div class="page-head-row">
+  <div class="page-head">
+    <div class="page-title">Light Control</div>
+    <div class="page-sub">Manage lights and smart plugs — toggle, configure, and schedule</div>
+  </div>
+  <div class="gap-row">
+    <a href="{{ url_for('govee_setup') }}" class="btn btn-ghost btn-sm">Sensor Setup</a>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-ghost btn-sm">Dashboard</a>
+  </div>
+</div>
+
+{% if not api_key_set %}
+<div class="callout callout-amber" style="margin-bottom:20px">
+  <b>GOVEE_API_KEY not set.</b> Add it as a Windows user environment variable, then restart the app.
+</div>
+{% endif %}
+
+{% if not devices %}
+<div class="card">
+  <div class="empty">
+    <div class="empty-title">No lights or switches found</div>
+    <div class="empty-sub">Go to <a href="{{ url_for('govee_setup') }}" style="color:var(--blue)">Sensor Setup</a> and click Refresh Devices to pull your device list from Govee.</div>
+  </div>
+</div>
+{% else %}
+
+<!-- Live control -->
+<div class="card mb-16">
+  <div class="card-head" style="margin-bottom:16px">
+    <span class="card-title">Live Control</span>
+    <form method="POST" action="{{ url_for('govee_lights') }}" style="display:inline">
+      <input type="hidden" name="action" value="refresh_states">
+      <button type="submit" class="btn btn-ghost btn-sm">Refresh States</button>
+    </form>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:12px">
+    {% for dev in devices %}
+    <div style="display:flex;align-items:center;gap:16px;padding:12px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);flex-wrap:wrap">
+      <div style="flex:1;min-width:160px">
+        <div style="font-weight:600;font-size:14px">{{ dev.device_name }}</div>
+        <div style="font-size:11px;color:var(--text-muted)">{{ dev.sku }} · {{ dev.role or dev.device_type }}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        {% if dev.power_state is not none %}
+        <span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;
+                     color:{{ 'var(--green)' if dev.power_state else 'var(--text-muted)' }}">
+          <span style="width:8px;height:8px;border-radius:50%;background:{{ 'var(--green)' if dev.power_state else 'var(--border)' }};display:inline-block"></span>
+          {{ 'ON' if dev.power_state else 'OFF' }}
+        </span>
+        {% if dev.power_state_at %}
+        <span style="font-size:10px;color:var(--text-dim)">as of {{ dev.power_state_at[11:16] }}</span>
+        {% endif %}
+        {% else %}
+        <span style="font-size:12px;color:var(--text-muted)">Unknown</span>
+        {% endif %}
+      </div>
+      <form method="POST" action="{{ url_for('govee_toggle', device_id=dev.device_id) }}">
+        <button type="submit" class="btn btn-sm {{ 'btn-danger' if dev.power_state else 'btn-primary' }}">
+          {{ 'Turn Off' if dev.power_state else 'Turn On' }}
+        </button>
+      </form>
+      {% if dev.on_time and dev.off_time and dev.sched_enabled %}
+      <span style="font-size:11px;color:var(--text-muted)">⏰ {{ dev.on_time }} – {{ dev.off_time }}</span>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Device settings -->
+<div class="card mb-16">
+  <div class="card-head" style="margin-bottom:16px">
+    <span class="card-title">Device Settings</span>
+  </div>
+  <form method="POST" action="{{ url_for('govee_lights') }}">
+    <input type="hidden" name="action" value="save_devices">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Device</th>
+            <th>Model</th>
+            <th>Chamber</th>
+            <th>Role</th>
+            <th style="text-align:center">Enabled</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for dev in devices %}
+          <tr>
+            <td class="fw-600">{{ dev.device_name }}</td>
+            <td class="td-m">{{ dev.sku }}</td>
+            <td>
+              <select name="chamber_{{ dev.device_id }}"
+                      style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:12px;outline:none;min-width:120px">
+                <option value="">— none —</option>
+                {% for ch in chambers %}
+                <option value="{{ ch.id }}" {{ 'selected' if dev.chamber_id == ch.id }}>{{ ch.name }}</option>
+                {% endfor %}
+              </select>
+            </td>
+            <td>
+              <select name="role_{{ dev.device_id }}"
+                      style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:12px;outline:none">
+                <option value="">— select —</option>
+                <option value="light"  {{ 'selected' if dev.role == 'light'  }}>Light</option>
+                <option value="mister" {{ 'selected' if dev.role == 'mister' }}>Mister</option>
+                <option value="fan"    {{ 'selected' if dev.role == 'fan'    }}>Fan</option>
+                <option value="heater" {{ 'selected' if dev.role == 'heater' }}>Heater</option>
+              </select>
+            </td>
+            <td style="text-align:center">
+              <input type="checkbox" name="enabled_{{ dev.device_id }}" value="1" {{ 'checked' if dev.enabled }}>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="form-actions" style="margin-top:14px">
+      <button type="submit" class="btn btn-primary">Save Settings</button>
+    </div>
+  </form>
+</div>
+
+<!-- Schedules -->
+<div class="card">
+  <div class="card-head" style="margin-bottom:16px">
+    <span class="card-title">Light Schedules</span>
+    <span style="font-size:11px;color:var(--text-muted)">On/off times run daily via the scheduler</span>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:16px">
+    {% for dev in devices %}
+    <div style="padding:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r)">
+      <div style="font-weight:600;font-size:13px;margin-bottom:10px">{{ dev.device_name }}</div>
+      <form method="POST" action="{{ url_for('govee_lights') }}" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <input type="hidden" name="action" value="save_schedule">
+        <input type="hidden" name="device_id" value="{{ dev.device_id }}">
+        <div style="display:flex;align-items:center;gap:6px">
+          <label style="font-size:12px;color:var(--text-muted);white-space:nowrap">On</label>
+          <input type="time" name="on_time" value="{{ dev.on_time or '' }}"
+                 style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:13px;outline:none;color-scheme:dark">
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <label style="font-size:12px;color:var(--text-muted);white-space:nowrap">Off</label>
+          <input type="time" name="off_time" value="{{ dev.off_time or '' }}"
+                 style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;color:var(--text);font-size:13px;outline:none;color-scheme:dark">
+        </div>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);cursor:pointer">
+          <input type="checkbox" name="schedule_enabled" value="1" {{ 'checked' if dev.sched_enabled }}>
+          Enabled
+        </label>
+        <button type="submit" class="btn btn-ghost btn-sm">Save Schedule</button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}
