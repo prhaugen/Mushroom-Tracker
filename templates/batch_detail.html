@@ -111,11 +111,13 @@
       {% for r in resolutions %}
       <a href="?res={{ r }}" class="res-btn{% if r == env_res %} active{% endif %}">{{ r }}m</a>
       {% endfor %}
+      <a href="?res={{ env_res }}" class="res-btn" title="Refresh chart data"
+         style="color:var(--text-muted);padding:3px 8px">&#8635;</a>
     </div>
   </div>
-  {% if batch_chart_data.labels or batch_chart_data.co2 %}
+  {% if batch_chart_data.temp_series or batch_chart_data.co2 %}
   <div style="margin-top:12px;display:flex;flex-direction:column;gap:20px">
-    {% if batch_chart_data.labels %}
+    {% if batch_chart_data.temp_series %}
     <div>
       <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">
         <span style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted)">Temperature</span>
