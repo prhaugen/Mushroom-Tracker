@@ -400,30 +400,40 @@ def build():
         ("11.2", "All Readings Table",                          "13"),
         ("11.3", "Govee Sensor Integration",                      "13"),
         ("11",   "Reports",                                     "14"),
-        ("12",   "AI Daily Briefing",                           "14"),
-        ("12.1", "What It Does",                                "14"),
-        ("12.2", "Requirements",                                "14"),
-        ("12.3", "The Briefing Dashboard",                      "14"),
-        ("12.4", "Running a Briefing",                          "15"),
-        ("12.5", "Reading the Output",                          "15"),
-        ("13",   "Culture Tracking",                             "16"),
-        ("13.1", "LC Syringe Lots",                             "16"),
-        ("14",   "Substrate Batches",                           "17"),
-        ("14.1", "Logging a Substrate Run",                     "17"),
-        ("14.2", "Linking Blocks to a Substrate Batch",         "18"),
-        ("15",   "Grain Jars",                                  "18"),
-        ("15.1", "Logging a Grain Jar",                         "18"),
-        ("15.2", "Colonization Outcome Outcomes",               "19"),
-        ("16",   "Process Checklists",                          "19"),
-        ("16.1", "Starting a Checklist",                        "20"),
-        ("16.2", "Working Through Steps",                       "20"),
-        ("16.3", "Completing and Archiving a Run",              "20"),
-        ("17",   "Interactive Q&A",                            "21"),
-        ("17.1", "Opening the Chat Widget",                    "21"),
-        ("17.2", "How It Works",                               "21"),
-        ("18",   "Command-Line Interface (CLI)",                "22"),
-        ("19",   "Growing Reference",                           "23"),
-        ("20",   "Tips & Troubleshooting",                      "25"),
+        ("12",   "Light Control",                               "15"),
+        ("12.1", "Device Setup",                               "15"),
+        ("12.2", "Live Control",                               "15"),
+        ("12.3", "Light Schedules",                            "15"),
+        ("12.4", "Dashboard Light Strip",                      "15"),
+        ("13",   "Environment Alerts",                         "16"),
+        ("13.1", "How It Works",                               "16"),
+        ("13.2", "Configuration",                              "16"),
+        ("13.3", "Alert State Table",                          "16"),
+        ("14",   "Reports",                                    "17"),
+        ("15",   "AI Daily Briefing",                          "17"),
+        ("15.1", "What It Does",                               "17"),
+        ("15.2", "Requirements",                               "17"),
+        ("15.3", "The Briefing Dashboard",                     "17"),
+        ("15.4", "Running a Briefing",                         "18"),
+        ("15.5", "Reading the Output",                         "18"),
+        ("16",   "Culture Tracking",                           "19"),
+        ("16.1", "LC Syringe Lots",                            "19"),
+        ("17",   "Substrate Batches",                          "20"),
+        ("17.1", "Logging a Substrate Run",                    "20"),
+        ("17.2", "Linking Blocks to a Substrate Batch",        "21"),
+        ("18",   "Grain Jars",                                 "21"),
+        ("18.1", "Logging a Grain Jar",                        "21"),
+        ("18.2", "Colonization Outcome Outcomes",              "22"),
+        ("19",   "Process Checklists",                         "22"),
+        ("19.1", "Starting a Checklist",                       "23"),
+        ("19.2", "Working Through Steps",                      "23"),
+        ("19.3", "Completing and Archiving a Run",             "23"),
+        ("20",   "Interactive Q&A",                           "24"),
+        ("20.1", "Opening the Chat Widget",                   "24"),
+        ("20.2", "How It Works",                              "24"),
+        ("21",   "Command-Line Interface (CLI)",               "25"),
+        ("22",   "Growing Reference",                          "26"),
+        ("23",   "Tips & Troubleshooting",                     "28"),
     ]
     for num, title, pg in toc_entries:
         story.append(toc_row(num, title, pg))
@@ -1778,10 +1788,120 @@ def build():
     story.append(PageBreak())
 
     # ══════════════════════════════════════════════════════════════════════
-    # 11. REPORTS
+    # 12. LIGHT CONTROL
     # ══════════════════════════════════════════════════════════════════════
     story += [
-        h1("12. Reports"),
+        h1("12. Light Control"),
+        rule(),
+        p("The <b>Lights</b> page (nav bar) lets you control Govee smart lights and plugs "
+          "directly from the tracker — no need to open the Govee app. "
+          "Devices are discovered automatically from your Govee account once you click "
+          "<b>Refresh Devices</b> on the Sensor Setup page."),
+        sp(10),
+        h2("12.1  Device Setup"),
+        p("For each light or smart plug, assign a <b>Chamber</b> and a <b>Role</b> "
+          "(Light, Mister, Fan, or Heater), then click <b>Save Settings</b>. "
+          "Once mapped, the device appears in the Live Control panel and on the dashboard."),
+        sp(6),
+        data_table(
+            ["Role", "Typical device", "Notes"],
+            [
+                ["Light",  "H6159 LED Strip or H5083 plug + lamp",
+                 "Shown on dashboard with on/off status and schedule badge."],
+                ["Mister", "H5083 smart plug + ultrasonic mister",
+                 "Controllable from Lights page; same toggle UI as lights."],
+                ["Fan",    "H5083 smart plug + fan",     "FAE fan controllable from the app."],
+                ["Heater", "H5083 smart plug + heater",  "Supplement heat in colder months."],
+            ],
+            col_widths=[2.5*cm, 5*cm, 8.7*cm],
+        ),
+        sp(10),
+        h2("12.2  Live Control"),
+        p("The <b>Live Control</b> panel shows every mapped device with its current on/off state "
+          "and a toggle button. Power states are cached in the database and refreshed by the "
+          "10-minute Govee sync. Click <b>Refresh States</b> to force an immediate update "
+          "without waiting for the next poll."),
+        sp(10),
+        h2("12.3  Light Schedules"),
+        p("Each device can have a daily on/off schedule. Enter the on and off times "
+          "(24-hour format) in the <b>Light Schedules</b> panel and click <b>Save Schedule</b>. "
+          "The schedule takes effect immediately — no server restart needed. "
+          "APScheduler fires the on/off command at the configured times every day. "
+          "A schedule badge showing the on and off times appears on the dashboard "
+          "next to the toggle for that device."),
+        sp(10),
+        h2("12.4  Dashboard Light Strip"),
+        p("When at least one light or switch is mapped to the current chamber, "
+          "a light strip appears below the environment readings on the Dashboard. "
+          "Each device shows its role label, a colored dot (green = on, grey = off), "
+          "the schedule times if configured, and an On/Off toggle button. "
+          "Toggling from the dashboard works identically to toggling from the Lights page."),
+    ]
+
+    story.append(PageBreak())
+
+    # ══════════════════════════════════════════════════════════════════════
+    # 13. ENVIRONMENT ALERTS
+    # ══════════════════════════════════════════════════════════════════════
+    story += [
+        h1("13. Environment Alerts"),
+        rule(),
+        p("The <b>Alerts</b> page (bell icon in the nav bar) configures push notifications "
+          "and email alerts when a chamber's environment goes out of range for a sustained period. "
+          "Alerts are evaluated after every Govee sensor sync (~10 minutes)."),
+        sp(10),
+        h2("13.1  How It Works"),
+        *bullet([
+            "Each new reading is compared against the fruiting temperature and humidity range "
+            "for every active batch in that chamber.",
+            "If a reading is out of range, a <b>streak counter</b> for that parameter increments.",
+            "When the streak reaches <b>3 consecutive readings (~30 minutes)</b>, "
+            "one alert is fired — both a push notification and an email.",
+            "The alert is not repeated while the chamber stays out of range. "
+            "Once the reading recovers, the streak and alert flag reset automatically, "
+            "so a new alert can fire if the chamber goes out of range again.",
+            "Thresholds use the full species acceptable fruiting range, not the batch "
+            "target midpoint, to avoid false positives from normal variation.",
+        ]),
+        sp(10),
+        h2("13.2  Configuration"),
+        data_table(
+            ["Setting", "Description"],
+            [
+                ["Alerts enabled",
+                 "Master on/off switch. Disable temporarily during planned maintenance "
+                 "or cold-shocking without changing other settings."],
+                ["ntfy Topic",
+                 "Free push notification channel. Install the <b>ntfy</b> app (iOS / Android), "
+                 "tap + and subscribe to your chosen topic name. "
+                 "Alerts arrive as push notifications within seconds of the streak threshold "
+                 "being crossed. No account, no carrier dependency."],
+                ["Gmail Address",
+                 "Email address to receive alert emails. Uses the Gmail SMTP account "
+                 "configured via the GMAIL_APP_PASSWORD environment variable. "
+                 "The email is sent to and from the same address so it arrives in your inbox."],
+                ["Send Test Notification",
+                 "Fires a sample Lions Mane temperature alert to both configured channels "
+                 "immediately. Reports success or failure for each channel in the flash message. "
+                 "Use this after initial setup and after any settings change to confirm delivery."],
+            ],
+            col_widths=[3.5*cm, 12.7*cm],
+        ),
+        sp(10),
+        h2("13.3  Alert State Table"),
+        p("The bottom of the Alerts page shows the current streak count and alerted status "
+          "for each chamber and parameter. A streak of 0 means the last reading was in range. "
+          "A red streak count means an alert has been sent and the parameter is still out of range. "
+          "This table is useful for diagnosing which chambers triggered alerts and when."),
+    ]
+
+    story.append(PageBreak())
+
+    # ══════════════════════════════════════════════════════════════════════
+    # (old 11) REPORTS — now 14
+    # ══════════════════════════════════════════════════════════════════════
+    story += [
+        h1("14. Reports"),
         rule(),
         p("The Report page is the analytical center of the system. "
           "It aggregates all your batch, flush, environment, and sales data "
@@ -1834,7 +1954,7 @@ def build():
     # 12. AI DAILY BRIEFING
     # ══════════════════════════════════════════════════════════════════════
     story += [
-        h1("12. AI Daily Briefing"),
+        h1("15. AI Daily Briefing"),
         rule(),
         p("The AI Daily Briefing is a one-page status report generated by Claude that analyzes "
           "all your active batches and environmental data and returns a prioritized list of "
@@ -1845,7 +1965,7 @@ def build():
 
     story += [
         sp(10),
-        h2("12.1  What It Does"),
+        h2("15.1  What It Does"),
         p("Each time a briefing runs, the system collects a full snapshot of your grow:"),
         sp(4),
         *bullet([
@@ -1871,7 +1991,7 @@ def build():
 
     story += [
         sp(10),
-        h2("12.2  Requirements"),
+        h2("15.2  Requirements"),
         p("The briefing agent requires two dependencies and one environment variable:"),
         sp(6),
         data_table(
@@ -1900,7 +2020,7 @@ def build():
 
     story += [
         sp(10),
-        h2("12.3  The Briefing Dashboard"),
+        h2("15.3  The Briefing Dashboard"),
         p("Navigate to <b>Briefing</b> in the top navigation bar. "
           "The page shows the most recent briefing for today, or the most recent date "
           "that has one."),
@@ -1922,7 +2042,7 @@ def build():
 
     story += [
         sp(10),
-        h2("12.4  Running a Briefing"),
+        h2("15.4  Running a Briefing"),
         sp(4),
         data_table(
             ["Method", "How", "When It Runs"],
@@ -1951,7 +2071,7 @@ def build():
 
     story += [
         sp(10),
-        h2("12.5  Reading the Output"),
+        h2("15.5  Reading the Output"),
         p("The briefing is divided into five sections:"),
         sp(6),
         data_table(
@@ -2028,13 +2148,13 @@ def build():
     # 13. CULTURE TRACKING
     # ══════════════════════════════════════════════════════════════════════
     story += [
-        h1("13. Culture Tracking"),
+        h1("16. Culture Tracking"),
         rule(),
         p("The Culture section tracks the upstream inputs to your grow — the liquid culture "
           "syringes, agar plates, and grain jars that become your fruiting blocks. "
           "This section documents the first piece of that chain: LC syringe lots."),
         sp(8),
-        h2("13.1  LC Syringe Lots"),
+        h2("16.1  LC Syringe Lots"),
         p("Navigate to <b>Supply &rarr; Culture</b> in the top navigation bar to view and manage your "
           "LC syringe lot records. Each record represents one order from a vendor — a "
           "distinct lot of liquid culture for a specific species."),
@@ -2098,7 +2218,7 @@ def build():
     # 14. SUBSTRATE BATCHES
     # ══════════════════════════════════════════════════════════════════════
     story += [
-        h1("14. Substrate Batches"),
+        h1("17. Substrate Batches"),
         rule(),
         p("A substrate batch is one preparation run — a specific mix of ingredients "
           "sterilized together at the same time. Multiple fruiting blocks inoculated "
@@ -2181,7 +2301,7 @@ def build():
     # 15. GRAIN JARS
     # ══════════════════════════════════════════════════════════════════════
     story += [
-        h1("15. Grain Jars"),
+        h1("18. Grain Jars"),
         rule(),
         p("Grain jars are the intermediate step between an LC lot and a substrate batch. "
           "Each jar is inoculated from a liquid culture source, colonizes the grain, "
@@ -2261,7 +2381,7 @@ def build():
     # 16. PROCESS CHECKLISTS
     # ══════════════════════════════════════════════════════════════════════
     story += [
-        h1("16. Process Checklists"),
+        h1("19. Process Checklists"),
         rule(),
         p("Process checklists are step-by-step SOPs you can run through inside the tracker "
           "and have an auditable, timestamped completion record stored in the database. "
@@ -2361,7 +2481,7 @@ def build():
     # 17. INTERACTIVE Q&A
     # ══════════════════════════════════════════════════════════════════════
     story += [
-        h1("17. Interactive Q&A"),
+        h1("20. Interactive Q&A"),
         rule(),
         p("The <b>Ask Claude</b> chat widget lets you query your cultivation data in plain "
           "English directly from any batch detail page. Instead of writing SQL or digging "
@@ -2440,7 +2560,7 @@ def build():
     # 18. CLI REFERENCE
     # ══════════════════════════════════════════════════════════════════════
     story += [
-        h1("18. Command-Line Interface (CLI)"),
+        h1("21. Command-Line Interface (CLI)"),
         rule(),
         p("The CLI (<b>mushroom_tracker.py</b>) provides the same core functions as the web app "
           "from a terminal. It is useful for quick data entry when you do not want to open "
@@ -2522,7 +2642,7 @@ def build():
     # 19. GROWING REFERENCE
     # ══════════════════════════════════════════════════════════════════════
     story += [
-        h1("19. Growing Reference"),
+        h1("22. Growing Reference"),
         rule(),
         h2("Optimal Fruiting Conditions by Species"),
         sp(4),
@@ -2641,7 +2761,7 @@ def build():
     # 20. TIPS & TROUBLESHOOTING
     # ══════════════════════════════════════════════════════════════════════
     story += [
-        h1("20. Tips & Troubleshooting"),
+        h1("23. Tips & Troubleshooting"),
         rule(),
         h2("Improving Your BE%"),
         *bullet([
