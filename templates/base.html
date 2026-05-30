@@ -686,6 +686,16 @@ input[name="quality_rating"]{display:none}
         </a>
       </div>
     </div>
+    <!-- Lights icon: bulb -->
+    <a href="{{ url_for('govee_lights') }}"
+       class="nav-link{% if request.endpoint=='govee_lights' %} active{% endif %}">
+      <svg viewBox="0 0 14 14" width="13" height="13" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+        <path d="M7 1.5 A4 4 0 0 1 11 5.5 C11 7.5 9.5 8.8 9 9.5 L5 9.5 C4.5 8.8 3 7.5 3 5.5 A4 4 0 0 1 7 1.5Z" opacity=".85"/>
+        <rect x="5" y="10" width="4" height="1" rx=".5" opacity=".6"/>
+        <rect x="5.5" y="11.5" width="3" height="1" rx=".5" opacity=".4"/>
+      </svg>
+      Lights
+    </a>
     <!-- Environment icon: thermometer -->
     <a href="{{ url_for('env_history') }}"
        class="nav-link{% if request.endpoint=='env_history' %} active{% endif %}">
