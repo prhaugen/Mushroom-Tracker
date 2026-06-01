@@ -448,6 +448,9 @@ def batch_detail(batch_id):
     batch_notes = conn.execute(
         "SELECT * FROM batch_notes WHERE batch_id=? ORDER BY created_at ASC", (batch_id,)
     ).fetchall()
+    cold_shocks = conn.execute(
+        "SELECT * FROM cold_shocks WHERE batch_id=? ORDER BY date_in ASC, created_at ASC",
+        (batch_id,)).fetchall()
     yield_chart = [{'flush': f['flush_number'], 'weight': f['fresh_weight_g'],
                     'quality': f['quality_rating']} for f in flushes]
     cycle_days = None
@@ -583,7 +586,7 @@ def batch_detail(batch_id):
         batch=batch, flushes=flushes, sales=sales, yield_chart=yield_chart,
         cycle_days=cycle_days, sp_defaults=sp_defaults, targets_customized=targets_customized,
         batch_chart_data=batch_chart_data, env_res=env_res, resolutions=_ENV_RESOLUTIONS,
-        batch_notes=batch_notes)
+        batch_notes=batch_notes, cold_shocks=cold_shocks)
 
 
 @app.route('/batch/<int:batch_id>/update', methods=['POST'])
@@ -1803,6 +1806,57 @@ def flush_delete(flush_id):
     conn.commit(); conn.close()
     flash(f"Flush #{num} deleted and batch totals recalculated.", 'success')
     return redirect(url_for('batch_detail', batch_id=batch_id))
+
+
+# ── Cold Shocks ───────────────────────────────────────────────────────────────
+
+@app.route('/batch/<int:batch_id>/cold_shock/add', methods=['POST'])
+def cold_shock_add(batch_id):
+    init_db()
+    f = request.form
+    conn = get_db()
+    conn.execute("""INSERT INTO cold_shocks (batch_id, date_in, date_out, temp_f, notes)
+                    VALUES (?,?,?,?,?)""",
+                 (batch_id,
+                  f.get('date_in') or None,
+                  f.get('date_out') or None,
+                  float(f['temp_f']) if f.get('temp_f') else None,
+                  f.get('notes') or None))
+    conn.commit(); conn.close()
+    flash('Cold shock recorded.', 'success')
+    return redirect(url_for('batch_detail', batch_id=batch_id))
+
+
+@app.route('/cold_shock/<int:cs_id>/edit', methods=['POST'])
+def cold_shock_edit(cs_id):
+    init_db()
+    f = request.form
+    conn = get_db()
+    cs = conn.execute("SELECT batch_id FROM cold_shocks WHERE id=?", (cs_id,)).fetchone()
+    if not cs:
+        conn.close(); flash('Record not found.', 'error')
+        return redirect(url_for('batches'))
+    conn.execute("""UPDATE cold_shocks SET date_in=?, date_out=?, temp_f=?, notes=?
+                    WHERE id=?""",
+                 (f.get('date_in') or None,
+                  f.get('date_out') or None,
+                  float(f['temp_f']) if f.get('temp_f') else None,
+                  f.get('notes') or None, cs_id))
+    conn.commit(); conn.close()
+    flash('Cold shock updated.', 'success')
+    return redirect(url_for('batch_detail', batch_id=cs['batch_id']))
+
+
+@app.route('/cold_shock/<int:cs_id>/delete', methods=['POST'])
+def cold_shock_delete(cs_id):
+    conn = get_db()
+    cs = conn.execute("SELECT batch_id FROM cold_shocks WHERE id=?", (cs_id,)).fetchone()
+    if cs:
+        conn.execute("DELETE FROM cold_shocks WHERE id=?", (cs_id,))
+        conn.commit()
+    conn.close()
+    flash('Cold shock deleted.', 'success')
+    return redirect(url_for('batch_detail', batch_id=cs['batch_id'] if cs else 0))
 
 
 @app.route('/env/<int:log_id>/edit', methods=['GET','POST'])

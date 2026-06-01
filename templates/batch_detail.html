@@ -333,6 +333,110 @@
   {% endif %}
 </div>
 
+<!-- Cold Shocks -->
+<div class="card mb-16">
+  <div class="card-head">
+    <span class="card-title">Cold Shocks</span>
+  </div>
+
+  {% if cold_shocks %}
+  <div class="table-wrap" style="margin-bottom:16px">
+    <table>
+      <thead>
+        <tr><th>Date In</th><th>Date Out</th><th>Duration</th><th>Temp (F)</th><th>Notes</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for cs in cold_shocks %}
+        {% set duration = None %}
+        {% if cs.date_in and cs.date_out %}
+          {% set d_in  = cs.date_in[:10]  %}
+          {% set d_out = cs.date_out[:10] %}
+        {% endif %}
+        <tr>
+          <td class="td-m">{{ cs.date_in[:10] if cs.date_in else '—' }}</td>
+          <td class="td-m">{{ cs.date_out[:10] if cs.date_out else '<span style="color:var(--amber)">in progress</span>'|safe }}</td>
+          <td class="td-m">
+            {% if cs.date_in and cs.date_out %}
+              {{ ((cs.date_out[:10]|to_date - cs.date_in[:10]|to_date).days) if false else '' }}
+              {# calculated in template isn't easy — show via JS below #}
+              <span class="cs-dur" data-in="{{ cs.date_in[:10] }}" data-out="{{ cs.date_out[:10] }}">—</span>
+            {% else %}—{% endif %}
+          </td>
+          <td>{% if cs.temp_f %}{{ "%.1f"|format(cs.temp_f) }}°F{% else %}—{% endif %}</td>
+          <td class="td-m">{{ cs.notes or '' }}</td>
+          <td style="white-space:nowrap">
+            <button onclick="openCsEdit({{ cs.id }}, '{{ cs.date_in or '' }}', '{{ cs.date_out or '' }}', '{{ cs.temp_f or '' }}', {{ cs.notes|tojson if cs.notes else '\"\"' }})"
+                    class="btn btn-ghost btn-sm" style="font-size:11px;padding:2px 8px">Edit</button>
+            <form method="POST" action="{{ url_for('cold_shock_delete', cs_id=cs.id) }}" style="display:inline"
+                  onsubmit="return confirm('Delete this cold shock record?')">
+              <button type="submit" class="btn btn-danger btn-sm" style="font-size:11px;padding:2px 8px">Del</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <!-- Inline add / edit form -->
+  <div id="csAddForm">
+    <form method="POST" id="csForm"
+          action="{{ url_for('cold_shock_add', batch_id=batch.id) }}">
+      <input type="hidden" name="_cs_id" id="csEditId" value="">
+      <div class="fg-grid" style="grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;align-items:end">
+        <div class="fg" style="margin:0">
+          <label>Date In</label>
+          <input type="date" name="date_in" id="csDateIn" value="{{ today }}">
+        </div>
+        <div class="fg" style="margin:0">
+          <label>Date Out</label>
+          <input type="date" name="date_out" id="csDateOut">
+          <span class="form-hint">Leave blank if still in cold shock</span>
+        </div>
+        <div class="fg" style="margin:0">
+          <label>Temp (°F)</label>
+          <input type="number" name="temp_f" id="csTempF" step="0.1" placeholder="e.g. 38">
+        </div>
+        <div class="fg" style="margin:0;grid-column:span 2">
+          <label>Notes</label>
+          <input type="text" name="notes" id="csNotes" placeholder="e.g. fridge, cold room...">
+        </div>
+        <div style="display:flex;gap:8px;align-items:flex-end;padding-bottom:1px">
+          <button type="submit" class="btn btn-primary btn-sm" id="csSubmitBtn">+ Add</button>
+          <button type="button" onclick="resetCsForm()" id="csCancelBtn"
+                  class="btn btn-ghost btn-sm" style="display:none">Cancel</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openCsEdit(id, dateIn, dateOut, tempF, notes) {
+  document.getElementById('csForm').action = '/cold_shock/' + id + '/edit';
+  document.getElementById('csEditId').value = id;
+  document.getElementById('csDateIn').value  = dateIn;
+  document.getElementById('csDateOut').value = dateOut;
+  document.getElementById('csTempF').value   = tempF;
+  document.getElementById('csNotes').value   = notes;
+  document.getElementById('csSubmitBtn').textContent = 'Save';
+  document.getElementById('csCancelBtn').style.display = 'inline-flex';
+}
+function resetCsForm() {
+  document.getElementById('csForm').action = "{{ url_for('cold_shock_add', batch_id=batch.id) }}";
+  document.getElementById('csForm').reset();
+  document.getElementById('csDateIn').value = '{{ today }}';
+  document.getElementById('csSubmitBtn').textContent = '+ Add';
+  document.getElementById('csCancelBtn').style.display = 'none';
+}
+// Calculate durations client-side
+document.querySelectorAll('.cs-dur').forEach(el => {
+  const d = (new Date(el.dataset.out) - new Date(el.dataset.in)) / 86400000;
+  if (!isNaN(d)) el.textContent = d + ' day' + (d !== 1 ? 's' : '');
+});
+</script>
+
 <!-- Sales -->
 {% if sales %}
 <div class="card">

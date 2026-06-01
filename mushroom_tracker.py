@@ -435,6 +435,17 @@ def init_db():
         enabled   INTEGER DEFAULT 1
     )""")
 
+    # Cold shock events per batch
+    c.execute("""CREATE TABLE IF NOT EXISTS cold_shocks (
+        id         INTEGER PRIMARY KEY,
+        batch_id   INTEGER REFERENCES batches(id),
+        date_in    TEXT,
+        date_out   TEXT,
+        temp_f     REAL,
+        notes      TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )""")
+
     # App-wide key-value settings (non-sensitive)
     c.execute("""CREATE TABLE IF NOT EXISTS app_settings (
         key   TEXT PRIMARY KEY,
