@@ -477,6 +477,18 @@ def init_db():
             c.execute("INSERT INTO batch_notes (batch_id, body, created_at) VALUES (?, ?, ?)",
                       (row[0], row[1], row[2]))
 
+    # Expense logs: money out, optionally linked to a batch
+    c.execute("""CREATE TABLE IF NOT EXISTS expense_logs (
+        id            INTEGER PRIMARY KEY,
+        expense_date  TEXT NOT NULL,
+        amount        REAL NOT NULL,
+        category      TEXT NOT NULL,
+        batch_id      INTEGER REFERENCES batches(id),
+        vendor        TEXT,
+        notes         TEXT,
+        created_at    TEXT DEFAULT CURRENT_TIMESTAMP
+    )""")
+
     # Labor logs: time spent per session, optionally linked to a batch
     c.execute("""CREATE TABLE IF NOT EXISTS labor_logs (
         id           INTEGER PRIMARY KEY,

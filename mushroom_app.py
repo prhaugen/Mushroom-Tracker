@@ -1609,6 +1609,19 @@ def report():
         for _i, (_sp, _pts) in enumerate(sorted(_timing_by_species.items()))
     ]
 
+    # Expenses: per-batch direct costs and operation-wide breakdown
+    _exp_batch_rows = conn.execute(
+        "SELECT batch_id, SUM(amount) AS total FROM expense_logs "
+        "WHERE batch_id IS NOT NULL GROUP BY batch_id"
+    ).fetchall()
+    _expenses_by_batch = {r['batch_id']: r['total'] for r in _exp_batch_rows}
+
+    _exp_cat_rows = conn.execute(
+        "SELECT category, SUM(amount) AS total FROM expense_logs GROUP BY category"
+    ).fetchall()
+    _exp_by_cat  = {r['category']: r['total'] for r in _exp_cat_rows}
+    _total_expenses = sum(_exp_by_cat.values())
+
     # Labor hours per batch
     _labor_rows = conn.execute(
         "SELECT batch_id, SUM(hours) AS total FROM labor_logs WHERE batch_id IS NOT NULL GROUP BY batch_id"
@@ -1628,18 +1641,25 @@ def report():
     _price_rows = conn.execute("SELECT species, price_per_lb FROM species_prices").fetchall()
     _fmv = {r['species']: r['price_per_lb'] for r in _price_rows}
 
+    def _batch_revenue(b):
+        sp        = _sales_by_batch.get(b['id'], {})
+        actual    = sp.get('revenue', 0)
+        sold_g    = sp.get('sold_g', 0)
+        unsold_g  = max((b['total_yield_g'] or 0) - sold_g, 0)
+        imputed   = (unsold_g / 453.592) * _fmv.get(b['species'], 0)
+        return actual + imputed
+
     def _dollars_per_hr(b):
         labor = _labor_by_batch.get(b['id'], 0)
         if not labor:
             return None
-        sp = _sales_by_batch.get(b['id'], {})
-        actual_rev = sp.get('revenue', 0)
-        sold_g     = sp.get('sold_g', 0)
-        unsold_g   = max((b['total_yield_g'] or 0) - sold_g, 0)
-        fmv_price  = _fmv.get(b['species'], 0)
-        imputed    = (unsold_g / 453.592) * fmv_price
-        total_rev  = actual_rev + imputed
-        return round(total_rev / labor, 2) if labor > 0 else None
+        return round(_batch_revenue(b) / labor, 2)
+
+    # Operation-wide P&L totals
+    _total_revenue  = sum(_batch_revenue(b) for b in batches)
+    _total_labor_hr = conn.execute("SELECT COALESCE(SUM(hours),0) FROM labor_logs").fetchone()[0]
+    _net_profit     = _total_revenue - _total_expenses
+    _net_dph        = round(_net_profit / _total_labor_hr, 2) if _total_labor_hr else None
 
     # BE ranking
     be_ranking = sorted(
@@ -1673,7 +1693,89 @@ def report():
         harvest_timing_chart={'datasets': harvest_timing_datasets},
         env_stats=env_stats, total_yield=total_yield,
         sales=sales, total_revenue=total_revenue,
-        total_sold_fresh=total_sold_fresh, total_sold_dried=total_sold_dried)
+        total_sold_fresh=total_sold_fresh, total_sold_dried=total_sold_dried,
+        pnl={'total_revenue': _total_revenue, 'total_expenses': _total_expenses,
+             'exp_by_cat': _exp_by_cat, 'net_profit': _net_profit,
+             'total_labor_hr': _total_labor_hr, 'net_dph': _net_dph})
+
+
+# ── Expenses ──────────────────────────────────────────────────────────────────
+
+EXPENSE_CATEGORIES = ['substrate', 'spawn', 'consumables', 'equipment', 'packaging', 'overhead']
+
+@app.route('/expenses')
+def expenses_list():
+    init_db()
+    conn = get_db()
+    logs = conn.execute("""
+        SELECT e.*, b.label AS batch_label
+        FROM expense_logs e
+        LEFT JOIN batches b ON e.batch_id = b.id
+        ORDER BY e.expense_date DESC, e.created_at DESC
+    """).fetchall()
+    batches = conn.execute(
+        "SELECT id, label, species FROM batches ORDER BY label"
+    ).fetchall()
+    total_spent = sum(r['amount'] for r in logs)
+    month_start = str(date.today().replace(day=1))
+    month_spent = sum(r['amount'] for r in logs if r['expense_date'] >= month_start)
+    by_category = {}
+    for r in logs:
+        by_category[r['category']] = by_category.get(r['category'], 0) + r['amount']
+    conn.close()
+    return render_template('expenses.html', logs=logs, batches=batches,
+                           total_spent=total_spent, month_spent=month_spent,
+                           by_category=by_category,
+                           categories=EXPENSE_CATEGORIES, today=str(date.today()))
+
+
+@app.route('/expenses/add', methods=['POST'])
+def expense_add():
+    init_db()
+    conn = get_db()
+    f = request.form
+    conn.execute(
+        "INSERT INTO expense_logs (expense_date, amount, category, batch_id, vendor, notes) "
+        "VALUES (?,?,?,?,?,?)",
+        (f.get('expense_date') or str(date.today()),
+         float(f['amount']),
+         f.get('category') or 'overhead',
+         f.get('batch_id') or None,
+         f.get('vendor') or None,
+         f.get('notes') or None)
+    )
+    conn.commit(); conn.close()
+    flash('Expense logged.', 'success')
+    return redirect(url_for('expenses_list'))
+
+
+@app.route('/expenses/<int:exp_id>/edit', methods=['POST'])
+def expense_edit(exp_id):
+    conn = get_db()
+    f = request.form
+    conn.execute(
+        "UPDATE expense_logs SET expense_date=?, amount=?, category=?, batch_id=?, vendor=?, notes=? "
+        "WHERE id=?",
+        (f.get('expense_date') or str(date.today()),
+         float(f['amount']),
+         f.get('category') or 'overhead',
+         f.get('batch_id') or None,
+         f.get('vendor') or None,
+         f.get('notes') or None,
+         exp_id)
+    )
+    conn.commit(); conn.close()
+    flash('Expense updated.', 'success')
+    return redirect(url_for('expenses_list'))
+
+
+@app.route('/expenses/<int:exp_id>/delete', methods=['POST'])
+def expense_delete(exp_id):
+    conn = get_db()
+    conn.execute("DELETE FROM expense_logs WHERE id=?", (exp_id,))
+    conn.commit(); conn.close()
+    flash('Expense deleted.', 'success')
+    return redirect(url_for('expenses_list'))
 
 
 # ── Labor & Species Prices ────────────────────────────────────────────────────

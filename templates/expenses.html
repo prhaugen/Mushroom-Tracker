@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block title %}Expenses — Mushroom Tracker{% endblock %}
+{% block content %}
+<div class="page-head-row">
+  <div class="page-head">
+    <div class="page-title">Expenses</div>
+    <div class="page-sub">Track money out — feeds the P&amp;L summary on the Report page</div>
+  </div>
+</div>
+
+<div class="stats mb-20" style="grid-template-columns:repeat(4,1fr)">
+  <div class="stat r">
+    <div class="stat-label">This Month</div>
+    <div class="stat-val">${{ "%.2f"|format(month_spent) }}</div>
+    <div class="stat-sub">spent</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">All Time</div>
+    <div class="stat-val">${{ "%.2f"|format(total_spent) }}</div>
+    <div class="stat-sub">total expenses</div>
+  </div>
+  <div class="stat" style="grid-column:span 2">
+    <div class="stat-label">By Category</div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:6px">
+      {% set cat_colors = {
+        'substrate':   'var(--amber)',
+        'spawn':       'var(--green)',
+        'consumables': 'var(--blue)',
+        'equipment':   'var(--purple)',
+        'packaging':   'var(--tan)',
+        'overhead':    'var(--gray)'
+      } %}
+      {% for cat, amt in by_category.items() | sort %}
+      <div style="font-size:12px">
+        <span style="color:{{ cat_colors.get(cat, 'var(--text-muted)') }};font-weight:700">${{ "%.2f"|format(amt) }}</span>
+        <span style="color:var(--text-muted);margin-left:3px">{{ cat }}</span>
+      </div>
+      {% endfor %}
+      {% if not by_category %}<span style="font-size:12px;color:var(--text-muted)">No entries yet</span>{% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Add / edit form -->
+<div class="card mb-16" id="addForm">
+  <div class="card-title" style="margin-bottom:14px" id="formTitle">Log Expense</div>
+  <form method="POST" id="expForm" action="{{ url_for('expense_add') }}">
+    <div class="fg-grid" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;align-items:end">
+      <div class="fg" style="margin:0">
+        <label>Date</label>
+        <input type="date" name="expense_date" id="fDate" value="{{ today }}" required>
+      </div>
+      <div class="fg" style="margin:0">
+        <label>Amount ($)</label>
+        <input type="number" name="amount" id="fAmount" step="0.01" min="0.01" placeholder="e.g. 24.99" required>
+      </div>
+      <div class="fg" style="margin:0">
+        <label>Category</label>
+        <select name="category" id="fCategory">
+          {% for c in categories %}
+          <option value="{{ c }}">{{ c | title }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="fg" style="margin:0">
+        <label>Batch (optional)</label>
+        <select name="batch_id" id="fBatch">
+          <option value="">— operation overhead —</option>
+          {% for b in batches %}
+          <option value="{{ b.id }}">{{ b.label }} · {{ b.species }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="fg" style="margin:0">
+        <label>Vendor (optional)</label>
+        <input type="text" name="vendor" id="fVendor" placeholder="e.g. North Spore, Amazon">
+      </div>
+      <div class="fg" style="margin:0;grid-column:span 2">
+        <label>Notes (optional)</label>
+        <input type="text" name="notes" id="fNotes" placeholder="e.g. 5 lbs rye grain, 10 pk filter patch bags">
+      </div>
+      <div style="display:flex;gap:8px;align-items:flex-end;padding-bottom:1px">
+        <button type="submit" class="btn btn-primary btn-sm" id="submitBtn">+ Log</button>
+        <button type="button" onclick="resetForm()" id="cancelBtn"
+                class="btn btn-ghost btn-sm" style="display:none">Cancel</button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- Log table -->
+<div class="card">
+  <div class="card-title" style="margin-bottom:16px">All Entries</div>
+  {% if logs %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Date</th><th>Category</th><th>Amount</th><th>Batch</th><th>Vendor</th><th>Notes</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+        {% set cat_color = {
+          'substrate':   'var(--amber)',
+          'spawn':       'var(--green)',
+          'consumables': 'var(--blue)',
+          'equipment':   'var(--purple)',
+          'packaging':   'var(--tan)',
+          'overhead':    'var(--gray)'
+        }.get(log.category, 'var(--text-muted)') %}
+        <tr>
+          <td class="td-m">{{ log.expense_date }}</td>
+          <td><span style="color:{{ cat_color }};font-weight:600;font-size:12px">{{ log.category | title }}</span></td>
+          <td class="fw-600" style="color:var(--red)">${{ "%.2f"|format(log.amount) }}</td>
+          <td class="td-m">{% if log.batch_label %}<a href="{{ url_for('batch_detail', batch_id=log.batch_id) }}" style="color:var(--blue);text-decoration:none">{{ log.batch_label }}</a>{% else %}<span style="color:var(--text-dim);font-size:11px">overhead</span>{% endif %}</td>
+          <td class="td-m">{{ log.vendor or '—' }}</td>
+          <td class="td-m">{{ log.notes or '' }}</td>
+          <td style="white-space:nowrap">
+            <button onclick="editEntry({{ log.id }}, '{{ log.expense_date }}', {{ log.amount }}, '{{ log.category }}', {{ log.batch_id or 'null' }}, {{ log.vendor|tojson if log.vendor else '\"\"' }}, {{ log.notes|tojson if log.notes else '\"\"' }})"
+                    class="btn btn-ghost btn-sm" style="font-size:11px;padding:2px 8px">Edit</button>
+            <form method="POST" action="{{ url_for('expense_delete', exp_id=log.id) }}" style="display:inline"
+                  onsubmit="return confirm('Delete this expense?')">
+              <button type="submit" class="btn btn-danger btn-sm" style="font-size:11px;padding:2px 8px">Del</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty">
+    <div class="empty-title">No expenses logged yet</div>
+    <div class="empty-sub">Log your first purchase above to start tracking costs</div>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+function editEntry(id, date, amount, category, batchId, vendor, notes) {
+  document.getElementById('expForm').action = '/expenses/' + id + '/edit';
+  document.getElementById('fDate').value     = date;
+  document.getElementById('fAmount').value   = amount;
+  document.getElementById('fCategory').value = category;
+  document.getElementById('fVendor').value   = vendor;
+  document.getElementById('fNotes').value    = notes;
+  const bs = document.getElementById('fBatch');
+  bs.value = batchId !== null ? String(batchId) : '';
+  document.getElementById('submitBtn').textContent = 'Save';
+  document.getElementById('cancelBtn').style.display = 'inline-flex';
+  document.getElementById('formTitle').textContent = 'Edit Expense';
+  document.getElementById('addForm').scrollIntoView({behavior:'smooth', block:'start'});
+}
+function resetForm() {
+  document.getElementById('expForm').action = "{{ url_for('expense_add') }}";
+  document.getElementById('expForm').reset();
+  document.getElementById('fDate').value = '{{ today }}';
+  document.getElementById('submitBtn').textContent = '+ Log';
+  document.getElementById('cancelBtn').style.display = 'none';
+  document.getElementById('formTitle').textContent = 'Log Expense';
+}
+</script>
+{% endblock %}

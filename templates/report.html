@@ -162,6 +162,68 @@
   </div>
 </div>
 
+<!-- P&L Summary -->
+<div class="card mb-16">
+  <div class="card-head">
+    <span class="card-title">Profit &amp; Loss</span>
+    <a href="{{ url_for('expenses_list') }}" class="btn btn-ghost btn-sm">Log Expenses</a>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:20px;align-items:start">
+
+    <!-- Revenue block -->
+    <div>
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:8px">Revenue (FMV)</div>
+      <div style="font-size:26px;font-weight:700;color:var(--green)">${{ "%.2f"|format(pnl.total_revenue) }}</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:3px">actual sales + unsold @ FMV</div>
+    </div>
+
+    <!-- Expenses block -->
+    <div>
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:8px">Total Expenses</div>
+      <div style="font-size:26px;font-weight:700;color:var(--red)">${{ "%.2f"|format(pnl.total_expenses) }}</div>
+      {% if pnl.exp_by_cat %}
+      <div style="margin-top:8px;display:flex;flex-direction:column;gap:3px">
+        {% set cat_colors = {'substrate':'var(--amber)','spawn':'var(--green)','consumables':'var(--blue)','equipment':'var(--purple)','packaging':'var(--tan)','overhead':'var(--gray)'} %}
+        {% for cat, amt in pnl.exp_by_cat.items() | sort %}
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted)">
+          <span style="color:{{ cat_colors.get(cat,'var(--text-muted)') }}">{{ cat | title }}</span>
+          <span>${{ "%.2f"|format(amt) }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div style="font-size:11px;color:var(--text-muted);margin-top:3px"><a href="{{ url_for('expenses_list') }}" style="color:var(--blue)">Log expenses</a> to see breakdown</div>
+      {% endif %}
+    </div>
+
+    <!-- Net profit -->
+    <div>
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:8px">Net Profit</div>
+      {% set net_color = 'var(--green)' if pnl.net_profit >= 0 else 'var(--red)' %}
+      <div style="font-size:26px;font-weight:700;color:{{ net_color }}">
+        {% if pnl.net_profit < 0 %}−{% endif %}${{ "%.2f"|format(pnl.net_profit | abs) }}
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:3px">revenue − all expenses</div>
+    </div>
+
+    <!-- Net $/hr -->
+    <div>
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:8px">Net $/hr</div>
+      {% if pnl.net_dph is not none %}
+      {% set dph_color = 'var(--green)' if pnl.net_dph >= 0 else 'var(--red)' %}
+      <div style="font-size:26px;font-weight:700;color:{{ dph_color }}">
+        {% if pnl.net_dph < 0 %}−{% endif %}${{ "%.2f"|format(pnl.net_dph | abs) }}/hr
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:3px">{{ "%.1f"|format(pnl.total_labor_hr) }}h logged</div>
+      {% else %}
+      <div style="font-size:16px;color:var(--text-dim)">—</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:3px"><a href="{{ url_for('labor_list') }}" style="color:var(--blue)">Log labor hours</a> to see $/hr</div>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+
 <!-- Charts JS -->
 <script>
 const CHART_DEFAULTS = {
