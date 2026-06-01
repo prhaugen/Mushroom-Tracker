@@ -1316,6 +1316,18 @@ def build():
             label="Note:", color=BLUE_BG, border=BLUE_BORDER
         ),
         sp(12),
+        h3("Flush Log — Days Pin→Harvest Column"),
+        p("The Flush Log table on the Batch Detail page includes a <b>Days Pin→Harvest</b> column. "
+          "It is computed automatically from the flush's pinning date and harvest date — "
+          "no extra data entry is needed. The column shows <b>—</b> for any flush where the "
+          "pinning date was not recorded."),
+        sp(4),
+        p("Use this column to spot species- and strain-specific harvest timing patterns. "
+          "For example, if your best-quality Blue Oyster flushes consistently score 4-5 "
+          "at 5-6 days but drop to 2-3 at 8+ days, that tells you the optimal pick window "
+          "for that block. The Harvest Timing vs Quality scatter on the Report page plots "
+          "this relationship across all batches for each species side by side."),
+        sp(12),
         h3("Discussion Log"),
         p("The Discussion section at the bottom of the Batch Detail page is a timestamped "
           "log where you can record observations about the batch over time — "
@@ -1425,12 +1437,14 @@ def build():
                  "Auto-filled with the next flush number. Override if recording a past event."],
                 ["Harvest Date",        "No",
                  "Defaults to today. The date mushrooms were picked."],
-                ["Pinning / Initiation Date", "No",
+                ["Pinning / Initiation Date", "Yes",
                  "When pins first became visible for this flush. "
                  "Pre-filled automatically from when you last set the batch status to Pinning — "
                  "adjust if the date is not quite right. "
                  "Stored on the flush record so every flush has its own pin date for analysis. "
-                 "Used to calculate days-to-harvest per flush."],
+                 "The Flush Log on the Batch Detail page shows a <b>Days Pin→Harvest</b> column "
+                 "computed from this date and the harvest date — use it to see whether earlier "
+                 "or later picking correlates with your quality ratings."],
                 ["Fresh Weight (g)",    "Yes",
                  "Weigh with a kitchen scale. Always use fresh (wet) weight."],
                 ["Quality Rating",      "No",
@@ -1992,6 +2006,19 @@ def build():
         p("Average, minimum, and maximum temperature and humidity across all logged readings. "
           "Use the min/max values to see how wide your swings are -- "
           "tighter control generally correlates with better BE%."),
+        sp(10),
+        h3("Harvest Timing vs Quality"),
+        p("A scatter chart that plots <b>days from first pin to harvest</b> on the x-axis against "
+          "<b>quality rating (1–5)</b> on the y-axis, with one colored series per species. "
+          "The chart only appears when at least one flush has both a pinning date and a quality rating recorded. "
+          "Hover any point to see the batch label, flush number, day count, and quality score."),
+        sp(4),
+        p("This chart answers the question your operation will eventually need to answer at scale: "
+          "<i>for each species, what is the optimal number of days from pin to pick?</i> "
+          "A cluster of high-quality points at 5-6 days tells you to pick early for that species. "
+          "A cluster at 8-10 days tells you the species tolerates a longer window. "
+          "The signal strengthens as more flushes accumulate — expect meaningful clusters after "
+          "10-15 data points per species."),
         sp(10),
         h3("Sales Summary"),
         p("Total revenue, total fresh grams sold, total dried grams sold, "
