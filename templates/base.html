@@ -716,6 +716,15 @@ input[name="quality_rating"]{display:none}
       </svg>
       Sales
     </a>
+    <!-- Labor icon: clock -->
+    <a href="{{ url_for('labor_list') }}"
+       class="nav-link{% if request.endpoint in ('labor_list','species_prices') %} active{% endif %}">
+      <svg viewBox="0 0 14 14" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.2" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="7" cy="7" r="5.5" opacity=".85"/>
+        <path d="M7 4V7.5L9.5 9" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Labor
+    </a>
     <!-- Report icon: bar chart ascending -->
     <a href="{{ url_for('report') }}"
        class="nav-link{% if request.endpoint=='report' %} active{% endif %}">

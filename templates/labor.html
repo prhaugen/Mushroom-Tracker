@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block title %}Labor Log — Mushroom Tracker{% endblock %}
+{% block content %}
+<div class="page-head-row">
+  <div class="page-head">
+    <div class="page-title">Labor Log</div>
+    <div class="page-sub">Track time by activity — powers $/hr on the Report page</div>
+  </div>
+  <a href="{{ url_for('species_prices') }}" class="btn btn-ghost btn-sm">Edit Species Prices</a>
+</div>
+
+<div class="stats mb-20" style="grid-template-columns:repeat(3,1fr)">
+  <div class="stat a">
+    <div class="stat-label">This Month</div>
+    <div class="stat-val">{{ "%.1f"|format(month_hours) }}h</div>
+    <div class="stat-sub">logged hours</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">All Time</div>
+    <div class="stat-val">{{ "%.1f"|format(total_hours) }}h</div>
+    <div class="stat-sub">total logged</div>
+  </div>
+  <div class="stat b">
+    <div class="stat-label">Activities</div>
+    <div class="stat-val">{{ logs|length }}</div>
+    <div class="stat-sub">entries</div>
+  </div>
+</div>
+
+<!-- Add / edit form -->
+<div class="card mb-16" id="addForm">
+  <div class="card-title" style="margin-bottom:14px" id="formTitle">Log Hours</div>
+  <form method="POST" id="laborForm" action="{{ url_for('labor_add') }}">
+    <input type="hidden" name="_log_id" id="editId" value="">
+    <div class="fg-grid" style="grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;align-items:end">
+      <div class="fg" style="margin:0">
+        <label>Date</label>
+        <input type="date" name="logged_date" id="fDate" value="{{ today }}" required>
+      </div>
+      <div class="fg" style="margin:0">
+        <label>Hours</label>
+        <input type="number" name="hours" id="fHours" step="0.25" min="0.25" placeholder="e.g. 1.5" required>
+      </div>
+      <div class="fg" style="margin:0">
+        <label>Activity</label>
+        <select name="activity" id="fActivity">
+          {% for a in activities %}
+          <option value="{{ a }}">{{ a | title }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="fg" style="margin:0">
+        <label>Batch (optional)</label>
+        <select name="batch_id" id="fBatch">
+          <option value="">— not batch-specific —</option>
+          {% for b in batches %}
+          <option value="{{ b.id }}">{{ b.label }} · {{ b.species }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="fg" style="margin:0;grid-column:span 2">
+        <label>Notes (optional)</label>
+        <input type="text" name="notes" id="fNotes" placeholder="e.g. inoculated 6 jars, processed 2 blocks">
+      </div>
+      <div style="display:flex;gap:8px;align-items:flex-end;padding-bottom:1px">
+        <button type="submit" class="btn btn-primary btn-sm" id="submitBtn">+ Log</button>
+        <button type="button" onclick="resetForm()" id="cancelBtn"
+                class="btn btn-ghost btn-sm" style="display:none">Cancel</button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- Log table -->
+<div class="card">
+  <div class="card-title" style="margin-bottom:16px">All Entries</div>
+  {% if logs %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Date</th><th>Activity</th><th>Hours</th><th>Batch</th><th>Notes</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+        {% set act_color = {
+          'harvesting': 'var(--green)',
+          'inoculation': 'var(--blue)',
+          'setup': 'var(--amber)',
+          'overhead': 'var(--gray)',
+          'other': 'var(--text-muted)'
+        }.get(log.activity, 'var(--text-muted)') %}
+        <tr>
+          <td class="td-m">{{ log.logged_date }}</td>
+          <td><span style="color:{{ act_color }};font-weight:600;font-size:12px">{{ log.activity | title }}</span></td>
+          <td class="fw-600">{{ "%.2g"|format(log.hours) }}h</td>
+          <td class="td-m">{% if log.batch_label %}<a href="{{ url_for('batch_detail', batch_id=log.batch_id) }}" style="color:var(--blue);text-decoration:none">{{ log.batch_label }}</a>{% else %}—{% endif %}</td>
+          <td class="td-m">{{ log.notes or '' }}</td>
+          <td style="white-space:nowrap">
+            <button onclick="editEntry({{ log.id }}, '{{ log.logged_date }}', {{ log.hours }}, '{{ log.activity }}', {{ log.batch_id or 'null' }}, {{ log.notes|tojson if log.notes else '\"\"' }})"
+                    class="btn btn-ghost btn-sm" style="font-size:11px;padding:2px 8px">Edit</button>
+            <form method="POST" action="{{ url_for('labor_delete', log_id=log.id) }}" style="display:inline"
+                  onsubmit="return confirm('Delete this labor entry?')">
+              <button type="submit" class="btn btn-danger btn-sm" style="font-size:11px;padding:2px 8px">Del</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Hours by activity summary -->
+  {% set by_act = {} %}
+  {% for log in logs %}{% set _ = by_act.update({log.activity: by_act.get(log.activity, 0) + log.hours}) %}{% endfor %}
+  {% if by_act %}
+  <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border-muted);display:flex;gap:16px;flex-wrap:wrap">
+    {% for act, hrs in by_act.items() | sort %}
+    <div style="font-size:12px;color:var(--text-muted)">
+      <span style="font-weight:600;color:var(--text)">{{ "%.1f"|format(hrs) }}h</span> {{ act }}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% else %}
+  <div class="empty">
+    <div class="empty-title">No labor logged yet</div>
+    <div class="empty-sub">Log your first session above to start tracking $/hr</div>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+function editEntry(id, date, hours, activity, batchId, notes) {
+  document.getElementById('laborForm').action = '/labor/' + id + '/edit';
+  document.getElementById('editId').value  = id;
+  document.getElementById('fDate').value   = date;
+  document.getElementById('fHours').value  = hours;
+  document.getElementById('fNotes').value  = notes;
+  document.getElementById('fActivity').value = activity;
+  const bs = document.getElementById('fBatch');
+  bs.value = batchId !== null ? String(batchId) : '';
+  document.getElementById('submitBtn').textContent = 'Save';
+  document.getElementById('cancelBtn').style.display = 'inline-flex';
+  document.getElementById('formTitle').textContent = 'Edit Entry';
+  document.getElementById('addForm').scrollIntoView({behavior:'smooth', block:'start'});
+}
+function resetForm() {
+  document.getElementById('laborForm').action = "{{ url_for('labor_add') }}";
+  document.getElementById('laborForm').reset();
+  document.getElementById('fDate').value = '{{ today }}';
+  document.getElementById('submitBtn').textContent = '+ Log';
+  document.getElementById('cancelBtn').style.display = 'none';
+  document.getElementById('formTitle').textContent = 'Log Hours';
+}
+</script>
+{% endblock %}

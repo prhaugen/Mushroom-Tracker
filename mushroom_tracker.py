@@ -477,6 +477,41 @@ def init_db():
             c.execute("INSERT INTO batch_notes (batch_id, body, created_at) VALUES (?, ?, ?)",
                       (row[0], row[1], row[2]))
 
+    # Labor logs: time spent per session, optionally linked to a batch
+    c.execute("""CREATE TABLE IF NOT EXISTS labor_logs (
+        id           INTEGER PRIMARY KEY,
+        batch_id     INTEGER REFERENCES batches(id),
+        logged_date  TEXT NOT NULL,
+        hours        REAL NOT NULL,
+        activity     TEXT NOT NULL,
+        notes        TEXT,
+        created_at   TEXT DEFAULT CURRENT_TIMESTAMP
+    )""")
+
+    # Fair market value per species (used for $/hr when no sales exist)
+    c.execute("""CREATE TABLE IF NOT EXISTS species_prices (
+        species       TEXT PRIMARY KEY,
+        price_per_lb  REAL NOT NULL,
+        updated_at    TEXT DEFAULT CURRENT_TIMESTAMP
+    )""")
+
+    # Seed default FMV prices if table is empty
+    if c.execute("SELECT COUNT(*) FROM species_prices").fetchone()[0] == 0:
+        _defaults = [
+            ("Blue Oyster", 14.00), ("Pearl Oyster", 14.00), ("White Oyster", 14.00),
+            ("Snow Oyster", 14.00), ("Pink Oyster", 14.00), ("Golden Oyster", 16.00),
+            ("Black Oyster", 14.00), ("Elm Oyster", 12.00), ("King Oyster", 16.00),
+            ("Lions Mane", 22.00), ("Shiitake", 18.00), ("Chestnut", 16.00),
+            ("Maitake", 20.00), ("Nameko", 16.00), ("Pioppino", 16.00),
+            ("Enoki", 14.00), ("Golden Enoki", 16.00), ("Bunashimeji", 14.00),
+            ("Reishi", 24.00), ("Turkey Tail", 18.00), ("Wine Cap", 12.00),
+            ("Cordyceps", 40.00),
+        ]
+        c.executemany(
+            "INSERT OR IGNORE INTO species_prices (species, price_per_lb) VALUES (?,?)",
+            _defaults,
+        )
+
     # Performance indexes — CREATE INDEX IF NOT EXISTS is a no-op when already present
     c.execute("""CREATE INDEX IF NOT EXISTS idx_env_logs_chamber_time
                  ON environment_logs(chamber_id, logged_at)""")

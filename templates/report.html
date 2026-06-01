@@ -41,9 +41,9 @@
   {% if be_ranking %}
   <div class="table-wrap">
     <table>
-      <thead><tr><th>#</th><th>Batch</th><th>Species</th><th>Strain</th><th>Substrate</th><th>Dry Wt</th><th>Total Yield</th><th>BE %</th><th>Flushes</th><th>Status</th></tr></thead>
+      <thead><tr><th>#</th><th>Batch</th><th>Species</th><th>Strain</th><th>Substrate</th><th>Dry Wt</th><th>Total Yield</th><th>BE %</th><th title="(actual sales revenue + FMV of unsold yield) ÷ batch labor hours">$/hr</th><th>Flushes</th><th>Status</th></tr></thead>
       <tbody>
-        {% for b, be in be_ranking %}
+        {% for b, be, dph in be_ranking %}
         <tr>
           <td class="td-m">{{ loop.index }}</td>
           <td class="fw-600"><a href="{{ url_for('batch_detail', batch_id=b.id) }}" style="color:var(--blue);text-decoration:none">{{ b.label }}</a></td>
@@ -66,6 +66,7 @@
             <span class="td-m">—</span>
             {% endif %}
           </td>
+          <td class="td-m fw-600">{% if dph is not none %}<span style="color:var(--amber)">${{ "%.2f"|format(dph) }}</span>{% else %}<span style="font-size:11px;color:var(--text-dim)" title="Log labor hours for this batch to see $/hr">no labor</span>{% endif %}</td>
           <td class="td-m">{{ b.total_flushes }}</td>
           <td><span class="badge badge-{{ b.status }}">{{ b.status }}</span></td>
         </tr>

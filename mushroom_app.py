@@ -1609,9 +1609,41 @@ def report():
         for _i, (_sp, _pts) in enumerate(sorted(_timing_by_species.items()))
     ]
 
+    # Labor hours per batch
+    _labor_rows = conn.execute(
+        "SELECT batch_id, SUM(hours) AS total FROM labor_logs WHERE batch_id IS NOT NULL GROUP BY batch_id"
+    ).fetchall()
+    _labor_by_batch = {r['batch_id']: r['total'] for r in _labor_rows}
+
+    # Sales revenue per batch (actual)
+    _sales_rows = conn.execute(
+        "SELECT s.batch_id, SUM(s.fresh_weight_sold_g) AS sold_g, "
+        "       SUM((s.price_per_lb / 453.592) * s.fresh_weight_sold_g) AS revenue "
+        "FROM sales s WHERE s.price_per_lb IS NOT NULL GROUP BY s.batch_id"
+    ).fetchall()
+    _sales_by_batch = {r['batch_id']: {'sold_g': r['sold_g'] or 0, 'revenue': r['revenue'] or 0}
+                       for r in _sales_rows}
+
+    # FMV price per species
+    _price_rows = conn.execute("SELECT species, price_per_lb FROM species_prices").fetchall()
+    _fmv = {r['species']: r['price_per_lb'] for r in _price_rows}
+
+    def _dollars_per_hr(b):
+        labor = _labor_by_batch.get(b['id'], 0)
+        if not labor:
+            return None
+        sp = _sales_by_batch.get(b['id'], {})
+        actual_rev = sp.get('revenue', 0)
+        sold_g     = sp.get('sold_g', 0)
+        unsold_g   = max((b['total_yield_g'] or 0) - sold_g, 0)
+        fmv_price  = _fmv.get(b['species'], 0)
+        imputed    = (unsold_g / 453.592) * fmv_price
+        total_rev  = actual_rev + imputed
+        return round(total_rev / labor, 2) if labor > 0 else None
+
     # BE ranking
     be_ranking = sorted(
-        [(b, bio_efficiency(b['total_yield_g'], b['dry_weight_g'])) for b in batches],
+        [(b, bio_efficiency(b['total_yield_g'], b['dry_weight_g']), _dollars_per_hr(b)) for b in batches],
         key=lambda x: (x[1] or -1), reverse=True)
 
     # Sales summary
@@ -1642,6 +1674,103 @@ def report():
         env_stats=env_stats, total_yield=total_yield,
         sales=sales, total_revenue=total_revenue,
         total_sold_fresh=total_sold_fresh, total_sold_dried=total_sold_dried)
+
+
+# ── Labor & Species Prices ────────────────────────────────────────────────────
+
+LABOR_ACTIVITIES = ['harvesting', 'inoculation', 'setup', 'overhead', 'other']
+
+@app.route('/labor')
+def labor_list():
+    init_db()
+    conn = get_db()
+    logs = conn.execute("""
+        SELECT l.*, b.label AS batch_label
+        FROM labor_logs l
+        LEFT JOIN batches b ON l.batch_id = b.id
+        ORDER BY l.logged_date DESC, l.created_at DESC
+    """).fetchall()
+    batches = conn.execute(
+        "SELECT id, label, species FROM batches ORDER BY label"
+    ).fetchall()
+    total_hours = sum(r['hours'] for r in logs)
+    month_start = str(date.today().replace(day=1))
+    month_hours = sum(r['hours'] for r in logs if r['logged_date'] >= month_start)
+    conn.close()
+    return render_template('labor.html', logs=logs, batches=batches,
+                           total_hours=total_hours, month_hours=month_hours,
+                           activities=LABOR_ACTIVITIES, today=str(date.today()))
+
+
+@app.route('/labor/add', methods=['POST'])
+def labor_add():
+    init_db()
+    conn = get_db()
+    f = request.form
+    conn.execute(
+        "INSERT INTO labor_logs (batch_id, logged_date, hours, activity, notes) VALUES (?,?,?,?,?)",
+        (f.get('batch_id') or None,
+         f.get('logged_date') or str(date.today()),
+         float(f['hours']),
+         f.get('activity') or 'other',
+         f.get('notes') or None)
+    )
+    conn.commit(); conn.close()
+    flash('Labor entry logged.', 'success')
+    return redirect(url_for('labor_list'))
+
+
+@app.route('/labor/<int:log_id>/edit', methods=['POST'])
+def labor_edit(log_id):
+    conn = get_db()
+    f = request.form
+    conn.execute(
+        "UPDATE labor_logs SET batch_id=?, logged_date=?, hours=?, activity=?, notes=? WHERE id=?",
+        (f.get('batch_id') or None,
+         f.get('logged_date') or str(date.today()),
+         float(f['hours']),
+         f.get('activity') or 'other',
+         f.get('notes') or None,
+         log_id)
+    )
+    conn.commit(); conn.close()
+    flash('Labor entry updated.', 'success')
+    return redirect(url_for('labor_list'))
+
+
+@app.route('/labor/<int:log_id>/delete', methods=['POST'])
+def labor_delete(log_id):
+    conn = get_db()
+    conn.execute("DELETE FROM labor_logs WHERE id=?", (log_id,))
+    conn.commit(); conn.close()
+    flash('Labor entry deleted.', 'success')
+    return redirect(url_for('labor_list'))
+
+
+@app.route('/species-prices', methods=['GET', 'POST'])
+def species_prices():
+    init_db()
+    conn = get_db()
+    if request.method == 'POST':
+        for key, val in request.form.items():
+            if key.startswith('price_'):
+                sp = key[6:].replace('_', ' ')
+                try:
+                    price = float(val)
+                    conn.execute(
+                        "INSERT INTO species_prices (species, price_per_lb, updated_at) VALUES (?,?,?) "
+                        "ON CONFLICT(species) DO UPDATE SET price_per_lb=excluded.price_per_lb, updated_at=excluded.updated_at",
+                        (sp, price, str(date.today()))
+                    )
+                except (ValueError, TypeError):
+                    pass
+        conn.commit()
+        flash('Species prices saved.', 'success')
+        conn.close()
+        return redirect(url_for('species_prices'))
+    prices = conn.execute("SELECT * FROM species_prices ORDER BY species").fetchall()
+    conn.close()
+    return render_template('species_prices.html', prices=prices)
 
 
 # ── Chamber management ────────────────────────────────────────────────────────
