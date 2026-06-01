@@ -829,9 +829,12 @@ def build():
         ),
         sp(10),
         h3("Batch Grid"),
-        p("A full-width card grid shows all active batches. Each card shows the batch label, "
-          "species and strain, assigned chamber name, substrate composition summary, "
-          "and four live metrics: "
+        p("A full-width card grid shows all <b>active</b> batches — those with a status of "
+          "Colonizing, Colonized, Pinning, Fruiting, or Resting. "
+          "Done, contaminated, and aborted batches are excluded so retired blocks "
+          "do not clutter the working view. "
+          "Each card shows the batch label, species and strain, assigned chamber name, "
+          "substrate composition summary, and four live metrics: "
           "<b>Days</b> since inoculation, <b>Flushes</b> logged, <b>Yield</b> in grams, "
           "and <b>BE%</b> with its color-coded pill. Click any card to open the full "
           "Batch Detail page."),
@@ -895,6 +898,14 @@ def build():
         p("A <b>Batch</b> is the core record in the system -- one fruiting block or bag, "
           "from preparation through retirement. It holds your substrate recipe, spawn details, "
           "and lifecycle status, and accumulates flush data over time."),
+        sp(6),
+        p("The Batches page shows <b>active batches</b> (colonizing through resting) in the "
+          "main grid. A collapsed <b>Retired</b> section at the bottom holds done, contaminated, "
+          "and aborted batches — click the chevron to expand it. "
+          "Retired cards display at reduced opacity with a dashed border, and link to the full "
+          "Batch Detail page so flush history, yield, and BE% data remain accessible. "
+          "The contamination rate gate queries the database directly and is unaffected by "
+          "what is visible on screen."),
         sp(8),
         h2("6.1  Adding a Batch"),
         p("From the Batches page or Dashboard, click <b>+ New Batch</b>. "
