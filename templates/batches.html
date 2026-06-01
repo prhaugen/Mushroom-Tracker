@@ -4,7 +4,7 @@
 <div class="page-head-row">
   <div class="page-head">
     <div class="page-title">Fruiting Batches</div>
-    <div class="page-sub">{{ batches|length }} batch{% if batches|length != 1 %}es{% endif %} tracked</div>
+    <div class="page-sub">{{ batches|length }} active · {{ retired|length }} retired</div>
   </div>
   <a href="{{ url_for('batch_add') }}" class="btn btn-primary">+ Add Batch</a>
 </div>
@@ -68,10 +68,75 @@
 {% else %}
 <div class="card">
   <div class="empty">
-    <div class="empty-title">No batches yet</div>
+    <div class="empty-title">No active batches</div>
     <div class="empty-sub">Add a batch to start tracking substrate, spawn, colonization, and yield data.</div>
     <a href="{{ url_for('batch_add') }}" class="btn btn-primary">Add First Batch</a>
   </div>
 </div>
+{% endif %}
+
+{% if retired %}
+<div style="margin-top:24px">
+  <button onclick="toggleRetired()" id="retiredToggle"
+          style="display:flex;align-items:center;gap:8px;background:none;border:none;cursor:pointer;
+                 color:var(--text-muted);font-size:12px;font-weight:600;text-transform:uppercase;
+                 letter-spacing:.07em;padding:0;margin-bottom:14px">
+    <svg id="retiredChevron" viewBox="0 0 10 10" width="10" height="10" fill="currentColor"
+         style="transition:transform .2s;transform:rotate(-90deg)">
+      <path d="M2 3.5 L5 6.5 L8 3.5" stroke="currentColor" stroke-width="1.5" fill="none"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    Retired ({{ retired|length }})
+  </button>
+  <div id="retiredGrid" style="display:none">
+    <div class="batch-grid">
+      {% for b in retired %}
+      {% set be = bio_efficiency(b.total_yield_g, b.dry_weight_g) %}
+      <a href="{{ url_for('batch_detail', batch_id=b.id) }}" class="batch-card"
+         style="opacity:0.65;border-style:dashed">
+        <div class="batch-card-top">
+          <div>
+            <div class="batch-label">{{ b.label }}</div>
+            <div class="batch-species">{{ b.species }}{% if b.strain %} · {{ b.strain }}{% endif %}</div>
+          </div>
+          <span class="badge badge-{{ b.status }}">{{ b.status }}</span>
+        </div>
+        {% if b.chamber_name %}
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px">{{ b.chamber_name }}</div>
+        {% endif %}
+        <div class="batch-nums">
+          <div>
+            <div class="bnum-val">{{ b.total_flushes }}</div>
+            <div class="bnum-lbl">Flushes</div>
+          </div>
+          <div>
+            <div class="bnum-val">{{ b.total_yield_g|int }}g</div>
+            <div class="bnum-lbl">Yield</div>
+          </div>
+          <div>
+            {% if be %}
+            {% set be_class = 'be-excellent' if be >= 100 else ('be-good' if be >= 60 else ('be-avg' if be >= 30 else 'be-low')) %}
+            <div class="bnum-val"><span class="be-pill {{ be_class }}">{{ be|int }}%</span></div>
+            {% else %}
+            <div class="bnum-val">—</div>
+            {% endif %}
+            <div class="bnum-lbl">BE</div>
+          </div>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<script>
+function toggleRetired() {
+  const grid    = document.getElementById('retiredGrid');
+  const chevron = document.getElementById('retiredChevron');
+  const open    = grid.style.display !== 'none';
+  grid.style.display    = open ? 'none' : 'block';
+  chevron.style.transform = open ? 'rotate(-90deg)' : 'rotate(0deg)';
+}
+</script>
 {% endif %}
 {% endblock %}

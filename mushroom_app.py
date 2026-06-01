@@ -148,8 +148,11 @@ def dashboard():
     latest_env = conn.execute(
         "SELECT * FROM environment_logs WHERE chamber_id=? ORDER BY logged_at DESC LIMIT 1",
         (chamber['id'],)).fetchone()
-    batches = conn.execute(
-        "SELECT * FROM batches WHERE chamber_id=? ORDER BY id", (chamber['id'],)).fetchall()
+    batches = conn.execute("""
+        SELECT * FROM batches
+        WHERE chamber_id=? AND status NOT IN ('done','contaminated','aborted')
+        ORDER BY id
+    """, (chamber['id'],)).fetchall()
     recent_flushes = conn.execute("""
         SELECT f.*, b.label, b.species FROM flushes f
         JOIN batches b ON f.batch_id=b.id
@@ -349,12 +352,14 @@ def chamber_suggest():
 def batches():
     init_db()
     conn = get_db()
-    rows = conn.execute("""
+    all_rows = conn.execute("""
         SELECT b.*, c.name chamber_name FROM batches b
         LEFT JOIN chambers c ON b.chamber_id=c.id ORDER BY b.id
     """).fetchall()
     conn.close()
-    return render_template('batches.html', batches=rows)
+    active  = [b for b in all_rows if b['status'] not in ('done','contaminated','aborted')]
+    retired = [b for b in all_rows if b['status'] in ('done','contaminated','aborted')]
+    return render_template('batches.html', batches=active, retired=retired)
 
 
 @app.route('/batch/add', methods=['GET','POST'])
