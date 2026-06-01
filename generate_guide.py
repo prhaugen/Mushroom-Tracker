@@ -392,7 +392,8 @@ def build():
         ("6.6",  "Batch Lifecycle",                             "9"),
         ("6.7",  "Updating Batch Status",                       "10"),
         ("6.8",  "Batch Detail Page",                           "10"),
-        ("7",    "Logging Flushes",                             "11"),
+        ("6.9",  "Cold Shock Tracking",                        "11"),
+        ("7",    "Logging Flushes",                             "12"),
         ("8",    "Sales Tracking",                              "11"),
         ("9",    "Logging Environment Readings",                "12"),
         ("10",   "Environment History",                         "12"),
@@ -1359,6 +1360,45 @@ def build():
             "Setup notes (entered when the batch was created) still appear in the Substrate card "
             "as read-only setup context.",
             label="Note:"
+        ),
+        sp(12),
+        h2("6.9  Cold Shock Tracking"),
+        p("The <b>Cold Shocks</b> panel on the Batch Detail page logs each cold-shocking event "
+          "for that batch. Cold shocking is not a lifecycle status — it is a treatment that "
+          "can happen at any point and can be repeated — so it lives as its own log rather "
+          "than as a status transition."),
+        sp(6),
+        data_table(
+            ["Field", "Required", "Notes"],
+            [
+                ["Date In",  "No",
+                 "When the block entered cold shock. Defaults to today in the add form."],
+                ["Date Out", "No",
+                 "When the block came out. Leave blank while the block is still being shocked — "
+                 "the table shows <b>in progress</b> until this is filled in."],
+                ["Duration", "—",
+                 "Calculated automatically in days once both dates are set. "
+                 "Useful for identifying the minimum shock duration needed to trigger reliable pinning."],
+                ["Temp (°F)", "No",
+                 "Temperature during the shock. Record the actual fridge or cold room temp, "
+                 "not the target."],
+                ["Notes",    "No",
+                 "Location (fridge, cold room, cold water bath), observations, or anything else worth tracking."],
+            ],
+            col_widths=[2.5*cm, 2*cm, 11.7*cm],
+        ),
+        sp(6),
+        p("To add a record, fill in the inline form at the bottom of the panel and click <b>+ Add</b>. "
+          "To edit an existing record, click <b>Edit</b> on that row — the form pre-fills with "
+          "the existing values and the submit button changes to <b>Save</b>. "
+          "Click <b>Cancel</b> to discard without saving."),
+        sp(6),
+        callout(
+            "Over time, comparing cold shock duration and temperature against the days-to-pin "
+            "recorded on subsequent flushes reveals your personal optimal shock parameters "
+            "for each species. Use the Discussion log to note pin timing after a shock — "
+            "that pairing is the data that will improve your results.",
+            label="Tip:", color=BLUE_BG, border=BLUE_BORDER
         ),
     ]
 
