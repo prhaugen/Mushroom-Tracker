@@ -110,6 +110,22 @@ A reading of 66.7°F for Blue Oyster (range 55–70°F) is normal — do not \
 suggest cooling toward 62.5°F. Apply this reasoning to all species: \
 within-range is within-range, regardless of distance from the midpoint.
 
+COLD SHOCKS — each active batch may include a "cold_shocks" list of refrigerator \
+treatment events (fields: date_in, date_out, temp_f, notes). Use this data as follows:
+
+1. IN-PROGRESS SHOCK: if date_out is null or absent, the batch is currently in cold \
+storage. Do NOT evaluate it against fruiting environment guardrails and do NOT flag \
+missing chamber readings — this is intentional staging, not a problem.
+
+2. RECENT COMPLETION: if date_out is within the last 5 days, pin initiation is \
+actively expected. Flag as "info" if no pin date has been recorded yet and the batch \
+status has not advanced to pinning — the grower should be watching for pins.
+
+3. REPEATED SHOCKS: if a batch has 2 or more cold shock events, note this in \
+pattern_observations as a sign of a stubborn or slow-to-pin block. Do not flag as \
+an attention item unless there is also a timing concern (e.g. very long colonization \
+window relative to species targets).
+
 ROADMAP CONTEXT — if 'roadmap_status' is present in the snapshot, use it to \
 inform your pattern_observations and summary. Note which milestones are at risk \
 and whether current cultivation performance is on track for the target phase gates. \
@@ -277,6 +293,22 @@ def _get_recent_retired_flushes(conn, days: int = 30) -> list:
         ORDER BY f.harvest_date DESC
     """, (cutoff,)).fetchall()
     return [dict(r) for r in rows]
+
+
+def _get_cold_shocks(conn, batch_ids: list) -> dict:
+    """Return cold shock events keyed by batch_id, most recent first."""
+    if not batch_ids:
+        return {}
+    placeholders = ','.join('?' * len(batch_ids))
+    rows = conn.execute(f"""
+        SELECT * FROM cold_shocks
+        WHERE batch_id IN ({placeholders})
+        ORDER BY batch_id, date_in DESC
+    """, batch_ids).fetchall()
+    result = {}
+    for r in rows:
+        result.setdefault(r['batch_id'], []).append(dict(r))
+    return result
 
 
 def _get_env_summary(conn, batch_info_map: dict):
@@ -593,6 +625,7 @@ def get_snapshot(conn) -> dict:
     contamination   = _get_contamination_summary(conn)
     historical      = _get_historical_averages(conn)
     batch_notes     = _get_batch_notes(conn, batch_ids)
+    cold_shocks     = _get_cold_shocks(conn, batch_ids)
 
     for b in active_batches:
         sp_key = b['species'].lower()
@@ -602,6 +635,7 @@ def get_snapshot(conn) -> dict:
         b['env_24h']         = env_summaries.get(b['id'])
         b['species_targets'] = timeline
         b['recent_notes']    = batch_notes.get(b['id'], [])
+        b['cold_shocks']     = cold_shocks.get(b['id'], [])
         b['use_historical']  = (
             historical.get(b['species'], {}).get('completed_batches', 0) >= MIN_HISTORY_BATCHES
         )
