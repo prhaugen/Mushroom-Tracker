@@ -301,13 +301,14 @@
   {% endif %}
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Flush</th><th>Pinning</th><th>Harvest</th><th>Weight</th><th>Quality</th><th>Notes</th><th></th></tr></thead>
+      <thead><tr><th>Flush</th><th>Pinning</th><th>Harvest</th><th>Days Pin→Harvest</th><th>Weight</th><th>Quality</th><th>Notes</th><th></th></tr></thead>
       <tbody>
         {% for f in flushes %}
         <tr>
           <td class="fw-600">#{{ f.flush_number }}</td>
           <td class="td-m">{{ f.pinning_date or '—' }}</td>
           <td class="td-m">{{ f.harvest_date or f.created_at[:10] }}</td>
+          <td class="td-m" style="text-align:center">{% if f.days_pin_to_harvest is not none %}{{ f.days_pin_to_harvest }}d{% else %}—{% endif %}</td>
           <td class="text-green fw-600">{{ f.fresh_weight_g|int }}g</td>
           <td class="td-m">{% if f.quality_rating %}{{ '★' * f.quality_rating }}{{ '☆' * (5 - f.quality_rating) }}{% else %}—{% endif %}</td>
           <td class="td-m">{{ f.notes or '' }}</td>

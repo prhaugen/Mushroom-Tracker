@@ -45,8 +45,8 @@
                value="{{ flush.harvest_date if editing and flush.harvest_date else today }}">
       </div>
       <div class="fg">
-        <label>Pinning / Initiation Date (optional)</label>
-        <input type="date" name="pinning_date"
+        <label>Pinning / Initiation Date *</label>
+        <input type="date" name="pinning_date" required
                value="{{ flush.pinning_date if editing and flush.pinning_date else default_pinning_date }}">
         <span class="form-hint">Pre-filled from when status was set to Pinning — adjust if needed</span>
       </div>

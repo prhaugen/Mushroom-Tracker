@@ -438,8 +438,21 @@ def batch_detail(batch_id):
     if not batch:
         flash('Batch not found.', 'error'); conn.close()
         return redirect(url_for('batches'))
-    flushes = conn.execute(
+    _flush_rows = conn.execute(
         "SELECT * FROM flushes WHERE batch_id=? ORDER BY flush_number", (batch_id,)).fetchall()
+    flushes = []
+    for _f in _flush_rows:
+        _row = dict(_f)
+        if _row.get('pinning_date') and _row.get('harvest_date'):
+            try:
+                _d1 = date.fromisoformat(_row['pinning_date'][:10])
+                _d2 = date.fromisoformat(_row['harvest_date'][:10])
+                _row['days_pin_to_harvest'] = (_d2 - _d1).days
+            except Exception:
+                _row['days_pin_to_harvest'] = None
+        else:
+            _row['days_pin_to_harvest'] = None
+        flushes.append(_row)
     sales = conn.execute("""
         SELECT s.*, f.flush_number FROM sales s
         LEFT JOIN flushes f ON s.flush_id=f.id
