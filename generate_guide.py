@@ -411,6 +411,7 @@ def build():
         ("13.2", "Configuration",                              "16"),
         ("13.3", "Alert State Table",                          "16"),
         ("14",   "Reports",                                    "17"),
+        ("14.1", "P&L Summary",                               "17"),
         ("15",   "AI Daily Briefing",                          "17"),
         ("15.1", "What It Does",                               "17"),
         ("15.2", "Requirements",                               "17"),
@@ -432,9 +433,17 @@ def build():
         ("20",   "Interactive Q&A",                           "24"),
         ("20.1", "Opening the Chat Widget",                   "24"),
         ("20.2", "How It Works",                              "24"),
-        ("21",   "Command-Line Interface (CLI)",               "25"),
-        ("22",   "Growing Reference",                          "26"),
-        ("23",   "Tips & Troubleshooting",                     "28"),
+        ("21",   "Labor Tracking",                            "25"),
+        ("21.1", "Logging Hours",                             "25"),
+        ("21.2", "Activity Types",                            "25"),
+        ("21.3", "Species Prices (Fair Market Value)",        "25"),
+        ("22",   "Expense Tracking",                          "26"),
+        ("22.1", "Logging an Expense",                        "26"),
+        ("22.2", "Expense Categories",                        "26"),
+        ("22.3", "Batch vs. Operation Overhead",              "26"),
+        ("23",   "Command-Line Interface (CLI)",               "27"),
+        ("24",   "Growing Reference",                          "28"),
+        ("25",   "Tips & Troubleshooting",                     "30"),
     ]
     for num, title, pg in toc_entries:
         story.append(toc_row(num, title, pg))
@@ -2024,6 +2033,40 @@ def build():
         p("Total revenue, total fresh grams sold, total dried grams sold, "
           "and a breakdown of transaction count by destination "
           "(farmers market, restaurant, CSA, personal use, etc.)."),
+        sp(10),
+        h2("14.1  P&L Summary"),
+        p("A four-panel card below the environment and sales cards shows a live "
+          "<b>Profit &amp; Loss summary</b> for the entire operation:"),
+        sp(6),
+        data_table(
+            ["Panel", "What It Shows"],
+            [
+                ["Revenue (FMV)",
+                 "Total value of all yield across all batches — actual sales revenue "
+                 "plus the fair market value of any unsold grams, using the species "
+                 "prices configured on the Species Prices page."],
+                ["Total Expenses",
+                 "Sum of all logged expenses with a per-category breakdown "
+                 "(Substrate, Spawn, Consumables, Equipment, Packaging, Overhead)."],
+                ["Net Profit",
+                 "Revenue minus all expenses. Green when positive, red when negative."],
+                ["Net $/hr",
+                 "Net profit divided by total labor hours logged. "
+                 "This is the primary long-run efficiency metric — it captures "
+                 "both the value of the harvest and the true cost of producing it. "
+                 "Shows a prompt to log labor if no hours have been recorded yet."],
+            ],
+            col_widths=[3.5*cm, 12.7*cm],
+        ),
+        sp(6),
+        callout(
+            "The P&L card will mostly show dashes and zeroes until you start logging "
+            "labor and expenses. Once you have a few batches with both, you will have "
+            "a real picture of what the operation earns per hour of work — and which "
+            "species and substrate recipes drive the most profit per hour, not just "
+            "the highest BE%.",
+            label="Note:", color=BLUE_BG, border=BLUE_BORDER
+        ),
     ]
 
     story.append(PageBreak())
@@ -2637,8 +2680,155 @@ def build():
     # ══════════════════════════════════════════════════════════════════════
     # 18. CLI REFERENCE
     # ══════════════════════════════════════════════════════════════════════
+    # 21. LABOR TRACKING
+    # ══════════════════════════════════════════════════════════════════════
     story += [
-        h1("21. Command-Line Interface (CLI)"),
+        h1("21. Labor Tracking"),
+        rule(),
+        p("The <b>Labor</b> page (nav bar — <b>Business</b> dropdown) is where you log time "
+          "spent on the operation. Labor data feeds the $/hr column in the BE% ranking table "
+          "and the Net $/hr panel in the P&L summary on the Report page."),
+        sp(10),
+        h2("21.1  Logging Hours"),
+        p("Click <b>Business → Labor</b> in the navigation bar. "
+          "Fill in the inline form at the top of the page and click <b>+ Log</b>. "
+          "To edit an existing entry, click <b>Edit</b> on the row — the form pre-fills "
+          "and the submit button changes to <b>Save</b>."),
+        sp(6),
+        data_table(
+            ["Field", "Required", "Notes"],
+            [
+                ["Date",     "Yes", "Defaults to today."],
+                ["Hours",    "Yes",
+                 "Decimal hours in 0.25 increments — e.g. 0.5 for 30 minutes, 1.75 for 1h45m."],
+                ["Activity", "Yes",
+                 "Select from the activity type dropdown. See Section 21.2 for the full list."],
+                ["Batch",    "No",
+                 "Link to a specific batch if the time was spent on batch-level work "
+                 "(inoculating, harvesting, etc.). Leave blank for general overhead."],
+                ["Notes",    "No",
+                 "Free text — e.g. 'inoculated 6 jars', 'processed 2 Blue Oyster blocks'."],
+            ],
+            col_widths=[2.5*cm, 2*cm, 11.7*cm],
+        ),
+        sp(10),
+        h2("21.2  Activity Types"),
+        data_table(
+            ["Activity",     "When to use it"],
+            [
+                ["Harvesting",   "Time spent picking, trimming, and processing a flush."],
+                ["Inoculation",  "Time spent injecting or transferring spawn to jars or bags."],
+                ["Setup",        "Substrate prep, sterilization, hydration, bagging."],
+                ["Overhead",     "Cleaning, supply runs, market setup, admin tasks not tied to a specific batch."],
+                ["Other",        "Anything that does not fit the above categories."],
+            ],
+            col_widths=[3*cm, 13.2*cm],
+        ),
+        sp(6),
+        p("A by-activity hours breakdown appears at the bottom of the log table, "
+          "so you can see at a glance how your time is distributed across the operation."),
+        sp(10),
+        h2("21.3  Species Prices (Fair Market Value)"),
+        p("The <b>Species Prices</b> page (linked from the top-right of the Labor page) "
+          "holds your estimated fair market value per pound for each species. "
+          "These prices are used to compute revenue for unsold yield in the $/hr and "
+          "P&L calculations — they are not sale prices and do not affect the Sales module."),
+        sp(6),
+        p("22 species are pre-loaded with reasonable defaults based on typical retail "
+          "prices for specialty mushrooms (Blue / Pearl Oyster $14/lb, "
+          "Lion's Mane $22/lb, Shiitake $18/lb, Cordyceps $40/lb, etc.). "
+          "Update the prices periodically to match your local market. "
+          "When a batch has actual sales logged, the real sale revenue is used for sold "
+          "grams — FMV only fills in the unsold portion."),
+        sp(6),
+        callout(
+            "FMV prices are intentionally separate from the Sales module. "
+            "They are a benchmarking tool — a way to estimate what your harvest is worth "
+            "before you have consistent sales data — not an accounting figure. "
+            "Over time, your actual $/lb from sales will replace FMV as the meaningful number.",
+            label="Note:", color=BLUE_BG, border=BLUE_BORDER
+        ),
+    ]
+
+    story.append(PageBreak())
+
+    # ══════════════════════════════════════════════════════════════════════
+    # 22. EXPENSE TRACKING
+    # ══════════════════════════════════════════════════════════════════════
+    story += [
+        h1("22. Expense Tracking"),
+        rule(),
+        p("The <b>Expenses</b> page (nav bar — <b>Business</b> dropdown) logs money spent "
+          "on the operation. Expenses feed the P&L summary card on the Report page, "
+          "giving you a net profit figure and a true net $/hr after costs."),
+        sp(10),
+        h2("22.1  Logging an Expense"),
+        p("Click <b>Business → Expenses</b>. Fill in the inline form and click <b>+ Log</b>. "
+          "Edit and delete controls work identically to the Labor log."),
+        sp(6),
+        data_table(
+            ["Field",    "Required", "Notes"],
+            [
+                ["Date",     "Yes", "Defaults to today."],
+                ["Amount",   "Yes", "Dollar amount with cents — e.g. 24.99."],
+                ["Category", "Yes", "See Section 22.2 for the full category list."],
+                ["Batch",    "No",
+                 "Link to a specific batch for direct batch costs (e.g. a spawn purchase "
+                 "used exclusively for BO-003). Leave blank for overhead that benefits "
+                 "the whole operation."],
+                ["Vendor",   "No", "Supplier name — e.g. North Spore, Amazon, local co-op."],
+                ["Notes",    "No",
+                 "What was purchased — e.g. '5 lbs rye grain', '10-pk filter patch bags'."],
+            ],
+            col_widths=[2.5*cm, 2*cm, 11.7*cm],
+        ),
+        sp(10),
+        h2("22.2  Expense Categories"),
+        data_table(
+            ["Category",     "Color", "What belongs here"],
+            [
+                ["Substrate",    "Amber",
+                 "Sawdust, straw, bran, coco coir, gypsum, oyster shell — raw substrate inputs."],
+                ["Spawn",        "Green",
+                 "Grain spawn, liquid culture syringes, agar plates, petri dishes."],
+                ["Consumables",  "Blue",
+                 "Substrate bags, filter patches, alcohol, gloves, syringes, lids, tape."],
+                ["Equipment",    "Purple",
+                 "Pressure cookers, flow hoods, hygrometers, scales, shelving — durable items."],
+                ["Packaging",    "Tan",
+                 "Clamshells, bags, stickers, labels, twist ties used for market sales."],
+                ["Overhead",     "Gray",
+                 "Market fees, website costs, electricity, tools, anything that does not fit "
+                 "a more specific category."],
+            ],
+            col_widths=[2.8*cm, 2*cm, 11.4*cm],
+        ),
+        sp(10),
+        h2("22.3  Batch vs. Operation Overhead"),
+        p("Expenses linked to a batch appear in the batch row in the table with a link to "
+          "the Batch Detail page. Unlinked expenses show <b>overhead</b> in the Batch column. "
+          "Both types are included in the P&L summary totals on the Report page."),
+        sp(6),
+        p("Linking an expense to a batch does not affect the P&L totals — all expenses are "
+          "summed together regardless of batch assignment. The batch link is informational: "
+          "it tells you which batch a cost belongs to, but the system does not yet compute "
+          "per-batch gross margin. That is a future analysis you can do manually once you "
+          "have enough data."),
+        sp(6),
+        callout(
+            "A practical rule: link a cost to a batch only when that expense was exclusively "
+            "for that batch (e.g. one syringe used to inoculate one set of jars). "
+            "Log bulk purchases — a 20-lb bag of rye grain that will last several batches — "
+            "as overhead and note the quantity in the Notes field.",
+            label="Tip:", color=BLUE_BG, border=BLUE_BORDER
+        ),
+    ]
+
+    story.append(PageBreak())
+
+    # ══════════════════════════════════════════════════════════════════════
+    story += [
+        h1("23. Command-Line Interface (CLI)"),
         rule(),
         p("The CLI (<b>mushroom_tracker.py</b>) provides the same core functions as the web app "
           "from a terminal. It is useful for quick data entry when you do not want to open "
@@ -2720,7 +2910,7 @@ def build():
     # 19. GROWING REFERENCE
     # ══════════════════════════════════════════════════════════════════════
     story += [
-        h1("22. Growing Reference"),
+        h1("24. Growing Reference"),
         rule(),
         h2("Optimal Fruiting Conditions by Species"),
         sp(4),
@@ -2839,7 +3029,7 @@ def build():
     # 20. TIPS & TROUBLESHOOTING
     # ══════════════════════════════════════════════════════════════════════
     story += [
-        h1("23. Tips & Troubleshooting"),
+        h1("25. Tips & Troubleshooting"),
         rule(),
         h2("Improving Your BE%"),
         *bullet([
