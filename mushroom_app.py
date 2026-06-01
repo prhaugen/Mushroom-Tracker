@@ -1581,6 +1581,34 @@ def report():
         bar_datasets.append({'label': f'Flush {fi}', 'data': weights,
                               'backgroundColor': col+'99', 'borderColor': col, 'borderWidth':1})
 
+    # Harvest timing scatter: days pin→harvest vs quality, grouped by species
+    _timing_by_species = {}
+    for _f in all_flushes:
+        if _f['pinning_date'] and _f['harvest_date'] and _f['quality_rating']:
+            try:
+                _d1 = date.fromisoformat(_f['pinning_date'][:10])
+                _d2 = date.fromisoformat(_f['harvest_date'][:10])
+                _days = (_d2 - _d1).days
+                if _days >= 0:
+                    _sp = _f['species'] or 'Unknown'
+                    _timing_by_species.setdefault(_sp, []).append({
+                        'x': _days, 'y': _f['quality_rating'],
+                        'label': _f['label'], 'flush': _f['flush_number'],
+                    })
+            except Exception:
+                pass
+    _SCATTER_COLORS = ['#3fb950','#58a6ff','#bc8cff','#ff7b72','#d29922','#f0883e','#39d353']
+    harvest_timing_datasets = [
+        {
+            'label': _sp,
+            'data': _pts,
+            'backgroundColor': _SCATTER_COLORS[_i % len(_SCATTER_COLORS)] + 'cc',
+            'borderColor':     _SCATTER_COLORS[_i % len(_SCATTER_COLORS)],
+            'pointRadius': 7, 'pointHoverRadius': 9,
+        }
+        for _i, (_sp, _pts) in enumerate(sorted(_timing_by_species.items()))
+    ]
+
     # BE ranking
     be_ranking = sorted(
         [(b, bio_efficiency(b['total_yield_g'], b['dry_weight_g'])) for b in batches],
@@ -1610,6 +1638,7 @@ def report():
         bar_chart={'labels': [b['label'] for b in batches], 'datasets': bar_datasets},
         degradation_chart={'datasets': degradation_datasets,
                            'labels': [f'Flush {i}' for i in range(1, max_flush+1)]},
+        harvest_timing_chart={'datasets': harvest_timing_datasets},
         env_stats=env_stats, total_yield=total_yield,
         sales=sales, total_revenue=total_revenue,
         total_sold_fresh=total_sold_fresh, total_sold_dried=total_sold_dried)

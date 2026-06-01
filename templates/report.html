@@ -93,6 +93,15 @@
 </div>
 {% endif %}
 
+<!-- Harvest timing scatter -->
+{% if harvest_timing_chart.datasets %}
+<div class="card mb-16">
+  <div class="card-title" style="margin-bottom:4px">Harvest Timing vs Quality</div>
+  <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px">Days from first pin to harvest vs quality rating (1 poor – 5 excellent), grouped by species. Hover a point for batch detail.</div>
+  <div class="chart-wrap"><canvas id="harvestTimingChart"></canvas></div>
+</div>
+{% endif %}
+
 <!-- Environment summary -->
 <div class="g2 mb-16">
   <div class="card">
@@ -187,6 +196,44 @@ new Chart(document.getElementById('barChart').getContext('2d'), {
     x:{...CHART_DEFAULTS.scales.x, stacked:true},
     y:{...CHART_DEFAULTS.scales.y, stacked:true}
   }}
+});
+{% endif %}
+
+{% if harvest_timing_chart.datasets %}
+const htData = {{ harvest_timing_chart | tojson }};
+new Chart(document.getElementById('harvestTimingChart').getContext('2d'), {
+  type: 'scatter',
+  data: { datasets: htData.datasets },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { labels: { color: '#8b949e', boxWidth: 10, font: { size: 11 } } },
+      tooltip: {
+        backgroundColor: '#1c2128', borderColor: '#30363d', borderWidth: 1,
+        titleColor: '#e6edf3', bodyColor: '#8b949e',
+        callbacks: {
+          label: ctx => {
+            const pt = ctx.raw;
+            return `${ctx.dataset.label} — ${pt.label} F${pt.flush}: ${pt.x}d → Q${pt.y}`;
+          }
+        }
+      }
+    },
+    scales: {
+      x: {
+        title: { display: true, text: 'Days Pin → Harvest', color: '#8b949e', font: { size: 11 } },
+        ticks: { color: '#8b949e', font: { size: 11 } },
+        grid: { color: 'rgba(48,54,61,.4)' },
+        min: 0
+      },
+      y: {
+        title: { display: true, text: 'Quality Rating', color: '#8b949e', font: { size: 11 } },
+        ticks: { color: '#8b949e', font: { size: 11 }, stepSize: 1 },
+        grid: { color: 'rgba(48,54,61,.4)' },
+        min: 0.5, max: 5.5
+      }
+    }
+  }
 });
 {% endif %}
 </script>
