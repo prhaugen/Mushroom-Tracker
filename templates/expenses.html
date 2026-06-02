@@ -64,14 +64,17 @@
         </select>
       </div>
       <div class="fg" style="margin:0">
-        <label>Batch (optional)</label>
+        <span class="form-hint">Ctrl/Cmd-click for multiple — splits evenly. Blank = overhead.</span>
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:6px">
+          <label>Batch (optional)</label>
+          <span id="splitHint" style="font-size:10px;font-weight:600;color:var(--green)"></span>
+        </div>
         <select name="batch_id" id="fBatch" multiple size="4"
                 style="height:auto;min-height:80px" onchange="updateSplitHint()">
           {% for b in batches %}
           <option value="{{ b.id }}">{{ b.label }} · {{ b.species }}</option>
           {% endfor %}
         </select>
-        <span class="form-hint" id="splitHint">Ctrl/Cmd-click to select multiple — amount splits evenly. Leave blank for overhead.</span>
       </div>
       <div class="fg" style="margin:0">
         <label>Vendor (optional)</label>
@@ -144,16 +147,9 @@ function updateSplitHint() {
   const amt   = parseFloat(document.getElementById('fAmount').value);
   const count = Array.from(sel.selectedOptions).length;
   const hint  = document.getElementById('splitHint');
-  if (count > 1 && !isNaN(amt) && amt > 0) {
-    hint.textContent = `Split evenly: $${(amt / count).toFixed(2)} per batch (${count} batches selected)`;
-    hint.style.color = 'var(--green)';
-  } else if (count === 0) {
-    hint.textContent = 'No batch selected — logs as overhead.';
-    hint.style.color = 'var(--text-muted)';
-  } else {
-    hint.textContent = 'Ctrl/Cmd-click to select multiple — amount splits evenly. Leave blank for overhead.';
-    hint.style.color = 'var(--text-muted)';
-  }
+  hint.textContent = (count > 1 && !isNaN(amt) && amt > 0)
+    ? `$${(amt / count).toFixed(2)} × ${count} batches`
+    : '';
 }
 
 function editEntry(id, date, amount, category, batchId, vendor, notes) {
