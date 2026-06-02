@@ -13,7 +13,16 @@
       <div class="section-label">Vendor & Species</div>
       <div class="fg-grid">
         <div class="fg">
-          <label for="vendor">Vendor <span style="color:var(--red)">*</span></label>
+          <label>Vendor (from list)</label>
+          <select name="vendor_id">
+            <option value="">— none / not listed —</option>
+            {% for v in all_vendors %}
+            <option value="{{ v.id }}" {{ 'selected' if lot and lot.vendor_id == v.id }}>{{ v.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="fg">
+          <label for="vendor">Vendor (free text) <span style="color:var(--red)">*</span></label>
           <input type="text" id="vendor" name="vendor" required
                  placeholder="e.g. Mycelium Supply Co."
                  value="{{ lot.vendor if lot else '' }}">

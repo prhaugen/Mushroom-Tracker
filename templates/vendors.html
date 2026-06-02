@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Vendors — Mushroom Tracker{% endblock %}
+{% block content %}
+<div class="page-head-row">
+  <div class="page-head">
+    <div class="page-title">Vendors</div>
+    <div class="page-sub">Supplier directory — referenced by expenses, batches, and LC lots</div>
+  </div>
+  <a href="{{ url_for('vendor_add') }}" class="btn btn-primary btn-sm">+ Add Vendor</a>
+</div>
+
+{% if vendors %}
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Name</th><th>Categories</th><th>Website</th><th>Contact</th><th>Used In</th><th>Notes</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for v in vendors %}
+        {% set cats = v.categories.split(',') if v.categories else [] %}
+        {% set cat_colors = {
+          'spawn':       'var(--green)',
+          'substrate':   'var(--amber)',
+          'blocks':      'var(--blue)',
+          'equipment':   'var(--purple)',
+          'consumables': 'var(--blue)',
+          'packaging':   'var(--tan)',
+          'other':       'var(--gray)'
+        } %}
+        <tr>
+          <td class="fw-600">{{ v.name }}</td>
+          <td>
+            <div style="display:flex;gap:4px;flex-wrap:wrap">
+              {% for cat in cats %}
+              {% if cat.strip() %}
+              <span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;
+                           background:var(--card-hover);border:1px solid var(--border);
+                           color:{{ cat_colors.get(cat.strip(), 'var(--text-muted)') }}">
+                {{ cat.strip() | title }}
+              </span>
+              {% endif %}
+              {% endfor %}
+            </div>
+          </td>
+          <td class="td-m" style="font-size:12px">
+            {% if v.website %}
+            <a href="{{ v.website if v.website.startswith('http') else 'https://' ~ v.website }}"
+               target="_blank" rel="noopener"
+               style="color:var(--blue);text-decoration:none">{{ v.website | replace('https://','') | replace('http://','') | truncate(28, true, '…') }}</a>
+            {% else %}—{% endif %}
+          </td>
+          <td class="td-m" style="font-size:12px">
+            {% if v.email %}<div>{{ v.email }}</div>{% endif %}
+            {% if v.phone %}<div>{{ v.phone }}</div>{% endif %}
+            {% if not v.email and not v.phone %}—{% endif %}
+          </td>
+          <td class="td-m" style="font-size:12px;white-space:nowrap">
+            {% set total = (v.expense_count or 0) + (v.batch_count or 0) + (v.lc_count or 0) %}
+            {% if total %}
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              {% if v.expense_count %}<span style="color:var(--red)">{{ v.expense_count }} expense{{ 's' if v.expense_count != 1 }}</span>{% endif %}
+              {% if v.batch_count %}<span style="color:var(--green)">{{ v.batch_count }} batch{{ 'es' if v.batch_count != 1 }}</span>{% endif %}
+              {% if v.lc_count %}<span style="color:var(--blue)">{{ v.lc_count }} LC</span>{% endif %}
+            </div>
+            {% else %}<span style="color:var(--text-dim)">unused</span>{% endif %}
+          </td>
+          <td class="td-m" style="font-size:12px;max-width:200px">{{ v.notes or '' }}</td>
+          <td style="white-space:nowrap">
+            <a href="{{ url_for('vendor_edit', vendor_id=v.id) }}" class="btn btn-ghost btn-sm" style="font-size:11px;padding:2px 8px">Edit</a>
+            <form method="POST" action="{{ url_for('vendor_delete', vendor_id=v.id) }}" style="display:inline"
+                  onsubmit="return confirm('Delete {{ v.name }}? This will unlink them from all expenses, batches, and LC lots.')">
+              <button type="submit" class="btn btn-danger btn-sm" style="font-size:11px;padding:2px 8px">Del</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="card">
+  <div class="empty">
+    <div class="empty-title">No vendors yet</div>
+    <div class="empty-sub">Add your first supplier to start linking expenses, batches, and LC lots.</div>
+    <a href="{{ url_for('vendor_add') }}" class="btn btn-primary">+ Add Vendor</a>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

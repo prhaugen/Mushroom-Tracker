@@ -78,7 +78,12 @@
       </div>
       <div class="fg" style="margin:0">
         <label>Vendor (optional)</label>
-        <input type="text" name="vendor" id="fVendor" placeholder="e.g. North Spore, Amazon">
+        <select name="vendor_id" id="fVendor">
+          <option value="">— none —</option>
+          {% for v in vendors %}
+          <option value="{{ v.id }}">{{ v.name }}</option>
+          {% endfor %}
+        </select>
       </div>
       <div class="fg" style="margin:0;grid-column:span 2">
         <label>Notes (optional)</label>
@@ -118,10 +123,10 @@
           <td><span style="color:{{ cat_color }};font-weight:600;font-size:12px">{{ log.category | title }}</span></td>
           <td class="fw-600" style="color:var(--red)">${{ "%.2f"|format(log.amount) }}</td>
           <td class="td-m">{% if log.batch_label %}<a href="{{ url_for('batch_detail', batch_id=log.batch_id) }}" style="color:var(--blue);text-decoration:none">{{ log.batch_label }}</a>{% else %}<span style="color:var(--text-dim);font-size:11px">overhead</span>{% endif %}</td>
-          <td class="td-m">{{ log.vendor or '—' }}</td>
+          <td class="td-m">{{ log.vendor_name or log.vendor or '—' }}</td>
           <td class="td-m">{{ log.notes or '' }}</td>
           <td style="white-space:nowrap">
-            <button onclick="editEntry({{ log.id }}, '{{ log.expense_date }}', {{ log.amount }}, '{{ log.category }}', {{ log.batch_id or 'null' }}, {{ log.vendor|tojson if log.vendor else '\"\"' }}, {{ log.notes|tojson if log.notes else '\"\"' }})"
+            <button onclick="editEntry({{ log.id }}, '{{ log.expense_date }}', {{ log.amount }}, '{{ log.category }}', {{ log.batch_id or 'null' }}, {{ log.vendor_id or 'null' }}, {{ log.notes|tojson if log.notes else '\"\"' }})"
                     class="btn btn-ghost btn-sm" style="font-size:11px;padding:2px 8px">Edit</button>
             <form method="POST" action="{{ url_for('expense_delete', exp_id=log.id) }}" style="display:inline"
                   onsubmit="return confirm('Delete this expense?')">
@@ -152,12 +157,12 @@ function updateSplitHint() {
     : '';
 }
 
-function editEntry(id, date, amount, category, batchId, vendor, notes) {
+function editEntry(id, date, amount, category, batchId, vendorId, notes) {
   document.getElementById('expForm').action  = '/expenses/' + id + '/edit';
   document.getElementById('fDate').value     = date;
   document.getElementById('fAmount').value   = amount;
   document.getElementById('fCategory').value = category;
-  document.getElementById('fVendor').value   = vendor;
+  document.getElementById('fVendor').value   = vendorId !== null ? String(vendorId) : '';
   document.getElementById('fNotes').value    = notes;
   const bs = document.getElementById('fBatch');
   Array.from(bs.options).forEach(o => { o.selected = batchId !== null && o.value === String(batchId); });

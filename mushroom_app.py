@@ -370,6 +370,7 @@ def batch_add():
     if not chamber: conn.close(); return redirect(url_for('setup'))
     all_chambers = conn.execute("SELECT * FROM chambers ORDER BY id").fetchall()
     all_substrate_batches = _substrate_batches_with_count(conn)
+    all_vendors = _get_vendors(conn)
     conn.close()
 
     if request.method == 'POST':
@@ -425,7 +426,7 @@ def batch_add():
         return redirect(url_for('batches'))
 
     return render_template('batch_form.html', chamber=chamber, batch=None, all_chambers=all_chambers,
-                           all_substrate_batches=all_substrate_batches,
+                           all_substrate_batches=all_substrate_batches, all_vendors=all_vendors,
                            species_defaults=json.dumps(_SPECIES_DEFAULTS),
                            CUT_TYPES=CUT_TYPES, today=str(date.today()))
 
@@ -1073,9 +1074,9 @@ def lc_lots_list():
 @app.route('/lc-lots/add', methods=['GET', 'POST'])
 def lc_lot_add():
     init_db()
+    conn = get_db()
     if request.method == 'POST':
         f = request.form
-        conn = get_db()
         conn.execute(
             "INSERT INTO lc_lots (vendor, species, order_date, lot_number, media_type, notes) "
             "VALUES (?, ?, ?, ?, ?, ?)",
@@ -1089,7 +1090,9 @@ def lc_lot_add():
         conn.close()
         flash(f"LC lot from '{f['vendor'].strip()}' added.", 'success')
         return redirect(url_for('lc_lots_list'))
-    return render_template('lc_lot_form.html', lot=None)
+    all_vendors = _get_vendors(conn)
+    conn.close()
+    return render_template('lc_lot_form.html', lot=None, all_vendors=all_vendors)
 
 
 @app.route('/lc-lots/<int:lot_id>/edit', methods=['GET', 'POST'])
@@ -1114,8 +1117,9 @@ def lc_lot_edit(lot_id):
         conn.close()
         flash('LC lot updated.', 'success')
         return redirect(url_for('lc_lots_list'))
+    all_vendors = _get_vendors(conn)
     conn.close()
-    return render_template('lc_lot_form.html', lot=lot)
+    return render_template('lc_lot_form.html', lot=lot, all_vendors=all_vendors)
 
 
 @app.route('/lc-lots/<int:lot_id>/delete', methods=['POST'])
@@ -1699,6 +1703,92 @@ def report():
              'total_labor_hr': _total_labor_hr, 'net_dph': _net_dph})
 
 
+# ── Vendors ───────────────────────────────────────────────────────────────────
+
+VENDOR_CATEGORIES = ['spawn', 'substrate', 'blocks', 'equipment', 'consumables', 'packaging', 'other']
+
+def _get_vendors(conn):
+    return conn.execute("SELECT * FROM vendors ORDER BY name COLLATE NOCASE").fetchall()
+
+@app.route('/vendors')
+def vendors_list():
+    init_db()
+    conn = get_db()
+    vendors = conn.execute("""
+        SELECT v.*,
+          (SELECT COUNT(*) FROM expense_logs e WHERE e.vendor_id = v.id) AS expense_count,
+          (SELECT COUNT(*) FROM batches b     WHERE b.vendor_id  = v.id) AS batch_count,
+          (SELECT COUNT(*) FROM lc_lots l     WHERE l.vendor_id  = v.id) AS lc_count
+        FROM vendors v ORDER BY v.name COLLATE NOCASE
+    """).fetchall()
+    conn.close()
+    return render_template('vendors.html', vendors=vendors,
+                           categories=VENDOR_CATEGORIES)
+
+@app.route('/vendors/add', methods=['GET', 'POST'])
+def vendor_add():
+    init_db()
+    conn = get_db()
+    if request.method == 'POST':
+        f = request.form
+        cats = ','.join(request.form.getlist('categories'))
+        conn.execute(
+            "INSERT INTO vendors (name, categories, website, phone, email, notes) "
+            "VALUES (?,?,?,?,?,?)",
+            (f.get('name', '').strip(),
+             cats or None,
+             f.get('website') or None,
+             f.get('phone')   or None,
+             f.get('email')   or None,
+             f.get('notes')   or None)
+        )
+        conn.commit(); conn.close()
+        flash('Vendor added.', 'success')
+        return redirect(url_for('vendors_list'))
+    conn.close()
+    return render_template('vendor_form.html', vendor=None,
+                           categories=VENDOR_CATEGORIES, selected=[])
+
+@app.route('/vendors/<int:vendor_id>/edit', methods=['GET', 'POST'])
+def vendor_edit(vendor_id):
+    conn = get_db()
+    vendor = conn.execute("SELECT * FROM vendors WHERE id=?", (vendor_id,)).fetchone()
+    if not vendor:
+        conn.close(); flash('Vendor not found.', 'error')
+        return redirect(url_for('vendors_list'))
+    if request.method == 'POST':
+        f = request.form
+        cats = ','.join(request.form.getlist('categories'))
+        conn.execute(
+            "UPDATE vendors SET name=?, categories=?, website=?, phone=?, email=?, notes=? WHERE id=?",
+            (f.get('name', '').strip(),
+             cats or None,
+             f.get('website') or None,
+             f.get('phone')   or None,
+             f.get('email')   or None,
+             f.get('notes')   or None,
+             vendor_id)
+        )
+        conn.commit(); conn.close()
+        flash('Vendor updated.', 'success')
+        return redirect(url_for('vendors_list'))
+    selected = [c.strip() for c in (vendor['categories'] or '').split(',') if c.strip()]
+    conn.close()
+    return render_template('vendor_form.html', vendor=vendor,
+                           categories=VENDOR_CATEGORIES, selected=selected)
+
+@app.route('/vendors/<int:vendor_id>/delete', methods=['POST'])
+def vendor_delete(vendor_id):
+    conn = get_db()
+    conn.execute("UPDATE expense_logs SET vendor_id=NULL WHERE vendor_id=?", (vendor_id,))
+    conn.execute("UPDATE batches      SET vendor_id=NULL WHERE vendor_id=?", (vendor_id,))
+    conn.execute("UPDATE lc_lots      SET vendor_id=NULL WHERE vendor_id=?", (vendor_id,))
+    conn.execute("DELETE FROM vendors WHERE id=?", (vendor_id,))
+    conn.commit(); conn.close()
+    flash('Vendor deleted.', 'success')
+    return redirect(url_for('vendors_list'))
+
+
 # ── Expenses ──────────────────────────────────────────────────────────────────
 
 EXPENSE_CATEGORIES = ['substrate', 'spawn', 'fruiting blocks', 'consumables', 'equipment', 'packaging', 'overhead']
@@ -1708,9 +1798,10 @@ def expenses_list():
     init_db()
     conn = get_db()
     logs = conn.execute("""
-        SELECT e.*, b.label AS batch_label
+        SELECT e.*, b.label AS batch_label, v.name AS vendor_name
         FROM expense_logs e
         LEFT JOIN batches b ON e.batch_id = b.id
+        LEFT JOIN vendors v ON e.vendor_id = v.id
         ORDER BY e.expense_date DESC, e.created_at DESC
     """).fetchall()
     batches = conn.execute(
@@ -1722,10 +1813,11 @@ def expenses_list():
     by_category = {}
     for r in logs:
         by_category[r['category']] = by_category.get(r['category'], 0) + r['amount']
+    vendors = _get_vendors(conn)
     conn.close()
     return render_template('expenses.html', logs=logs, batches=batches,
                            total_spent=total_spent, month_spent=month_spent,
-                           by_category=by_category,
+                           by_category=by_category, vendors=vendors,
                            categories=EXPENSE_CATEGORIES, today=str(date.today()))
 
 
@@ -1741,20 +1833,21 @@ def expense_add():
     vendor    = f.get('vendor') or None
     notes     = f.get('notes') or None
 
+    vendor_id = int(request.form['vendor_id']) if request.form.get('vendor_id') else None
     if not batch_ids:
         conn.execute(
-            "INSERT INTO expense_logs (expense_date, amount, category, batch_id, vendor, notes) "
-            "VALUES (?,?,?,?,?,?)",
-            (exp_date, total, category, None, vendor, notes)
+            "INSERT INTO expense_logs (expense_date, amount, category, batch_id, vendor_id, vendor, notes) "
+            "VALUES (?,?,?,?,?,?,?)",
+            (exp_date, total, category, None, vendor_id, vendor, notes)
         )
         flash('Expense logged.', 'success')
     else:
         split = round(total / len(batch_ids), 2)
         for bid in batch_ids:
             conn.execute(
-                "INSERT INTO expense_logs (expense_date, amount, category, batch_id, vendor, notes) "
-                "VALUES (?,?,?,?,?,?)",
-                (exp_date, split, category, bid, vendor, notes)
+                "INSERT INTO expense_logs (expense_date, amount, category, batch_id, vendor_id, vendor, notes) "
+                "VALUES (?,?,?,?,?,?,?)",
+                (exp_date, split, category, bid, vendor_id, vendor, notes)
             )
         if len(batch_ids) > 1:
             flash(f'${total:.2f} split evenly — ${split:.2f} logged to each of {len(batch_ids)} batches.', 'success')
@@ -1769,13 +1862,15 @@ def expense_add():
 def expense_edit(exp_id):
     conn = get_db()
     f = request.form
+    vendor_id = int(f['vendor_id']) if f.get('vendor_id') else None
     conn.execute(
-        "UPDATE expense_logs SET expense_date=?, amount=?, category=?, batch_id=?, vendor=?, notes=? "
+        "UPDATE expense_logs SET expense_date=?, amount=?, category=?, batch_id=?, vendor_id=?, vendor=?, notes=? "
         "WHERE id=?",
         (f.get('expense_date') or str(date.today()),
          float(f['amount']),
          f.get('category') or 'overhead',
          f.get('batch_id') or None,
+         vendor_id,
          f.get('vendor') or None,
          f.get('notes') or None,
          exp_id)
@@ -1970,6 +2065,7 @@ def batch_edit(batch_id):
     chamber = get_primary_chamber()
     all_chambers = conn.execute("SELECT * FROM chambers ORDER BY id").fetchall()
     all_substrate_batches = _substrate_batches_with_count(conn)
+    all_vendors = _get_vendors(conn)
     if request.method == 'POST':
         f = request.form
         species = f.get('species_custom','').strip() if f.get('species') == '__other__' else f.get('species','')
@@ -2023,7 +2119,7 @@ def batch_edit(batch_id):
         return redirect(url_for('batch_detail', batch_id=batch_id))
     conn.close()
     return render_template('batch_form.html', chamber=chamber, batch=batch, all_chambers=all_chambers,
-                           all_substrate_batches=all_substrate_batches,
+                           all_substrate_batches=all_substrate_batches, all_vendors=all_vendors,
                            species_defaults=json.dumps(_SPECIES_DEFAULTS),
                            CUT_TYPES=CUT_TYPES, today=str(date.today()))
 

@@ -325,7 +325,16 @@
           <span class="form-hint">Common range: 10–25%</span>
         </div>
         <div class="fg">
-          <label>Spawn Source / Supplier</label>
+          <label>Spawn Vendor</label>
+          <select name="vendor_id">
+            <option value="">— none / not listed —</option>
+            {% for v in all_vendors %}
+            <option value="{{ v.id }}" {{ 'selected' if editing and batch.vendor_id == v.id }}>{{ v.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="fg">
+          <label>Spawn Source / Supplier (free text)</label>
           <input type="text" name="spawn_source" list="spawn_source_opts"
                  placeholder="e.g. North Spore, local farm..."
                  value="{{ batch.spawn_source if editing and batch.spawn_source else '' }}">

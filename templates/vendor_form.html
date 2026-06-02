@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if vendor else 'Add' }} Vendor — Mushroom Tracker{% endblock %}
+{% block content %}
+<div class="page-head-row">
+  <div class="page-head">
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">
+      <a href="{{ url_for('vendors_list') }}" style="color:var(--text-muted);text-decoration:none">Vendors</a>
+      / {{ 'Edit' if vendor else 'Add Vendor' }}
+    </div>
+    <div class="page-title">{{ vendor.name if vendor else 'Add Vendor' }}</div>
+  </div>
+  <a href="{{ url_for('vendors_list') }}" class="btn btn-ghost btn-sm">Back</a>
+</div>
+
+<div class="card form-wrap">
+  <form method="POST">
+    <div class="fg-grid">
+
+      <div class="fg full">
+        <label>Vendor Name *</label>
+        <input type="text" name="name" required placeholder="e.g. North Spore"
+               value="{{ vendor.name if vendor else '' }}">
+      </div>
+
+      <div class="fg full">
+        <label>Categories</label>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px">
+          {% for cat in categories %}
+          {% set cat_colors = {
+            'spawn':       'var(--green)',
+            'substrate':   'var(--amber)',
+            'blocks':      'var(--blue)',
+            'equipment':   'var(--purple)',
+            'consumables': 'var(--blue)',
+            'packaging':   'var(--tan)',
+            'other':       'var(--gray)'
+          } %}
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;
+                        padding:5px 12px;border-radius:20px;
+                        border:1px solid {% if cat in selected %}{{ cat_colors.get(cat,'var(--border)') }}{% else %}var(--border){% endif %};
+                        background:{% if cat in selected %}var(--card-hover){% else %}var(--surface){% endif %};
+                        font-size:12px;font-weight:600;transition:all .15s"
+                 id="lbl_{{ cat }}">
+            <input type="checkbox" name="categories" value="{{ cat }}"
+                   {% if cat in selected %}checked{% endif %}
+                   onchange="styleLabel('{{ cat }}')"
+                   style="display:none">
+            <span style="width:7px;height:7px;border-radius:50%;background:{{ cat_colors.get(cat,'var(--text-muted)') }};flex-shrink:0"></span>
+            {{ cat | title }}
+          </label>
+          {% endfor %}
+        </div>
+        <span class="form-hint">Select all that apply — a vendor can supply multiple types</span>
+      </div>
+
+      <div class="fg">
+        <label>Website</label>
+        <input type="text" name="website" placeholder="e.g. northspore.com"
+               value="{{ vendor.website if vendor and vendor.website else '' }}">
+      </div>
+
+      <div class="fg">
+        <label>Phone</label>
+        <input type="text" name="phone" placeholder="e.g. (207) 555-0100"
+               value="{{ vendor.phone if vendor and vendor.phone else '' }}">
+      </div>
+
+      <div class="fg full">
+        <label>Email</label>
+        <input type="email" name="email" placeholder="e.g. orders@northspore.com"
+               value="{{ vendor.email if vendor and vendor.email else '' }}">
+      </div>
+
+      <div class="fg full">
+        <label>Notes</label>
+        <textarea name="notes" placeholder="Lead time, minimum order, quality notes, preferred contact method…">{{ vendor.notes if vendor and vendor.notes else '' }}</textarea>
+      </div>
+
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">{{ 'Save Changes' if vendor else 'Add Vendor' }}</button>
+      <a href="{{ url_for('vendors_list') }}" class="btn btn-ghost">Cancel</a>
+    </div>
+  </form>
+</div>
+
+<script>
+const CAT_COLORS = {
+  spawn:'var(--green)', substrate:'var(--amber)', blocks:'var(--blue)',
+  equipment:'var(--purple)', consumables:'var(--blue)', packaging:'var(--tan)', other:'var(--gray)'
+};
+function styleLabel(cat) {
+  const cb  = document.querySelector(`input[value="${cat}"]`);
+  const lbl = document.getElementById('lbl_' + cat);
+  if (cb.checked) {
+    lbl.style.borderColor = CAT_COLORS[cat] || 'var(--border)';
+    lbl.style.background  = 'var(--card-hover)';
+  } else {
+    lbl.style.borderColor = 'var(--border)';
+    lbl.style.background  = 'var(--surface)';
+  }
+}
+</script>
+{% endblock %}

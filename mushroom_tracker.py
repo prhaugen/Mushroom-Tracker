@@ -477,6 +477,28 @@ def init_db():
             c.execute("INSERT INTO batch_notes (batch_id, body, created_at) VALUES (?, ?, ?)",
                       (row[0], row[1], row[2]))
 
+    # Vendor master list
+    c.execute("""CREATE TABLE IF NOT EXISTS vendors (
+        id         INTEGER PRIMARY KEY,
+        name       TEXT NOT NULL,
+        categories TEXT,
+        website    TEXT,
+        phone      TEXT,
+        email      TEXT,
+        notes      TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )""")
+
+    # Add vendor_id FK to tables that currently hold vendor as free text
+    for _tbl, _col in [
+        ('expense_logs', 'vendor_id'),
+        ('batches',      'vendor_id'),
+        ('lc_lots',      'vendor_id'),
+    ]:
+        _existing = {r[1] for r in c.execute(f"PRAGMA table_info({_tbl})")}
+        if _col not in _existing:
+            c.execute(f"ALTER TABLE {_tbl} ADD COLUMN {_col} INTEGER REFERENCES vendors(id)")
+
     # Expense logs: money out, optionally linked to a batch
     c.execute("""CREATE TABLE IF NOT EXISTS expense_logs (
         id            INTEGER PRIMARY KEY,
