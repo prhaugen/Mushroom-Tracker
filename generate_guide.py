@@ -2787,11 +2787,15 @@ def build():
         data_table(
             ["Category",     "Color", "What belongs here"],
             [
-                ["Substrate",    "Amber",
+                ["Substrate",       "Amber",
                  "Sawdust, straw, bran, coco coir, gypsum, oyster shell — raw substrate inputs."],
-                ["Spawn",        "Green",
+                ["Spawn",           "Green",
                  "Grain spawn, liquid culture syringes, agar plates, petri dishes."],
-                ["Consumables",  "Blue",
+                ["Fruiting Blocks", "Blue",
+                 "Purchased ready-to-fruit blocks from a supplier (e.g. North Spore). "
+                 "Use this category while sourced blocks are part of the operation — "
+                 "it separates block purchase cost from your own substrate inputs."],
+                ["Consumables",     "Blue",
                  "Substrate bags, filter patches, alcohol, gloves, syringes, lids, tape."],
                 ["Equipment",    "Purple",
                  "Pressure cookers, flow hoods, hygrometers, scales, shelving — durable items."],
