@@ -1701,7 +1701,7 @@ def report():
 
 # ── Expenses ──────────────────────────────────────────────────────────────────
 
-EXPENSE_CATEGORIES = ['substrate', 'spawn', 'consumables', 'equipment', 'packaging', 'overhead']
+EXPENSE_CATEGORIES = ['substrate', 'spawn', 'fruiting blocks', 'consumables', 'equipment', 'packaging', 'overhead']
 
 @app.route('/expenses')
 def expenses_list():

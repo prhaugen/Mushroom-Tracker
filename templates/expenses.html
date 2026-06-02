@@ -23,12 +23,13 @@
     <div class="stat-label">By Category</div>
     <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:6px">
       {% set cat_colors = {
-        'substrate':   'var(--amber)',
-        'spawn':       'var(--green)',
-        'consumables': 'var(--blue)',
-        'equipment':   'var(--purple)',
-        'packaging':   'var(--tan)',
-        'overhead':    'var(--gray)'
+        'substrate':       'var(--amber)',
+        'spawn':           'var(--green)',
+        'fruiting blocks': 'var(--blue)',
+        'consumables':     'var(--blue)',
+        'equipment':       'var(--purple)',
+        'packaging':       'var(--tan)',
+        'overhead':        'var(--gray)'
       } %}
       {% for cat, amt in by_category.items() | sort %}
       <div style="font-size:12px">
@@ -100,12 +101,13 @@
       <tbody>
         {% for log in logs %}
         {% set cat_color = {
-          'substrate':   'var(--amber)',
-          'spawn':       'var(--green)',
-          'consumables': 'var(--blue)',
-          'equipment':   'var(--purple)',
-          'packaging':   'var(--tan)',
-          'overhead':    'var(--gray)'
+          'substrate':       'var(--amber)',
+          'spawn':           'var(--green)',
+          'fruiting blocks': 'var(--blue)',
+          'consumables':     'var(--blue)',
+          'equipment':       'var(--purple)',
+          'packaging':       'var(--tan)',
+          'overhead':        'var(--gray)'
         }.get(log.category, 'var(--text-muted)') %}
         <tr>
           <td class="td-m">{{ log.expense_date }}</td>

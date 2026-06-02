@@ -183,7 +183,7 @@
       <div style="font-size:26px;font-weight:700;color:var(--red)">${{ "%.2f"|format(pnl.total_expenses) }}</div>
       {% if pnl.exp_by_cat %}
       <div style="margin-top:8px;display:flex;flex-direction:column;gap:3px">
-        {% set cat_colors = {'substrate':'var(--amber)','spawn':'var(--green)','consumables':'var(--blue)','equipment':'var(--purple)','packaging':'var(--tan)','overhead':'var(--gray)'} %}
+        {% set cat_colors = {'substrate':'var(--amber)','spawn':'var(--green)','fruiting blocks':'var(--blue)','consumables':'var(--blue)','equipment':'var(--purple)','packaging':'var(--tan)','overhead':'var(--gray)'} %}
         {% for cat, amt in pnl.exp_by_cat.items() | sort %}
         <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted)">
           <span style="color:{{ cat_colors.get(cat,'var(--text-muted)') }}">{{ cat | title }}</span>
