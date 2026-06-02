@@ -53,6 +53,7 @@
         <label>Batch (optional)</label>
         <select name="batch_id" id="fBatch">
           <option value="">— not batch-specific —</option>
+          <option value="__all_active__">⟳ All active batches (split evenly)</option>
           {% for b in batches %}
           <option value="{{ b.id }}">{{ b.label }} · {{ b.species }}</option>
           {% endfor %}

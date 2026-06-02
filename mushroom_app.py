@@ -1928,16 +1928,32 @@ def labor_add():
     init_db()
     conn = get_db()
     f = request.form
-    conn.execute(
-        "INSERT INTO labor_logs (batch_id, logged_date, hours, activity, notes) VALUES (?,?,?,?,?)",
-        (f.get('batch_id') or None,
-         f.get('logged_date') or str(date.today()),
-         float(f['hours']),
-         f.get('activity') or 'other',
-         f.get('notes') or None)
-    )
-    conn.commit(); conn.close()
-    flash('Labor entry logged.', 'success')
+    total     = float(f['hours'])
+    log_date  = f.get('logged_date') or str(date.today())
+    activity  = f.get('activity') or 'other'
+    notes     = f.get('notes') or None
+    batch_val = f.get('batch_id') or None
+
+    if batch_val == '__all_active__':
+        active_ids = [r['id'] for r in conn.execute(
+            "SELECT id FROM batches WHERE status NOT IN ('done','contaminated','aborted') ORDER BY id"
+        ).fetchall()]
+        if active_ids:
+            split = round(total / len(active_ids), 2)
+            for bid in active_ids:
+                conn.execute(
+                    "INSERT INTO labor_logs (batch_id, logged_date, hours, activity, notes) VALUES (?,?,?,?,?)",
+                    (bid, log_date, split, activity, notes)
+                )
+            flash(f'{total:.2g}h split evenly — {split:.2g}h logged to each of {len(active_ids)} active batches.', 'success')
+        else:
+            flash('No active batches found — entry not logged.', 'error')
+    else:
+        conn.execute(
+            "INSERT INTO labor_logs (batch_id, logged_date, hours, activity, notes) VALUES (?,?,?,?,?)",
+            (batch_val, log_date, total, activity, notes)
+        )
+        flash('Labor entry logged.', 'success')
     return redirect(url_for('labor_list'))
 
 
