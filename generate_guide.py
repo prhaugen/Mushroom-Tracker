@@ -412,6 +412,7 @@ def build():
         ("13.3", "Alert State Table",                          "16"),
         ("14",   "Reports",                                    "17"),
         ("14.1", "P&L Summary",                               "17"),
+        ("14.2", "Real vs Theoretical Toggle",                "17"),
         ("15",   "AI Daily Briefing",                          "17"),
         ("15.1", "What It Does",                               "17"),
         ("15.2", "Requirements",                               "17"),
@@ -441,9 +442,13 @@ def build():
         ("22.1", "Logging an Expense",                        "26"),
         ("22.2", "Expense Categories",                        "26"),
         ("22.3", "Batch vs. Operation Overhead",              "26"),
-        ("23",   "Command-Line Interface (CLI)",               "27"),
-        ("24",   "Growing Reference",                          "28"),
-        ("25",   "Tips & Troubleshooting",                     "30"),
+        ("23",   "Vendor Directory",                          "27"),
+        ("23.1", "Adding a Vendor",                           "27"),
+        ("23.2", "Category Tags",                             "27"),
+        ("23.3", "Vendor Linkages",                           "27"),
+        ("24",   "Command-Line Interface (CLI)",               "28"),
+        ("25",   "Growing Reference",                          "29"),
+        ("26",   "Tips & Troubleshooting",                     "31"),
     ]
     for num, title, pg in toc_entries:
         story.append(toc_row(num, title, pg))
@@ -2067,6 +2072,42 @@ def build():
             "the highest BE%.",
             label="Note:", color=BLUE_BG, border=BLUE_BORDER
         ),
+        sp(10),
+        h2("14.2  Real vs Theoretical Toggle"),
+        p("A two-button toggle in the top-right corner of the P&L card switches the "
+          "Revenue, Net Profit, and Net $/hr panels between two views:"),
+        sp(6),
+        data_table(
+            ["Mode", "Revenue Definition", "When to Use"],
+            [
+                ["Theoretical",
+                 "FMV × total yield for all batches. Every gram harvested is valued "
+                 "at the configured fair market price per species, regardless of "
+                 "whether it was sold.",
+                 "Default. Use to see what the harvest is worth at market rates — "
+                 "useful before consistent sales data exists and for benchmarking "
+                 "against the potential of your operation."],
+                ["Real",
+                 "Actual recorded sales revenue only. Only grams linked to a sale "
+                 "with a price-per-lb count.",
+                 "Use once you have real sales to compare actual income against the "
+                 "theoretical FMV projection and see your effective yield-to-revenue "
+                 "conversion rate."],
+            ],
+            col_widths=[2.5*cm, 5.8*cm, 7.9*cm],
+        ),
+        sp(6),
+        p("Expenses and the by-category breakdown are fixed — they do not change between "
+          "modes. The toggle affects only the revenue-derived figures. "
+          "A description line below the toggle restates which mode is active and what it means."),
+        sp(6),
+        callout(
+            "Switching to Real when you have no sales recorded will show $0.00 revenue. "
+            "This is correct — it reflects that no sales have been entered, not that "
+            "the harvest is worthless. Use Theoretical until you have a meaningful "
+            "number of real sales transactions.",
+            label="Note:", color=AMBER_BG, border=AMBER_BORDER
+        ),
     ]
 
     story.append(PageBreak())
@@ -2777,7 +2818,10 @@ def build():
                  "multiple batches — the amount is divided evenly and one row is inserted "
                  "per batch. A live hint below the list shows the per-batch amount as you "
                  "select. Leave all batches unselected for overhead expenses."],
-                ["Vendor",   "No", "Supplier name — e.g. North Spore, Amazon, local co-op."],
+                ["Vendor",   "No",
+                 "Select from the Vendor directory dropdown. If the vendor is not yet "
+                 "in the list, add them first via <b>Business &rarr; Vendors</b> "
+                 "(see Section 23)."],
                 ["Notes",    "No",
                  "What was purchased — e.g. '5 lbs rye grain', '10-pk filter patch bags'."],
             ],
@@ -2832,8 +2876,97 @@ def build():
     story.append(PageBreak())
 
     # ══════════════════════════════════════════════════════════════════════
+    # 23. VENDOR DIRECTORY
+    # ══════════════════════════════════════════════════════════════════════
     story += [
-        h1("23. Command-Line Interface (CLI)"),
+        h1("23. Vendor Directory"),
+        rule(),
+        p("The <b>Vendors</b> page (nav bar — <b>Business</b> dropdown) is a supplier "
+          "directory that backs the vendor fields on expenses, batches, and LC lots. "
+          "Instead of typing a supplier name repeatedly in free text, you add them once "
+          "here and select them by name everywhere else — ensuring consistent naming and "
+          "giving you a single place to keep contact details."),
+        sp(10),
+        h2("23.1  Adding a Vendor"),
+        p("Click <b>+ Add Vendor</b> at the top-right of the Vendors page. "
+          "Fill in the form and click <b>Add Vendor</b>. "
+          "All fields except Name are optional — add as much or as little as you know."),
+        sp(6),
+        data_table(
+            ["Field",      "Notes"],
+            [
+                ["Name",       "Required. The name that appears in all vendor dropdowns across the app."],
+                ["Categories", "Multi-select tags — see Section 23.2. Check all types that apply."],
+                ["Website",    "Displayed as a clickable link in the vendor list."],
+                ["Phone",      "Supplier contact number."],
+                ["Email",      "Order or support email."],
+                ["Notes",      "Lead time, minimum order, quality observations, preferred contact method, "
+                               "or anything else worth remembering about this supplier."],
+            ],
+            col_widths=[2.5*cm, 13.7*cm],
+        ),
+        sp(10),
+        h2("23.2  Category Tags"),
+        p("Each vendor can be tagged with one or more supply categories. "
+          "Tags appear as color-coded pills in the vendor list and help you "
+          "identify at a glance what a vendor supplies:"),
+        sp(6),
+        data_table(
+            ["Tag",            "Color",   "What it means"],
+            [
+                ["Spawn",          "Green",   "Grain spawn, sawdust spawn, plug spawn."],
+                ["Substrate",      "Amber",   "Hardwood sawdust, straw, bran, coco coir, gypsum."],
+                ["Blocks",         "Blue",    "Ready-to-fruit sourced blocks (e.g. North Spore blocks)."],
+                ["Equipment",      "Purple",  "Pressure cookers, flow hoods, hygrometers, shelving."],
+                ["Consumables",    "Blue",    "Bags, filter patches, alcohol, gloves, syringes."],
+                ["Packaging",      "Tan",     "Clamshells, stickers, labels for market sales."],
+                ["Other",          "Gray",    "Anything that does not fit the above."],
+            ],
+            col_widths=[2.8*cm, 2*cm, 11.4*cm],
+        ),
+        sp(6),
+        p("A vendor can hold multiple tags — for example, North Spore would typically "
+          "be tagged <b>Spawn + Blocks + Substrate</b>. "
+          "Tags are informational only and do not restrict where a vendor can be selected."),
+        sp(10),
+        h2("23.3  Vendor Linkages"),
+        p("Once a vendor is in the directory, select them from a dropdown on:"),
+        sp(6),
+        data_table(
+            ["Where",          "Field",          "Purpose"],
+            [
+                ["Expenses page",  "Vendor",
+                 "Links the cost to a known supplier. The vendor name displays in the "
+                 "expense table and the usage count on the Vendors page increments."],
+                ["Batch form",     "Spawn Vendor",
+                 "Records which supplier the spawn came from. A free-text Spawn Source "
+                 "field is still available alongside the dropdown for suppliers not yet "
+                 "in the directory."],
+                ["LC Lot form",    "Vendor (from list)",
+                 "Links the LC syringe lot to a directory vendor. The required free-text "
+                 "Vendor field remains for the lot record itself; the dropdown adds a "
+                 "structured reference."],
+            ],
+            col_widths=[3*cm, 3.2*cm, 9.9*cm],
+        ),
+        sp(6),
+        p("The Vendors list shows a <b>Used In</b> column with counts of how many "
+          "expense entries, batches, and LC lots reference each vendor. "
+          "This makes it easy to see spend concentration at a glance."),
+        sp(6),
+        callout(
+            "Deleting a vendor nulls out the vendor link on all referencing records — "
+            "it does not delete the records themselves. "
+            "The free-text vendor fields (spawn source, LC lot vendor) are unaffected.",
+            label="Note:", color=BLUE_BG, border=BLUE_BORDER
+        ),
+    ]
+
+    story.append(PageBreak())
+
+    # ══════════════════════════════════════════════════════════════════════
+    story += [
+        h1("24. Command-Line Interface (CLI)"),
         rule(),
         p("The CLI (<b>mushroom_tracker.py</b>) provides the same core functions as the web app "
           "from a terminal. It is useful for quick data entry when you do not want to open "
@@ -2915,7 +3048,7 @@ def build():
     # 19. GROWING REFERENCE
     # ══════════════════════════════════════════════════════════════════════
     story += [
-        h1("24. Growing Reference"),
+        h1("25. Growing Reference"),
         rule(),
         h2("Optimal Fruiting Conditions by Species"),
         sp(4),
@@ -3034,7 +3167,7 @@ def build():
     # 20. TIPS & TROUBLESHOOTING
     # ══════════════════════════════════════════════════════════════════════
     story += [
-        h1("25. Tips & Troubleshooting"),
+        h1("26. Tips & Troubleshooting"),
         rule(),
         h2("Improving Your BE%"),
         *bullet([
