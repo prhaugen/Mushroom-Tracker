@@ -1659,11 +1659,17 @@ def report():
             return None
         return round(_batch_revenue(b) / labor, 2)
 
-    # Operation-wide P&L totals
-    _total_revenue  = sum(_batch_revenue(b) for b in batches)
+    # Operation-wide P&L totals — real (actual sales) and theoretical (FMV × all yield)
+    _real_revenue          = sum(sp.get('revenue', 0) for sp in _sales_by_batch.values())
+    _theoretical_revenue   = sum(
+        ((b['total_yield_g'] or 0) / 453.592) * _fmv.get(b['species'], 0)
+        for b in batches
+    )
     _total_labor_hr = conn.execute("SELECT COALESCE(SUM(hours),0) FROM labor_logs").fetchone()[0]
-    _net_profit     = _total_revenue - _total_expenses
-    _net_dph        = round(_net_profit / _total_labor_hr, 2) if _total_labor_hr else None
+    _net_real        = _real_revenue        - _total_expenses
+    _net_theoretical = _theoretical_revenue - _total_expenses
+    _dph_real        = round(_net_real        / _total_labor_hr, 2) if _total_labor_hr else None
+    _dph_theoretical = round(_net_theoretical / _total_labor_hr, 2) if _total_labor_hr else None
 
     # BE ranking
     be_ranking = sorted(
@@ -1698,9 +1704,11 @@ def report():
         env_stats=env_stats, total_yield=total_yield,
         sales=sales, total_revenue=total_revenue,
         total_sold_fresh=total_sold_fresh, total_sold_dried=total_sold_dried,
-        pnl={'total_revenue': _total_revenue, 'total_expenses': _total_expenses,
-             'exp_by_cat': _exp_by_cat, 'net_profit': _net_profit,
-             'total_labor_hr': _total_labor_hr, 'net_dph': _net_dph})
+        pnl={'real_revenue': _real_revenue, 'theoretical_revenue': _theoretical_revenue,
+             'total_expenses': _total_expenses, 'exp_by_cat': _exp_by_cat,
+             'net_real': _net_real, 'net_theoretical': _net_theoretical,
+             'total_labor_hr': _total_labor_hr,
+             'dph_real': _dph_real, 'dph_theoretical': _dph_theoretical})
 
 
 # ── Vendors ───────────────────────────────────────────────────────────────────

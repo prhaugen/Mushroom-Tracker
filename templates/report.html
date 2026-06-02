@@ -166,15 +166,33 @@
 <div class="card mb-16">
   <div class="card-head">
     <span class="card-title">Profit &amp; Loss</span>
-    <a href="{{ url_for('expenses_list') }}" class="btn btn-ghost btn-sm">Log Expenses</a>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="display:flex;border:1px solid var(--border);border-radius:var(--r);overflow:hidden">
+        <button id="btn-theoretical" onclick="setPnlMode('theoretical')"
+                style="padding:4px 12px;font-size:11px;font-weight:600;border:none;cursor:pointer;
+                       background:var(--green);color:#0c0a08;transition:all .15s">Theoretical</button>
+        <button id="btn-real" onclick="setPnlMode('real')"
+                style="padding:4px 12px;font-size:11px;font-weight:600;border:none;cursor:pointer;
+                       background:var(--surface);color:var(--text-muted);transition:all .15s">Real</button>
+      </div>
+      <a href="{{ url_for('expenses_list') }}" class="btn btn-ghost btn-sm">Log Expenses</a>
+    </div>
   </div>
+
+  <div style="font-size:11px;color:var(--text-muted);margin-bottom:16px" id="pnl-mode-desc">
+    <b style="color:var(--text)">Theoretical</b> — FMV × total yield for all batches, regardless of sales.
+    Switch to <b>Real</b> to see only actual recorded sales revenue.
+  </div>
+
   <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:20px;align-items:start">
 
     <!-- Revenue block -->
     <div>
-      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:8px">Revenue (FMV)</div>
-      <div style="font-size:26px;font-weight:700;color:var(--green)">${{ "%.2f"|format(pnl.total_revenue) }}</div>
-      <div style="font-size:11px;color:var(--text-muted);margin-top:3px">actual sales + unsold @ FMV</div>
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:8px">Revenue</div>
+      <div style="font-size:26px;font-weight:700;color:var(--green)">
+        <span id="pnl-revenue">${{ "%.2f"|format(pnl.theoretical_revenue) }}</span>
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:3px" id="pnl-revenue-sub">FMV × all yield</div>
     </div>
 
     <!-- Expenses block -->
@@ -199,9 +217,9 @@
     <!-- Net profit -->
     <div>
       <div style="font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:8px">Net Profit</div>
-      {% set net_color = 'var(--green)' if pnl.net_profit >= 0 else 'var(--red)' %}
-      <div style="font-size:26px;font-weight:700;color:{{ net_color }}">
-        {% if pnl.net_profit < 0 %}−{% endif %}${{ "%.2f"|format(pnl.net_profit | abs) }}
+      <div style="font-size:26px;font-weight:700" id="pnl-net">
+        {% set n = pnl.net_theoretical %}
+        <span style="color:{{ 'var(--green)' if n >= 0 else 'var(--red)' }}">{% if n < 0 %}−{% endif %}${{ "%.2f"|format(n | abs) }}</span>
       </div>
       <div style="font-size:11px;color:var(--text-muted);margin-top:3px">revenue − all expenses</div>
     </div>
@@ -209,10 +227,12 @@
     <!-- Net $/hr -->
     <div>
       <div style="font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:8px">Net $/hr</div>
-      {% if pnl.net_dph is not none %}
-      {% set dph_color = 'var(--green)' if pnl.net_dph >= 0 else 'var(--red)' %}
-      <div style="font-size:26px;font-weight:700;color:{{ dph_color }}">
-        {% if pnl.net_dph < 0 %}−{% endif %}${{ "%.2f"|format(pnl.net_dph | abs) }}/hr
+      {% if pnl.dph_theoretical is not none or pnl.dph_real is not none %}
+      <div style="font-size:26px;font-weight:700" id="pnl-dph">
+        {% set d = pnl.dph_theoretical %}
+        {% if d is not none %}
+        <span style="color:{{ 'var(--green)' if d >= 0 else 'var(--red)' }}">{% if d < 0 %}−{% endif %}${{ "%.2f"|format(d | abs) }}/hr</span>
+        {% else %}<span style="color:var(--text-dim)">—</span>{% endif %}
       </div>
       <div style="font-size:11px;color:var(--text-muted);margin-top:3px">{{ "%.1f"|format(pnl.total_labor_hr) }}h logged</div>
       {% else %}
@@ -223,6 +243,56 @@
 
   </div>
 </div>
+
+<script>
+const PNL = {
+  theoretical: {
+    revenue: '${{ "%.2f"|format(pnl.theoretical_revenue) }}',
+    revSub:  'FMV × all yield',
+    net:     {{ pnl.net_theoretical }},
+    dph:     {{ pnl.dph_theoretical if pnl.dph_theoretical is not none else 'null' }},
+    desc:    '<b style="color:var(--text)">Theoretical</b> — FMV × total yield for all batches, regardless of sales. Switch to <b>Real</b> to see only actual recorded sales revenue.'
+  },
+  real: {
+    revenue: '${{ "%.2f"|format(pnl.real_revenue) }}',
+    revSub:  'actual sales only',
+    net:     {{ pnl.net_real }},
+    dph:     {{ pnl.dph_real if pnl.dph_real is not none else 'null' }},
+    desc:    '<b style="color:var(--text)">Real</b> — actual recorded sales revenue only. Switch to <b>Theoretical</b> to see FMV-based projection.'
+  }
+};
+
+function setPnlMode(mode) {
+  const d = PNL[mode];
+
+  document.getElementById('pnl-revenue').textContent = d.revenue;
+  document.getElementById('pnl-revenue-sub').textContent = d.revSub;
+  document.getElementById('pnl-mode-desc').innerHTML = d.desc;
+
+  const netColor = d.net >= 0 ? 'var(--green)' : 'var(--red)';
+  const netSign  = d.net < 0 ? '−' : '';
+  document.getElementById('pnl-net').innerHTML =
+    `<span style="color:${netColor}">${netSign}$${Math.abs(d.net).toFixed(2)}</span>`;
+
+  const dphEl = document.getElementById('pnl-dph');
+  if (dphEl) {
+    if (d.dph !== null) {
+      const c = d.dph >= 0 ? 'var(--green)' : 'var(--red)';
+      const s = d.dph < 0  ? '−' : '';
+      dphEl.innerHTML = `<span style="color:${c}">${s}$${Math.abs(d.dph).toFixed(2)}/hr</span>`;
+    } else {
+      dphEl.innerHTML = '<span style="color:var(--text-dim)">—</span>';
+    }
+  }
+
+  const activeStyle  = 'background:var(--green);color:#0c0a08';
+  const inactiveStyle= 'background:var(--surface);color:var(--text-muted)';
+  document.getElementById('btn-theoretical').style.cssText =
+    (mode === 'theoretical' ? activeStyle : inactiveStyle) + ';padding:4px 12px;font-size:11px;font-weight:600;border:none;cursor:pointer;transition:all .15s';
+  document.getElementById('btn-real').style.cssText =
+    (mode === 'real' ? activeStyle : inactiveStyle) + ';padding:4px 12px;font-size:11px;font-weight:600;border:none;cursor:pointer;transition:all .15s';
+}
+</script>
 
 <!-- Charts JS -->
 <script>
