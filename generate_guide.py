@@ -2773,9 +2773,10 @@ def build():
                 ["Amount",   "Yes", "Dollar amount with cents — e.g. 24.99."],
                 ["Category", "Yes", "See Section 22.2 for the full category list."],
                 ["Batch",    "No",
-                 "Link to a specific batch for direct batch costs (e.g. a spawn purchase "
-                 "used exclusively for BO-003). Leave blank for overhead that benefits "
-                 "the whole operation."],
+                 "Link to one or more batches. Hold <b>Ctrl / Cmd</b> and click to select "
+                 "multiple batches — the amount is divided evenly and one row is inserted "
+                 "per batch. A live hint below the list shows the per-batch amount as you "
+                 "select. Leave all batches unselected for overhead expenses."],
                 ["Vendor",   "No", "Supplier name — e.g. North Spore, Amazon, local co-op."],
                 ["Notes",    "No",
                  "What was purchased — e.g. '5 lbs rye grain', '10-pk filter patch bags'."],
