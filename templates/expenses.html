@@ -53,7 +53,7 @@
       </div>
       <div class="fg" style="margin:0">
         <label>Amount ($)</label>
-        <input type="number" name="amount" id="fAmount" step="0.01" min="0.01" placeholder="e.g. 24.99" required>
+        <input type="number" name="amount" id="fAmount" step="0.01" min="0.01" placeholder="e.g. 24.99" required oninput="updateSplitHint()">
       </div>
       <div class="fg" style="margin:0">
         <label>Category</label>
@@ -65,12 +65,13 @@
       </div>
       <div class="fg" style="margin:0">
         <label>Batch (optional)</label>
-        <select name="batch_id" id="fBatch">
-          <option value="">— operation overhead —</option>
+        <select name="batch_id" id="fBatch" multiple size="4"
+                style="height:auto;min-height:80px" onchange="updateSplitHint()">
           {% for b in batches %}
           <option value="{{ b.id }}">{{ b.label }} · {{ b.species }}</option>
           {% endfor %}
         </select>
+        <span class="form-hint" id="splitHint">Ctrl/Cmd-click to select multiple — amount splits evenly. Leave blank for overhead.</span>
       </div>
       <div class="fg" style="margin:0">
         <label>Vendor (optional)</label>
@@ -138,24 +139,45 @@
 </div>
 
 <script>
+function updateSplitHint() {
+  const sel   = document.getElementById('fBatch');
+  const amt   = parseFloat(document.getElementById('fAmount').value);
+  const count = Array.from(sel.selectedOptions).length;
+  const hint  = document.getElementById('splitHint');
+  if (count > 1 && !isNaN(amt) && amt > 0) {
+    hint.textContent = `Split evenly: $${(amt / count).toFixed(2)} per batch (${count} batches selected)`;
+    hint.style.color = 'var(--green)';
+  } else if (count === 0) {
+    hint.textContent = 'No batch selected — logs as overhead.';
+    hint.style.color = 'var(--text-muted)';
+  } else {
+    hint.textContent = 'Ctrl/Cmd-click to select multiple — amount splits evenly. Leave blank for overhead.';
+    hint.style.color = 'var(--text-muted)';
+  }
+}
+
 function editEntry(id, date, amount, category, batchId, vendor, notes) {
-  document.getElementById('expForm').action = '/expenses/' + id + '/edit';
+  document.getElementById('expForm').action  = '/expenses/' + id + '/edit';
   document.getElementById('fDate').value     = date;
   document.getElementById('fAmount').value   = amount;
   document.getElementById('fCategory').value = category;
   document.getElementById('fVendor').value   = vendor;
   document.getElementById('fNotes').value    = notes;
   const bs = document.getElementById('fBatch');
-  bs.value = batchId !== null ? String(batchId) : '';
+  Array.from(bs.options).forEach(o => { o.selected = batchId !== null && o.value === String(batchId); });
+  updateSplitHint();
   document.getElementById('submitBtn').textContent = 'Save';
   document.getElementById('cancelBtn').style.display = 'inline-flex';
   document.getElementById('formTitle').textContent = 'Edit Expense';
   document.getElementById('addForm').scrollIntoView({behavior:'smooth', block:'start'});
 }
+
 function resetForm() {
   document.getElementById('expForm').action = "{{ url_for('expense_add') }}";
   document.getElementById('expForm').reset();
   document.getElementById('fDate').value = '{{ today }}';
+  Array.from(document.getElementById('fBatch').options).forEach(o => o.selected = false);
+  updateSplitHint();
   document.getElementById('submitBtn').textContent = '+ Log';
   document.getElementById('cancelBtn').style.display = 'none';
   document.getElementById('formTitle').textContent = 'Log Expense';

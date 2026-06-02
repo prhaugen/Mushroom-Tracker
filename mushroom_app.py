@@ -1734,18 +1734,34 @@ def expense_add():
     init_db()
     conn = get_db()
     f = request.form
-    conn.execute(
-        "INSERT INTO expense_logs (expense_date, amount, category, batch_id, vendor, notes) "
-        "VALUES (?,?,?,?,?,?)",
-        (f.get('expense_date') or str(date.today()),
-         float(f['amount']),
-         f.get('category') or 'overhead',
-         f.get('batch_id') or None,
-         f.get('vendor') or None,
-         f.get('notes') or None)
-    )
+    batch_ids = [int(x) for x in request.form.getlist('batch_id') if x]
+    total     = float(f['amount'])
+    exp_date  = f.get('expense_date') or str(date.today())
+    category  = f.get('category') or 'overhead'
+    vendor    = f.get('vendor') or None
+    notes     = f.get('notes') or None
+
+    if not batch_ids:
+        conn.execute(
+            "INSERT INTO expense_logs (expense_date, amount, category, batch_id, vendor, notes) "
+            "VALUES (?,?,?,?,?,?)",
+            (exp_date, total, category, None, vendor, notes)
+        )
+        flash('Expense logged.', 'success')
+    else:
+        split = round(total / len(batch_ids), 2)
+        for bid in batch_ids:
+            conn.execute(
+                "INSERT INTO expense_logs (expense_date, amount, category, batch_id, vendor, notes) "
+                "VALUES (?,?,?,?,?,?)",
+                (exp_date, split, category, bid, vendor, notes)
+            )
+        if len(batch_ids) > 1:
+            flash(f'${total:.2f} split evenly — ${split:.2f} logged to each of {len(batch_ids)} batches.', 'success')
+        else:
+            flash('Expense logged.', 'success')
+
     conn.commit(); conn.close()
-    flash('Expense logged.', 'success')
     return redirect(url_for('expenses_list'))
 
 
