@@ -2745,8 +2745,10 @@ def build():
                 ["Activity", "Yes",
                  "Select from the activity type dropdown. See Section 21.2 for the full list."],
                 ["Batch",    "No",
-                 "Link to a specific batch if the time was spent on batch-level work "
-                 "(inoculating, harvesting, etc.). Leave blank for general overhead."],
+                 "Link to a specific batch, or select <b>All active batches (split evenly)</b> "
+                 "to divide the hours equally across every batch currently in colonizing, "
+                 "colonized, pinning, fruiting, or resting status. One row is inserted per "
+                 "batch. Leave blank for general overhead not tied to any batch."],
                 ["Notes",    "No",
                  "Free text — e.g. 'inoculated 6 jars', 'processed 2 Blue Oyster blocks'."],
             ],
