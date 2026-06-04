@@ -612,6 +612,16 @@ input[name="quality_rating"]{display:none}
       </svg>
       Batches
     </a>
+    <!-- Species icon: leaf/book -->
+    <a href="{{ url_for('species_list') }}"
+       class="nav-link{% if request.endpoint in ('species_list','species_detail','species_edit','species_add') %} active{% endif %}">
+      <svg viewBox="0 0 14 14" width="13" height="13" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+        <path d="M7 1.5 Q11 2 12 7 Q10 12 7 12.5 Q4 12 2 7 Q3 2 7 1.5Z" opacity=".75"/>
+        <path d="M7 1.5 L7 12.5" stroke="var(--bg)" stroke-width=".9" fill="none" opacity=".6"/>
+        <path d="M3 6 Q5.5 7 7 9" stroke="var(--bg)" stroke-width=".8" fill="none" opacity=".5"/>
+      </svg>
+      Species
+    </a>
     <!-- Chambers icon: cube/box -->
     <a href="{{ url_for('chambers_list') }}"
        class="nav-link{% if request.endpoint in ('chambers_list','chamber_add','chamber_edit') %} active{% endif %}">

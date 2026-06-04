@@ -159,6 +159,34 @@ def get_db():
     return conn
 
 
+def _seed_species_db(c):
+    import json as _json, re as _re
+    from pathlib import Path as _Path
+    catalog = _Path(__file__).parent / 'species_catalog.json'
+    if not catalog.exists():
+        return
+    data = _json.loads(catalog.read_text(encoding='utf-8'))
+    _skip = {'5 pack', '10 pack'}
+    for entry in data.get('species', []):
+        raw = entry.get('name', '').strip()
+        if not raw or any(raw.lower().startswith(s) for s in _skip):
+            continue
+        m = _re.match(r'^(.*?)\s*\(([^)]+)\)\s*(.*?)$', raw)
+        if m:
+            common     = m.group(1).strip()
+            scientific = m.group(2).strip()
+            strain     = m.group(3).strip() or None
+        else:
+            common     = raw
+            scientific = None
+            strain     = None
+        c.execute(
+            "INSERT INTO species_db (common_name, scientific_name, strain, source_url) "
+            "VALUES (?,?,?,?)",
+            (common, scientific, strain, entry.get('url') or None)
+        )
+
+
 def init_db():
     conn = get_db()
     c = conn.cursor()
@@ -476,6 +504,26 @@ def init_db():
         if row[0] not in migrated:
             c.execute("INSERT INTO batch_notes (batch_id, body, created_at) VALUES (?, ?, ?)",
                       (row[0], row[1], row[2]))
+
+    # Species reference database
+    c.execute("""CREATE TABLE IF NOT EXISTS species_db (
+        id              INTEGER PRIMARY KEY,
+        common_name     TEXT NOT NULL,
+        scientific_name TEXT,
+        strain          TEXT,
+        source_url      TEXT,
+        difficulty      TEXT,
+        temp_lo_f       REAL,
+        temp_hi_f       REAL,
+        humidity_lo_rh  REAL,
+        humidity_hi_rh  REAL,
+        substrate_notes TEXT,
+        notes           TEXT,
+        created_at      TEXT DEFAULT CURRENT_TIMESTAMP,
+        updated_at      TEXT
+    )""")
+    if c.execute("SELECT COUNT(*) FROM species_db").fetchone()[0] == 0:
+        _seed_species_db(c)
 
     # Vendor master list
     c.execute("""CREATE TABLE IF NOT EXISTS vendors (

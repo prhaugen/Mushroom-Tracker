@@ -1711,6 +1711,118 @@ def report():
              'dph_real': _dph_real, 'dph_theoretical': _dph_theoretical})
 
 
+# ── Species Database ──────────────────────────────────────────────────────────
+
+DIFFICULTY_LEVELS = ['beginner', 'intermediate', 'advanced']
+
+@app.route('/species')
+def species_list():
+    init_db()
+    conn = get_db()
+    q      = request.args.get('q', '').strip()
+    letter = request.args.get('letter', '').upper()
+    sql    = "SELECT * FROM species_db"
+    params = []
+    conditions = []
+    if q:
+        conditions.append("(common_name LIKE ? OR scientific_name LIKE ? OR strain LIKE ?)")
+        params += [f'%{q}%', f'%{q}%', f'%{q}%']
+    if letter:
+        conditions.append("UPPER(common_name) LIKE ?")
+        params.append(f'{letter}%')
+    if conditions:
+        sql += ' WHERE ' + ' AND '.join(conditions)
+    sql += ' ORDER BY common_name COLLATE NOCASE'
+    species = conn.execute(sql, params).fetchall()
+    total   = conn.execute("SELECT COUNT(*) FROM species_db").fetchone()[0]
+    conn.close()
+    return render_template('species_list.html', species=species, total=total,
+                           q=q, letter=letter,
+                           letters='ABCDEFGHIJKLMNOPQRSTUVWXYZ')
+
+
+@app.route('/species/<int:sp_id>')
+def species_detail(sp_id):
+    conn = get_db()
+    sp   = conn.execute("SELECT * FROM species_db WHERE id=?", (sp_id,)).fetchone()
+    conn.close()
+    if not sp:
+        flash('Species not found.', 'error')
+        return redirect(url_for('species_list'))
+    return render_template('species_detail.html', sp=sp)
+
+
+@app.route('/species/<int:sp_id>/edit', methods=['GET', 'POST'])
+def species_edit(sp_id):
+    conn = get_db()
+    sp   = conn.execute("SELECT * FROM species_db WHERE id=?", (sp_id,)).fetchone()
+    if not sp:
+        conn.close(); flash('Species not found.', 'error')
+        return redirect(url_for('species_list'))
+    if request.method == 'POST':
+        f = request.form
+        conn.execute("""UPDATE species_db SET
+            common_name=?, scientific_name=?, strain=?,
+            difficulty=?, temp_lo_f=?, temp_hi_f=?,
+            humidity_lo_rh=?, humidity_hi_rh=?,
+            substrate_notes=?, notes=?, updated_at=?
+            WHERE id=?""",
+            (f.get('common_name', '').strip() or sp['common_name'],
+             f.get('scientific_name') or None,
+             f.get('strain') or None,
+             f.get('difficulty') or None,
+             float(f['temp_lo_f'])      if f.get('temp_lo_f')      else None,
+             float(f['temp_hi_f'])      if f.get('temp_hi_f')      else None,
+             float(f['humidity_lo_rh']) if f.get('humidity_lo_rh') else None,
+             float(f['humidity_hi_rh']) if f.get('humidity_hi_rh') else None,
+             f.get('substrate_notes') or None,
+             f.get('notes') or None,
+             str(date.today()),
+             sp_id))
+        conn.commit(); conn.close()
+        flash('Species updated.', 'success')
+        return redirect(url_for('species_detail', sp_id=sp_id))
+    conn.close()
+    return render_template('species_edit.html', sp=sp, difficulties=DIFFICULTY_LEVELS)
+
+
+@app.route('/species/add', methods=['GET', 'POST'])
+def species_add():
+    init_db()
+    conn = get_db()
+    if request.method == 'POST':
+        f = request.form
+        conn.execute("""INSERT INTO species_db
+            (common_name, scientific_name, strain, difficulty,
+             temp_lo_f, temp_hi_f, humidity_lo_rh, humidity_hi_rh,
+             substrate_notes, notes)
+            VALUES (?,?,?,?,?,?,?,?,?,?)""",
+            (f.get('common_name', '').strip(),
+             f.get('scientific_name') or None,
+             f.get('strain') or None,
+             f.get('difficulty') or None,
+             float(f['temp_lo_f'])      if f.get('temp_lo_f')      else None,
+             float(f['temp_hi_f'])      if f.get('temp_hi_f')      else None,
+             float(f['humidity_lo_rh']) if f.get('humidity_lo_rh') else None,
+             float(f['humidity_hi_rh']) if f.get('humidity_hi_rh') else None,
+             f.get('substrate_notes') or None,
+             f.get('notes') or None))
+        conn.commit(); conn.close()
+        flash('Species added.', 'success')
+        return redirect(url_for('species_list'))
+    conn.close()
+    return render_template('species_edit.html', sp=None, difficulties=DIFFICULTY_LEVELS)
+
+
+@app.route('/species/<int:sp_id>/delete', methods=['POST'])
+def species_delete(sp_id):
+    conn = get_db()
+    conn.execute("DELETE FROM species_db WHERE id=?", (sp_id,))
+    conn.commit(); conn.close()
+    flash('Species deleted.', 'success')
+    return redirect(url_for('species_list'))
+
+
 # ── Vendors ───────────────────────────────────────────────────────────────────
 
 VENDOR_CATEGORIES = ['spawn', 'substrate', 'blocks', 'equipment', 'consumables', 'packaging', 'other']

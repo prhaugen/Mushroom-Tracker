@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title %}{{ sp.common_name }} — Species Database{% endblock %}
+{% block content %}
+<div class="page-head-row">
+  <div class="page-head">
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">
+      <a href="{{ url_for('species_list') }}" style="color:var(--text-muted);text-decoration:none">Species</a>
+      / {{ sp.common_name }}
+    </div>
+    <div class="page-title" style="display:flex;align-items:center;gap:12px">
+      {{ sp.common_name }}
+      {% if sp.difficulty %}
+      {% set diff_color = {'beginner':'var(--green)','intermediate':'var(--amber)','advanced':'var(--red)'} %}
+      <span style="font-size:12px;font-weight:700;padding:3px 10px;border-radius:12px;
+                   background:var(--card-hover);border:1px solid var(--border);
+                   color:{{ diff_color.get(sp.difficulty,'var(--text-muted)') }}">
+        {{ sp.difficulty | title }}
+      </span>
+      {% endif %}
+    </div>
+    {% if sp.scientific_name %}
+    <div class="page-sub" style="font-style:italic">
+      {{ sp.scientific_name }}{% if sp.strain %} &nbsp;·&nbsp; <span style="font-style:normal;color:var(--text-muted)">{{ sp.strain }}</span>{% endif %}
+    </div>
+    {% endif %}
+  </div>
+  <div class="gap-row">
+    <a href="{{ url_for('species_edit', sp_id=sp.id) }}" class="btn btn-primary btn-sm">Edit</a>
+    {% if sp.source_url %}
+    <a href="{{ sp.source_url }}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm">Source ↗</a>
+    {% endif %}
+    <form method="POST" action="{{ url_for('species_delete', sp_id=sp.id) }}" style="display:inline"
+          onsubmit="return confirm('Delete {{ sp.common_name }}? This cannot be undone.')">
+      <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+    </form>
+  </div>
+</div>
+
+<div class="g2 mb-16">
+  <!-- Growing conditions -->
+  <div class="card">
+    <div class="card-title" style="margin-bottom:14px">Growing Conditions</div>
+    {% if sp.temp_lo_f or sp.humidity_lo_rh %}
+    <div class="detail-grid">
+      {% if sp.temp_lo_f and sp.temp_hi_f %}
+      <div>
+        <div class="detail-lbl">Temperature Range</div>
+        <div class="detail-val">{{ sp.temp_lo_f|int }}–{{ sp.temp_hi_f|int }}°F</div>
+      </div>
+      {% endif %}
+      {% if sp.humidity_lo_rh and sp.humidity_hi_rh %}
+      <div>
+        <div class="detail-lbl">Humidity Range</div>
+        <div class="detail-val">{{ sp.humidity_lo_rh|int }}–{{ sp.humidity_hi_rh|int }}% RH</div>
+      </div>
+      {% endif %}
+    </div>
+    {% if sp.substrate_notes %}
+    <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border-muted)">
+      <div class="detail-lbl">Substrate Notes</div>
+      <div style="font-size:13px;color:var(--text);margin-top:4px;white-space:pre-wrap">{{ sp.substrate_notes }}</div>
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="empty" style="padding:20px 0">
+      <div class="empty-sub">No growing conditions recorded yet.</div>
+      <a href="{{ url_for('species_edit', sp_id=sp.id) }}" class="btn btn-ghost btn-sm" style="margin-top:8px">Add conditions</a>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Info card -->
+  <div class="card">
+    <div class="card-title" style="margin-bottom:14px">Details</div>
+    <div class="detail-grid">
+      {% if sp.scientific_name %}
+      <div style="grid-column:span 2">
+        <div class="detail-lbl">Scientific Name</div>
+        <div class="detail-val" style="font-style:italic;font-weight:400">{{ sp.scientific_name }}</div>
+      </div>
+      {% endif %}
+      {% if sp.strain %}
+      <div style="grid-column:span 2">
+        <div class="detail-lbl">Strain / Variant</div>
+        <div class="detail-val">{{ sp.strain }}</div>
+      </div>
+      {% endif %}
+      {% if sp.source_url %}
+      <div style="grid-column:span 2">
+        <div class="detail-lbl">Source</div>
+        <div class="detail-val" style="font-size:12px">
+          <a href="{{ sp.source_url }}" target="_blank" rel="noopener"
+             style="color:var(--blue);text-decoration:none">The Mycelium Emporium ↗</a>
+        </div>
+      </div>
+      {% endif %}
+      {% if sp.updated_at %}
+      <div style="grid-column:span 2">
+        <div class="detail-lbl">Last edited</div>
+        <div style="font-size:12px;color:var(--text-muted)">{{ sp.updated_at[:10] }}</div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Notes -->
+<div class="card">
+  <div class="card-head">
+    <span class="card-title">Notes</span>
+    <a href="{{ url_for('species_edit', sp_id=sp.id) }}" class="btn btn-ghost btn-sm">Edit</a>
+  </div>
+  {% if sp.notes %}
+  <div style="font-size:13px;color:var(--text);white-space:pre-wrap;line-height:1.7;margin-top:4px">{{ sp.notes }}</div>
+  {% else %}
+  <div class="empty" style="padding:20px 0">
+    <div class="empty-sub">No notes yet — add observations, grow tips, personal results…</div>
+    <a href="{{ url_for('species_edit', sp_id=sp.id) }}" class="btn btn-ghost btn-sm" style="margin-top:8px">Add notes</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

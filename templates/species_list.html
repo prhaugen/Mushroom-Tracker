@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Species Database — Mushroom Tracker{% endblock %}
+{% block content %}
+<div class="page-head-row">
+  <div class="page-head">
+    <div class="page-title">Species Database</div>
+    <div class="page-sub">{{ total }} species · source: The Mycelium Emporium</div>
+  </div>
+  <a href="{{ url_for('species_add') }}" class="btn btn-primary btn-sm">+ Add Species</a>
+</div>
+
+<!-- Search + letter filter -->
+<div class="card mb-16" style="padding:14px 20px">
+  <form method="GET" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <input type="text" name="q" value="{{ q }}" placeholder="Search name or scientific…"
+           style="flex:1;min-width:200px;background:var(--surface);border:1px solid var(--border);
+                  border-radius:var(--r);padding:7px 12px;color:var(--text);font-size:13px;outline:none">
+    {% if letter %}<input type="hidden" name="letter" value="{{ letter }}">{% endif %}
+    <button type="submit" class="btn btn-primary btn-sm">Search</button>
+    {% if q or letter %}
+    <a href="{{ url_for('species_list') }}" class="btn btn-ghost btn-sm">Clear</a>
+    {% endif %}
+  </form>
+  <div style="display:flex;gap:3px;flex-wrap:wrap;margin-top:10px">
+    <a href="{{ url_for('species_list', q=q) }}"
+       class="res-btn {% if not letter %}active{% endif %}" style="font-size:11px">All</a>
+    {% for l in letters %}
+    <a href="{{ url_for('species_list', letter=l, q=q) }}"
+       class="res-btn {% if letter == l %}active{% endif %}" style="font-size:11px">{{ l }}</a>
+    {% endfor %}
+  </div>
+</div>
+
+{% if species %}
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Common Name</th><th>Scientific Name</th><th>Strain / Variant</th><th>Difficulty</th><th>Temp (°F)</th><th>Humidity (%)</th><th>Notes</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for s in species %}
+        {% set diff_color = {'beginner':'var(--green)','intermediate':'var(--amber)','advanced':'var(--red)'} %}
+        <tr>
+          <td class="fw-600">
+            <a href="{{ url_for('species_detail', sp_id=s.id) }}"
+               style="color:var(--text);text-decoration:none">{{ s.common_name }}</a>
+          </td>
+          <td class="td-m" style="font-style:italic;font-size:12px">{{ s.scientific_name or '—' }}</td>
+          <td class="td-m" style="font-size:12px">{{ s.strain or '—' }}</td>
+          <td>
+            {% if s.difficulty %}
+            <span style="font-size:11px;font-weight:700;color:{{ diff_color.get(s.difficulty,'var(--text-muted)') }}">
+              {{ s.difficulty | title }}
+            </span>
+            {% else %}<span class="td-m">—</span>{% endif %}
+          </td>
+          <td class="td-m" style="font-size:12px">
+            {% if s.temp_lo_f and s.temp_hi_f %}{{ s.temp_lo_f|int }}–{{ s.temp_hi_f|int }}°F
+            {% else %}—{% endif %}
+          </td>
+          <td class="td-m" style="font-size:12px">
+            {% if s.humidity_lo_rh and s.humidity_hi_rh %}{{ s.humidity_lo_rh|int }}–{{ s.humidity_hi_rh|int }}%
+            {% else %}—{% endif %}
+          </td>
+          <td class="td-m" style="font-size:12px;max-width:200px">
+            {% if s.notes %}{{ s.notes | truncate(60) }}{% else %}—{% endif %}
+          </td>
+          <td style="white-space:nowrap">
+            <a href="{{ url_for('species_detail', sp_id=s.id) }}"
+               class="btn btn-ghost btn-sm" style="font-size:11px;padding:2px 8px">View</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="card">
+  <div class="empty">
+    <div class="empty-title">No species found</div>
+    <div class="empty-sub">{% if q or letter %}Try a different search or letter filter.{% else %}No species in the database yet.{% endif %}</div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
