@@ -82,6 +82,15 @@
     </div>
 
     <div class="form-section">
+      <div class="section-label">Description</div>
+      <div class="fg">
+        <textarea name="description" rows="5"
+                  placeholder="Source description — substrate, temperature requirements, edibility, background…">{{ sp.description if editing and sp.description else '' }}</textarea>
+        <span class="form-hint">Pre-populated from The Mycelium Emporium catalog where available</span>
+      </div>
+    </div>
+
+    <div class="form-section">
       <div class="section-label">Notes</div>
       <div class="fg">
         <textarea name="notes" rows="6"

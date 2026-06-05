@@ -1765,7 +1765,7 @@ def species_edit(sp_id):
             common_name=?, scientific_name=?, strain=?,
             difficulty=?, temp_lo_f=?, temp_hi_f=?,
             humidity_lo_rh=?, humidity_hi_rh=?,
-            substrate_notes=?, notes=?, updated_at=?
+            substrate_notes=?, description=?, notes=?, updated_at=?
             WHERE id=?""",
             (f.get('common_name', '').strip() or sp['common_name'],
              f.get('scientific_name') or None,
@@ -1776,6 +1776,7 @@ def species_edit(sp_id):
              float(f['humidity_lo_rh']) if f.get('humidity_lo_rh') else None,
              float(f['humidity_hi_rh']) if f.get('humidity_hi_rh') else None,
              f.get('substrate_notes') or None,
+             f.get('description') or None,
              f.get('notes') or None,
              str(date.today()),
              sp_id))
@@ -1795,8 +1796,8 @@ def species_add():
         conn.execute("""INSERT INTO species_db
             (common_name, scientific_name, strain, difficulty,
              temp_lo_f, temp_hi_f, humidity_lo_rh, humidity_hi_rh,
-             substrate_notes, notes)
-            VALUES (?,?,?,?,?,?,?,?,?,?)""",
+             substrate_notes, description, notes)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
             (f.get('common_name', '').strip(),
              f.get('scientific_name') or None,
              f.get('strain') or None,
@@ -1806,6 +1807,7 @@ def species_add():
              float(f['humidity_lo_rh']) if f.get('humidity_lo_rh') else None,
              float(f['humidity_hi_rh']) if f.get('humidity_hi_rh') else None,
              f.get('substrate_notes') or None,
+             f.get('description') or None,
              f.get('notes') or None))
         conn.commit(); conn.close()
         flash('Species added.', 'success')

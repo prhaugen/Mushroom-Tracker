@@ -104,6 +104,17 @@
   </div>
 </div>
 
+<!-- Description -->
+{% if sp.description %}
+<div class="card mb-16">
+  <div class="card-head">
+    <span class="card-title">Description</span>
+    <span style="font-size:11px;color:var(--text-muted)">Source: The Mycelium Emporium</span>
+  </div>
+  <div style="font-size:13px;color:var(--text);line-height:1.75;margin-top:4px">{{ sp.description }}</div>
+</div>
+{% endif %}
+
 <!-- Notes -->
 <div class="card">
   <div class="card-head">

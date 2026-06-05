@@ -159,8 +159,22 @@ def get_db():
     return conn
 
 
+def _parse_species_entry(entry):
+    import re as _re
+    raw = entry.get('name', '').strip()
+    m = _re.match(r'^(.*?)\s*\(([^)]+)\)\s*(.*?)$', raw)
+    if m:
+        common     = m.group(1).strip()
+        scientific = m.group(2).strip()
+        strain     = m.group(3).strip() or None
+    else:
+        common, scientific, strain = raw, None, None
+    desc = (entry.get('description') or '').strip() or None
+    return common, scientific, strain, entry.get('url') or None, desc
+
+
 def _seed_species_db(c):
-    import json as _json, re as _re
+    import json as _json
     from pathlib import Path as _Path
     catalog = _Path(__file__).parent / 'species_catalog.json'
     if not catalog.exists():
@@ -171,20 +185,32 @@ def _seed_species_db(c):
         raw = entry.get('name', '').strip()
         if not raw or any(raw.lower().startswith(s) for s in _skip):
             continue
-        m = _re.match(r'^(.*?)\s*\(([^)]+)\)\s*(.*?)$', raw)
-        if m:
-            common     = m.group(1).strip()
-            scientific = m.group(2).strip()
-            strain     = m.group(3).strip() or None
-        else:
-            common     = raw
-            scientific = None
-            strain     = None
+        common, scientific, strain, url, desc = _parse_species_entry(entry)
         c.execute(
-            "INSERT INTO species_db (common_name, scientific_name, strain, source_url) "
-            "VALUES (?,?,?,?)",
-            (common, scientific, strain, entry.get('url') or None)
+            "INSERT INTO species_db (common_name, scientific_name, strain, source_url, description) "
+            "VALUES (?,?,?,?,?)",
+            (common, scientific, strain, url, desc)
         )
+
+
+def _migrate_species_descriptions(c):
+    import json as _json
+    from pathlib import Path as _Path
+    catalog = _Path(__file__).parent / 'species_catalog.json'
+    if not catalog.exists():
+        return
+    data = _json.loads(catalog.read_text(encoding='utf-8'))
+    updated = 0
+    for entry in data.get('species', []):
+        url = entry.get('url', '').strip()
+        desc = (entry.get('description') or '').strip() or None
+        if url and desc:
+            c.execute(
+                "UPDATE species_db SET description=? WHERE source_url=? AND (description IS NULL OR description='')",
+                (desc, url)
+            )
+            updated += c.rowcount
+    return updated
 
 
 def init_db():
@@ -524,6 +550,12 @@ def init_db():
     )""")
     if c.execute("SELECT COUNT(*) FROM species_db").fetchone()[0] == 0:
         _seed_species_db(c)
+
+    # Add description column if missing, then populate from catalog
+    _sp_cols = {r[1] for r in c.execute("PRAGMA table_info(species_db)")}
+    if 'description' not in _sp_cols:
+        c.execute("ALTER TABLE species_db ADD COLUMN description TEXT")
+        _migrate_species_descriptions(c)
 
     # Vendor master list
     c.execute("""CREATE TABLE IF NOT EXISTS vendors (
