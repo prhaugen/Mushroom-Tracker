@@ -1765,6 +1765,7 @@ def species_edit(sp_id):
             common_name=?, scientific_name=?, strain=?,
             difficulty=?, temp_lo_f=?, temp_hi_f=?,
             humidity_lo_rh=?, humidity_hi_rh=?,
+            co2_lo_ppm=?, co2_hi_ppm=?,
             substrate_notes=?, description=?, notes=?, updated_at=?
             WHERE id=?""",
             (f.get('common_name', '').strip() or sp['common_name'],
@@ -1775,6 +1776,8 @@ def species_edit(sp_id):
              float(f['temp_hi_f'])      if f.get('temp_hi_f')      else None,
              float(f['humidity_lo_rh']) if f.get('humidity_lo_rh') else None,
              float(f['humidity_hi_rh']) if f.get('humidity_hi_rh') else None,
+             float(f['co2_lo_ppm'])     if f.get('co2_lo_ppm')     else None,
+             float(f['co2_hi_ppm'])     if f.get('co2_hi_ppm')     else None,
              f.get('substrate_notes') or None,
              f.get('description') or None,
              f.get('notes') or None,
@@ -1796,8 +1799,9 @@ def species_add():
         conn.execute("""INSERT INTO species_db
             (common_name, scientific_name, strain, difficulty,
              temp_lo_f, temp_hi_f, humidity_lo_rh, humidity_hi_rh,
+             co2_lo_ppm, co2_hi_ppm,
              substrate_notes, description, notes)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (f.get('common_name', '').strip(),
              f.get('scientific_name') or None,
              f.get('strain') or None,
@@ -1806,6 +1810,8 @@ def species_add():
              float(f['temp_hi_f'])      if f.get('temp_hi_f')      else None,
              float(f['humidity_lo_rh']) if f.get('humidity_lo_rh') else None,
              float(f['humidity_hi_rh']) if f.get('humidity_hi_rh') else None,
+             float(f['co2_lo_ppm'])     if f.get('co2_lo_ppm')     else None,
+             float(f['co2_hi_ppm'])     if f.get('co2_hi_ppm')     else None,
              f.get('substrate_notes') or None,
              f.get('description') or None,
              f.get('notes') or None))

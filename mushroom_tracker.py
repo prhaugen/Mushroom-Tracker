@@ -213,6 +213,41 @@ def _migrate_species_descriptions(c):
     return updated
 
 
+def _migrate_species_co2(c):
+    """Seed co2_lo_ppm / co2_hi_ppm from agent_config fruiting_co2_ppm ranges."""
+    from agent_config import SPECIES_TIMELINES
+
+    # First pass: exact lowercase match
+    for name, cfg in SPECIES_TIMELINES.items():
+        lo, hi = cfg.get('fruiting_co2_ppm', (None, None))
+        if lo is None:
+            continue
+        c.execute(
+            "UPDATE species_db SET co2_lo_ppm=?, co2_hi_ppm=? "
+            "WHERE lower(common_name)=? AND co2_lo_ppm IS NULL",
+            (lo, hi, name)
+        )
+
+    # Second pass: LIKE patterns for catalog entries with different naming
+    _like_map = [
+        ('%lion%mane%',    SPECIES_TIMELINES['lions mane']['fruiting_co2_ppm']),
+        ('%chestnut%',     SPECIES_TIMELINES['chestnut']['fruiting_co2_ppm']),
+        ('enoki%',         SPECIES_TIMELINES['enoki']['fruiting_co2_ppm']),
+        ('%pioppino%',     SPECIES_TIMELINES['pioppino']['fruiting_co2_ppm']),
+        ('%elm%oyster%',   SPECIES_TIMELINES['elm oyster']['fruiting_co2_ppm']),
+        ('cordyceps%',     SPECIES_TIMELINES['cordyceps']['fruiting_co2_ppm']),
+        ('%black%oyster%', SPECIES_TIMELINES['black oyster']['fruiting_co2_ppm']),
+        ('%white%oyster%', SPECIES_TIMELINES['white oyster']['fruiting_co2_ppm']),
+        ('%snow%oyster%',  SPECIES_TIMELINES['snow oyster']['fruiting_co2_ppm']),
+    ]
+    for pattern, (lo, hi) in _like_map:
+        c.execute(
+            "UPDATE species_db SET co2_lo_ppm=?, co2_hi_ppm=? "
+            "WHERE lower(common_name) LIKE ? AND co2_lo_ppm IS NULL",
+            (lo, hi, pattern)
+        )
+
+
 def init_db():
     conn = get_db()
     c = conn.cursor()
@@ -543,6 +578,8 @@ def init_db():
         temp_hi_f       REAL,
         humidity_lo_rh  REAL,
         humidity_hi_rh  REAL,
+        co2_lo_ppm      REAL,
+        co2_hi_ppm      REAL,
         substrate_notes TEXT,
         notes           TEXT,
         created_at      TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -556,6 +593,15 @@ def init_db():
     if 'description' not in _sp_cols:
         c.execute("ALTER TABLE species_db ADD COLUMN description TEXT")
         _migrate_species_descriptions(c)
+
+    # Add CO2 range columns if missing, then seed from agent_config timelines
+    _sp_cols = {r[1] for r in c.execute("PRAGMA table_info(species_db)")}
+    if 'co2_lo_ppm' not in _sp_cols:
+        c.execute("ALTER TABLE species_db ADD COLUMN co2_lo_ppm REAL")
+        c.execute("ALTER TABLE species_db ADD COLUMN co2_hi_ppm REAL")
+        _migrate_species_co2(c)
+    elif 'co2_hi_ppm' not in _sp_cols:
+        c.execute("ALTER TABLE species_db ADD COLUMN co2_hi_ppm REAL")
 
     # Vendor master list
     c.execute("""CREATE TABLE IF NOT EXISTS vendors (

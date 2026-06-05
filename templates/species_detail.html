@@ -40,7 +40,7 @@
   <!-- Growing conditions -->
   <div class="card">
     <div class="card-title" style="margin-bottom:14px">Growing Conditions</div>
-    {% if sp.temp_lo_f or sp.humidity_lo_rh %}
+    {% if sp.temp_lo_f or sp.humidity_lo_rh or sp.co2_lo_ppm %}
     <div class="detail-grid">
       {% if sp.temp_lo_f and sp.temp_hi_f %}
       <div>
@@ -52,6 +52,12 @@
       <div>
         <div class="detail-lbl">Humidity Range</div>
         <div class="detail-val">{{ sp.humidity_lo_rh|int }}–{{ sp.humidity_hi_rh|int }}% RH</div>
+      </div>
+      {% endif %}
+      {% if sp.co2_lo_ppm and sp.co2_hi_ppm %}
+      <div>
+        <div class="detail-lbl">CO2 Range</div>
+        <div class="detail-val">{{ sp.co2_lo_ppm|int }}–{{ sp.co2_hi_ppm|int }} ppm</div>
       </div>
       {% endif %}
     </div>

@@ -36,7 +36,7 @@
   <div class="table-wrap">
     <table>
       <thead>
-        <tr><th>Common Name</th><th>Scientific Name</th><th>Strain / Variant</th><th>Difficulty</th><th>Temp (°F)</th><th>Humidity (%)</th><th>Notes</th><th></th></tr>
+        <tr><th>Common Name</th><th>Scientific Name</th><th>Strain / Variant</th><th>Difficulty</th><th>Temp (°F)</th><th>Humidity (%)</th><th>CO2 (ppm)</th><th>Notes</th><th></th></tr>
       </thead>
       <tbody>
         {% for s in species %}
@@ -61,6 +61,10 @@
           </td>
           <td class="td-m" style="font-size:12px">
             {% if s.humidity_lo_rh and s.humidity_hi_rh %}{{ s.humidity_lo_rh|int }}–{{ s.humidity_hi_rh|int }}%
+            {% else %}—{% endif %}
+          </td>
+          <td class="td-m" style="font-size:12px">
+            {% if s.co2_lo_ppm and s.co2_hi_ppm %}{{ s.co2_lo_ppm|int }}–{{ s.co2_hi_ppm|int }}
             {% else %}—{% endif %}
           </td>
           <td class="td-m" style="font-size:12px;max-width:200px">

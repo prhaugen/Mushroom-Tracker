@@ -74,6 +74,16 @@
           <input type="number" name="humidity_hi_rh" step="1" placeholder="e.g. 95"
                  value="{{ sp.humidity_hi_rh if editing and sp.humidity_hi_rh is not none else '' }}">
         </div>
+        <div class="fg">
+          <label>CO2 Low (ppm)</label>
+          <input type="number" name="co2_lo_ppm" step="1" placeholder="e.g. 400"
+                 value="{{ sp.co2_lo_ppm if editing and sp.co2_lo_ppm is not none else '' }}">
+        </div>
+        <div class="fg">
+          <label>CO2 High (ppm)</label>
+          <input type="number" name="co2_hi_ppm" step="1" placeholder="e.g. 800"
+                 value="{{ sp.co2_hi_ppm if editing and sp.co2_hi_ppm is not none else '' }}">
+        </div>
         <div class="fg full">
           <label>Substrate Notes</label>
           <textarea name="substrate_notes" placeholder="Preferred substrate mix, colonization medium, supplementation notes…">{{ sp.substrate_notes if editing and sp.substrate_notes else '' }}</textarea>
