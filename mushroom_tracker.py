@@ -214,38 +214,39 @@ def _migrate_species_descriptions(c):
 
 
 def _migrate_species_co2(c):
-    """Seed co2_lo_ppm / co2_hi_ppm from agent_config fruiting_co2_ppm ranges."""
+    """Seed temp, humidity, and CO2 ranges from agent_config for known species."""
     from agent_config import SPECIES_TIMELINES
 
-    # First pass: exact lowercase match
-    for name, cfg in SPECIES_TIMELINES.items():
-        lo, hi = cfg.get('fruiting_co2_ppm', (None, None))
-        if lo is None:
-            continue
-        c.execute(
-            "UPDATE species_db SET co2_lo_ppm=?, co2_hi_ppm=? "
-            "WHERE lower(common_name)=? AND co2_lo_ppm IS NULL",
-            (lo, hi, name)
-        )
-
-    # Second pass: LIKE patterns for catalog entries with different naming
     _like_map = [
-        ('%lion%mane%',    SPECIES_TIMELINES['lions mane']['fruiting_co2_ppm']),
-        ('%chestnut%',     SPECIES_TIMELINES['chestnut']['fruiting_co2_ppm']),
-        ('enoki%',         SPECIES_TIMELINES['enoki']['fruiting_co2_ppm']),
-        ('%pioppino%',     SPECIES_TIMELINES['pioppino']['fruiting_co2_ppm']),
-        ('%elm%oyster%',   SPECIES_TIMELINES['elm oyster']['fruiting_co2_ppm']),
-        ('cordyceps%',     SPECIES_TIMELINES['cordyceps']['fruiting_co2_ppm']),
-        ('%black%oyster%', SPECIES_TIMELINES['black oyster']['fruiting_co2_ppm']),
-        ('%white%oyster%', SPECIES_TIMELINES['white oyster']['fruiting_co2_ppm']),
-        ('%snow%oyster%',  SPECIES_TIMELINES['snow oyster']['fruiting_co2_ppm']),
+        ('%lion%mane%',    'lions mane'),
+        ('%chestnut%',     'chestnut'),
+        ('enoki%',         'enoki'),
+        ('%pioppino%',     'pioppino'),
+        ('%elm%oyster%',   'elm oyster'),
+        ('cordyceps%',     'cordyceps'),
+        ('%black%oyster%', 'black oyster'),
+        ('%white%oyster%', 'white oyster'),
+        ('%snow%oyster%',  'snow oyster'),
     ]
-    for pattern, (lo, hi) in _like_map:
-        c.execute(
-            "UPDATE species_db SET co2_lo_ppm=?, co2_hi_ppm=? "
-            "WHERE lower(common_name) LIKE ? AND co2_lo_ppm IS NULL",
-            (lo, hi, pattern)
-        )
+
+    def _apply(where, params, cfg):
+        t_lo, t_hi = cfg.get('fruiting_temp_f',      (None, None))
+        h_lo, h_hi = cfg.get('fruiting_humidity_rh', (None, None))
+        c_lo, c_hi = cfg.get('fruiting_co2_ppm',     (None, None))
+        c.execute(f"""UPDATE species_db SET
+            temp_lo_f      = COALESCE(temp_lo_f,      ?),
+            temp_hi_f      = COALESCE(temp_hi_f,      ?),
+            humidity_lo_rh = COALESCE(humidity_lo_rh, ?),
+            humidity_hi_rh = COALESCE(humidity_hi_rh, ?),
+            co2_lo_ppm     = COALESCE(co2_lo_ppm,     ?),
+            co2_hi_ppm     = COALESCE(co2_hi_ppm,     ?)
+            WHERE {where}""",
+            (t_lo, t_hi, h_lo, h_hi, c_lo, c_hi, *params))
+
+    for name, cfg in SPECIES_TIMELINES.items():
+        _apply("lower(common_name)=?", (name,), cfg)
+    for pattern, cfg_key in _like_map:
+        _apply("lower(common_name) LIKE ?", (pattern,), SPECIES_TIMELINES[cfg_key])
 
 
 def init_db():

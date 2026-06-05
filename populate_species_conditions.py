@@ -1,0 +1,263 @@
+"""
+One-time script: populate species growing conditions.
+
+Steps:
+  1. Seed temp, humidity, CO2 from agent_config for the ~22 known species.
+  2. Regex-extract fruiting temp (and humidity where present) from
+     structured description lines like:
+       "Colonization/Fruiting Temperatures: 65-75F/55-70F, Humidity: 85-95%"
+  3. Batch remaining descriptions through Claude to extract any temperature
+     ranges mentioned in free text. Humidity and CO2 returned only if
+     explicitly stated.
+
+Run: python populate_species_conditions.py [--sandbox]
+"""
+
+import argparse
+import json
+import re
+import sqlite3
+from pathlib import Path
+
+import anthropic
+from agent_config import SPECIES_TIMELINES
+
+PROD_DB    = Path(__file__).parent / "mushroom_data.db"
+SANDBOX_DB = Path(__file__).parent / "mushroom_data_sandbox.db"
+
+# ── Regex patterns ────────────────────────────────────────────────────────────
+# "Colonization/Fruiting Temperatures: 70-80F/55-70F"  →  fruiting = group 3,4
+_TEMP_COL_FRUIT = re.compile(
+    r"Colonization/Fruiting Temperatures?:\s*[\d.]+-[\d.]+F/([\d.]+)-([\d.]+)F", re.I
+)
+# "Fruiting Temperature: 55-70F"  →  group 1,2
+_TEMP_FRUIT_ONLY = re.compile(
+    r"Fruiting Temperatures?:\s*([\d.]+)-([\d.]+)F", re.I
+)
+# "Humidity: 85-95%"  →  group 1,2
+_HUMIDITY = re.compile(r"Humidity:\s*([\d.]+)-([\d.]+)%", re.I)
+
+
+# ── Step 1: agent_config seed ─────────────────────────────────────────────────
+
+_LIKE_MAP = [
+    ("%lion%mane%",    "lions mane"),
+    ("%chestnut%",     "chestnut"),
+    ("enoki%",         "enoki"),
+    ("%pioppino%",     "pioppino"),
+    ("%elm%oyster%",   "elm oyster"),
+    ("cordyceps%",     "cordyceps"),
+    ("%black%oyster%", "black oyster"),
+    ("%white%oyster%", "white oyster"),
+    ("%snow%oyster%",  "snow oyster"),
+]
+
+def _upsert_conditions(c, where_clause, params, cfg_key):
+    cfg = SPECIES_TIMELINES[cfg_key]
+    t_lo, t_hi = cfg.get("fruiting_temp_f",      (None, None))
+    h_lo, h_hi = cfg.get("fruiting_humidity_rh", (None, None))
+    c_lo, c_hi = cfg.get("fruiting_co2_ppm",     (None, None))
+    c.execute(f"""UPDATE species_db SET
+        temp_lo_f      = COALESCE(temp_lo_f,      ?),
+        temp_hi_f      = COALESCE(temp_hi_f,      ?),
+        humidity_lo_rh = COALESCE(humidity_lo_rh, ?),
+        humidity_hi_rh = COALESCE(humidity_hi_rh, ?),
+        co2_lo_ppm     = COALESCE(co2_lo_ppm,     ?),
+        co2_hi_ppm     = COALESCE(co2_hi_ppm,     ?)
+        WHERE {where_clause}""",
+        (t_lo, t_hi, h_lo, h_hi, c_lo, c_hi, *params))
+
+def seed_from_agent_config(conn):
+    c = conn.cursor()
+    for name, _ in SPECIES_TIMELINES.items():
+        _upsert_conditions(c, "lower(common_name)=?", (name,), name)
+    for pattern, cfg_key in _LIKE_MAP:
+        _upsert_conditions(c, "lower(common_name) LIKE ?", (pattern,), cfg_key)
+    conn.commit()
+    n = conn.execute(
+        "SELECT COUNT(*) FROM species_db WHERE temp_lo_f IS NOT NULL"
+    ).fetchone()[0]
+    print(f"  After agent_config seed: {n} entries have temp data")
+
+
+# ── Step 2: regex extraction from structured descriptions ──────────────────────
+
+def extract_from_descriptions_regex(conn):
+    c = conn.cursor()
+    rows = conn.execute(
+        "SELECT id, common_name, description FROM species_db "
+        "WHERE description IS NOT NULL AND description != ''"
+    ).fetchall()
+
+    updated = 0
+    for r in rows:
+        d = r["description"]
+        t_lo = t_hi = h_lo = h_hi = None
+
+        m = _TEMP_COL_FRUIT.search(d)
+        if m:
+            t_lo, t_hi = float(m.group(1)), float(m.group(2))
+        else:
+            m2 = _TEMP_FRUIT_ONLY.search(d)
+            if m2:
+                t_lo, t_hi = float(m2.group(1)), float(m2.group(2))
+
+        mh = _HUMIDITY.search(d)
+        if mh:
+            h_lo, h_hi = float(mh.group(1)), float(mh.group(2))
+
+        if t_lo is None and h_lo is None:
+            continue
+
+        c.execute("""UPDATE species_db SET
+            temp_lo_f      = COALESCE(temp_lo_f,      ?),
+            temp_hi_f      = COALESCE(temp_hi_f,      ?),
+            humidity_lo_rh = COALESCE(humidity_lo_rh, ?),
+            humidity_hi_rh = COALESCE(humidity_hi_rh, ?)
+            WHERE id=?""",
+            (t_lo, t_hi, h_lo, h_hi, r["id"]))
+        if c.rowcount:
+            updated += 1
+
+    conn.commit()
+    n = conn.execute(
+        "SELECT COUNT(*) FROM species_db WHERE temp_lo_f IS NOT NULL"
+    ).fetchone()[0]
+    print(f"  After regex extraction: {n} entries have temp data ({updated} new)")
+
+
+# ── Step 3: Claude batch extraction for remaining descriptions ─────────────────
+
+_SYSTEM = """\
+Extract mushroom fruiting growing conditions from description text.
+Return a JSON array — one object per species — using exactly this shape:
+{"id":<int>,"temp_lo_f":<num|null>,"temp_hi_f":<num|null>,\
+"humidity_lo_rh":<num|null>,"humidity_hi_rh":<num|null>,\
+"co2_lo_ppm":<num|null>,"co2_hi_ppm":<num|null>}
+
+Rules:
+- Only extract values explicitly stated. Return null for anything not mentioned.
+- Temperatures must be Fahrenheit. Convert from Celsius if needed (C×9/5+32).
+- Humidity values are % RH (e.g. "85-95%" → 85, 95).
+- CO2 in ppm. Return null unless a numeric ppm range is stated.
+- Output only the JSON array, no markdown, no commentary.\
+"""
+
+def extract_from_descriptions_claude(conn):
+    rows = conn.execute("""
+        SELECT id, common_name, description FROM species_db
+        WHERE description IS NOT NULL AND description != ''
+          AND temp_lo_f IS NULL
+        ORDER BY id
+    """).fetchall()
+
+    if not rows:
+        print("  No entries need Claude extraction.")
+        return
+
+    print(f"  Sending {len(rows)} descriptions to Claude (Haiku)…")
+    client = anthropic.Anthropic()
+    c = conn.cursor()
+    BATCH = 20
+    total_updated = 0
+
+    for i in range(0, len(rows), BATCH):
+        batch = rows[i : i + BATCH]
+        user_text = "\n\n".join(
+            f"ID: {r['id']}\nName: {r['common_name']}\nDescription: {r['description']}"
+            for r in batch
+        )
+        try:
+            resp = client.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=2048,
+                system=[{"type": "text", "text": _SYSTEM,
+                          "cache_control": {"type": "ephemeral"}}],
+                messages=[{"role": "user", "content": user_text}],
+            )
+            text = resp.content[0].text.strip()
+            if text.startswith("```"):
+                text = text.split("\n", 1)[1].rsplit("```", 1)[0]
+            results = json.loads(text)
+        except Exception as e:
+            print(f"  Batch {i//BATCH+1} error: {e}")
+            continue
+
+        batch_updated = 0
+        for r in results:
+            t_lo = r.get("temp_lo_f")
+            t_hi = r.get("temp_hi_f")
+            h_lo = r.get("humidity_lo_rh")
+            h_hi = r.get("humidity_hi_rh")
+            c_lo = r.get("co2_lo_ppm")
+            c_hi = r.get("co2_hi_ppm")
+            if any(v is not None for v in (t_lo, t_hi, h_lo, h_hi, c_lo, c_hi)):
+                c.execute("""UPDATE species_db SET
+                    temp_lo_f      = COALESCE(temp_lo_f,      ?),
+                    temp_hi_f      = COALESCE(temp_hi_f,      ?),
+                    humidity_lo_rh = COALESCE(humidity_lo_rh, ?),
+                    humidity_hi_rh = COALESCE(humidity_hi_rh, ?),
+                    co2_lo_ppm     = COALESCE(co2_lo_ppm,     ?),
+                    co2_hi_ppm     = COALESCE(co2_hi_ppm,     ?)
+                    WHERE id=?""",
+                    (t_lo, t_hi, h_lo, h_hi, c_lo, c_hi, r["id"]))
+                batch_updated += c.rowcount
+
+        conn.commit()
+        total_updated += batch_updated
+        print(f"  Batch {i//BATCH+1}/{-(-len(rows)//BATCH)}: "
+              f"{len(batch)} sent, {batch_updated} updated")
+
+    n = conn.execute(
+        "SELECT COUNT(*) FROM species_db WHERE temp_lo_f IS NOT NULL"
+    ).fetchone()[0]
+    print(f"  After Claude extraction: {n} entries have temp data "
+          f"({total_updated} new)")
+
+
+# ── Main ──────────────────────────────────────────────────────────────────────
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--sandbox", action="store_true")
+    args = parser.parse_args()
+
+    db_path = SANDBOX_DB if args.sandbox else PROD_DB
+    if not db_path.exists():
+        print(f"Database not found: {db_path}")
+        return
+
+    print(f"Database: {db_path.name}")
+    conn = sqlite3.connect(str(db_path))
+    conn.row_factory = sqlite3.Row
+
+    print("\nStep 1 — agent_config seed")
+    seed_from_agent_config(conn)
+
+    print("\nStep 2 — regex extraction from structured descriptions")
+    extract_from_descriptions_regex(conn)
+
+    print("\nStep 3 — Claude extraction for remaining descriptions")
+    extract_from_descriptions_claude(conn)
+
+    total   = conn.execute("SELECT COUNT(*) FROM species_db").fetchone()[0]
+    has_t   = conn.execute("SELECT COUNT(*) FROM species_db WHERE temp_lo_f IS NOT NULL").fetchone()[0]
+    has_h   = conn.execute("SELECT COUNT(*) FROM species_db WHERE humidity_lo_rh IS NOT NULL").fetchone()[0]
+    has_co2 = conn.execute("SELECT COUNT(*) FROM species_db WHERE co2_lo_ppm IS NOT NULL").fetchone()[0]
+    has_all = conn.execute(
+        "SELECT COUNT(*) FROM species_db WHERE temp_lo_f IS NOT NULL "
+        "AND humidity_lo_rh IS NOT NULL AND co2_lo_ppm IS NOT NULL"
+    ).fetchone()[0]
+
+    print(f"\n-- Final ({'sandbox' if args.sandbox else 'prod'}) --")
+    print(f"  Total entries:       {total}")
+    print(f"  Have temp:           {has_t}")
+    print(f"  Have humidity:       {has_h}")
+    print(f"  Have CO2:            {has_co2}")
+    print(f"  Have all three:      {has_all}")
+
+    conn.close()
+
+
+if __name__ == "__main__":
+    main()
