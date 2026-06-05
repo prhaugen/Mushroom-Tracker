@@ -911,6 +911,18 @@ def build():
             label="Bonus feature:", color=BLUE_BG, border=BLUE_BORDER
         ),
         sp(10),
+        callout(
+            "<b>Species Reference Library</b> — the <b>Species</b> page in the navigation bar "
+            "(leaf icon, between Batches and Chambers) is a searchable reference library of "
+            "205 mushroom species and strains, pre-seeded from The Mycelium Emporium catalog. "
+            "Each entry shows growing conditions (temperature and humidity ranges, substrate notes), "
+            "a catalog description where available, and a space for your own personal grow notes. "
+            "Use it to look up fruiting temperature ranges, difficulty level, or substrate "
+            "recommendations before starting a new batch. "
+            "You can also add custom species or edit any entry.",
+            label="Species reference:", color=GREEN_BG, border=GREEN_LIGHT
+        ),
+        sp(10),
         p("For detailed reference on any feature, see the companion "
           "<b>mushroom_tracker_guide.pdf</b> in the same folder.",
           ms("_ref", fontSize=10, textColor=GRAY_MID, fontName="Helvetica-Oblique", leading=14)),

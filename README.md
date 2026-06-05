@@ -93,6 +93,7 @@ The database file (`mushroom_data.db`) is created automatically in the same fold
 | Harvest forecast — projects harvest dates from species timelines | Dashboard |
 | AI daily briefing — Claude analysis of all active batches | Briefing (nav bar) |
 | Roadmap & phase gates — tracks progress toward cultivation milestones | Roadmap (nav bar) |
+| Species reference library — 205 entries seeded from Mycelium Emporium, searchable, editable | Species (nav bar) |
 
 ---
 

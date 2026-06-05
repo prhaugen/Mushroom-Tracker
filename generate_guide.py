@@ -446,9 +446,14 @@ def build():
         ("23.1", "Adding a Vendor",                           "27"),
         ("23.2", "Category Tags",                             "27"),
         ("23.3", "Vendor Linkages",                           "27"),
-        ("24",   "Command-Line Interface (CLI)",               "28"),
-        ("25",   "Growing Reference",                          "29"),
-        ("26",   "Tips & Troubleshooting",                     "31"),
+        ("24",   "Species Database",                          "28"),
+        ("24.1", "Species List",                              "28"),
+        ("24.2", "Species Detail Page",                       "28"),
+        ("24.3", "Description Field",                         "28"),
+        ("24.4", "Adding Custom Species",                     "28"),
+        ("25",   "Command-Line Interface (CLI)",               "29"),
+        ("26",   "Growing Reference",                          "30"),
+        ("27",   "Tips & Troubleshooting",                     "32"),
     ]
     for num, title, pg in toc_entries:
         story.append(toc_row(num, title, pg))
@@ -2967,8 +2972,111 @@ def build():
     story.append(PageBreak())
 
     # ══════════════════════════════════════════════════════════════════════
+    # ══════════════════════════════════════════════════════════════════════
+    # 24. SPECIES DATABASE
+    # ══════════════════════════════════════════════════════════════════════
     story += [
-        h1("24. Command-Line Interface (CLI)"),
+        h1("24. Species Database"),
+        rule(),
+        p("The <b>Species</b> page (nav bar — leaf icon, between Batches and Chambers) is a "
+          "reference library of mushroom species and strains. It is pre-seeded with 205 entries "
+          "from The Mycelium Emporium catalog and is designed to grow over time as you add "
+          "growing conditions, personal notes, and observations from your own cultivation."),
+        sp(10),
+        h2("24.1  Species List"),
+        p("Click <b>Species</b> in the navigation bar to open the list. "
+          "The list is searchable and filterable:"),
+        sp(6),
+        *bullet([
+            "<b>Search bar</b> — filters by common name, scientific name, or strain/variant",
+            "<b>A–Z letter pills</b> — click any letter to filter to species beginning with that letter",
+            "Both filters can be combined (e.g. search 'oyster' while letter 'B' is active)",
+            "Click <b>Clear</b> to reset all filters",
+        ]),
+        sp(6),
+        p("The list table shows common name, scientific name, strain or variant, difficulty badge "
+          "(Beginner / Intermediate / Advanced), temperature and humidity ranges, "
+          "and a truncated notes preview. Click <b>View</b> on any row to open the detail page."),
+        sp(10),
+        h2("24.2  Species Detail Page"),
+        p("The detail page for each species has three sections:"),
+        sp(6),
+        data_table(
+            ["Section", "What it shows", "Editable?"],
+            [
+                ["Growing Conditions",
+                 "Temperature range (°F), humidity range (%RH), and substrate notes. "
+                 "Shows an 'Add conditions' prompt when empty.",
+                 "Yes — via the Edit button"],
+                ["Description",
+                 "Source description from The Mycelium Emporium, where available. "
+                 "Covers substrate, temperature requirements, edibility, background, and grow notes "
+                 "from the catalog. 167 of 205 entries are pre-populated.",
+                 "Yes — editable and extensible"],
+                ["Notes",
+                 "Your personal grow notes — observations, results, tips, quirks. "
+                 "Separate from the catalog description so source content and your own "
+                 "experience stay distinct.",
+                 "Yes — via the Edit button"],
+            ],
+            col_widths=[3.5*cm, 8*cm, 2.5*cm],
+        ),
+        sp(6),
+        callout(
+            "The detail page also shows a link back to the original Mycelium Emporium product "
+            "page (via the <b>Source ↗</b> button in the header) for entries sourced from the catalog.",
+            label="Tip:", color=BLUE_BG, border=BLUE_BORDER
+        ),
+        sp(10),
+        h2("24.3  Description Field"),
+        p("Each species entry has a <b>Description</b> field that is distinct from your personal "
+          "Notes. The distinction is intentional:"),
+        sp(6),
+        data_table(
+            ["Field",       "Purpose"],
+            [
+                ["Description",
+                 "Catalog or reference description — substrate options, temperature ranges, "
+                 "edibility, background, and context from the source. "
+                 "Pre-populated from The Mycelium Emporium for 167 species. "
+                 "You can edit and extend it freely."],
+                ["Notes",
+                 "Your personal cultivation notes — results from your own grows, "
+                 "preferred substrate mixes, contamination experiences, timing observations. "
+                 "Starts blank for every entry."],
+            ],
+            col_widths=[3*cm, 13.2*cm],
+        ),
+        sp(6),
+        p("Both fields are editable from the species edit form. "
+          "When a Description is present, it appears as a card on the detail page "
+          "attributed to its source. "
+          "When it is absent, the card is hidden — the page stays clean for species "
+          "you have not researched yet."),
+        sp(10),
+        h2("24.4  Adding Custom Species"),
+        p("Click <b>+ Add Species</b> at the top-right of the Species list. "
+          "Fill in the identity fields (name is required; scientific name, strain, and difficulty "
+          "are optional), any known growing conditions, an optional description, and personal notes. "
+          "Click <b>Add Species</b> to save."),
+        sp(6),
+        p("You can also delete any entry — including catalog-seeded entries — from the "
+          "species detail page. Deletions are permanent."),
+        sp(6),
+        callout(
+            "The species database is a standalone reference — it is not yet linked to the "
+            "batch records. Future versions may allow selecting a species from this library "
+            "when creating a batch, automatically pre-filling target temperature and humidity "
+            "from the stored growing conditions.",
+            label="Roadmap note:", color=AMBER_BG, border=AMBER_BORDER
+        ),
+    ]
+
+    story.append(PageBreak())
+
+    # ══════════════════════════════════════════════════════════════════════
+    story += [
+        h1("25. Command-Line Interface (CLI)"),
         rule(),
         p("The CLI (<b>mushroom_tracker.py</b>) provides the same core functions as the web app "
           "from a terminal. It is useful for quick data entry when you do not want to open "
