@@ -2752,8 +2752,11 @@ def build():
                 ["Batch",    "No",
                  "Link to a specific batch, or select <b>All active batches (split evenly)</b> "
                  "to divide the hours equally across every batch currently in colonizing, "
-                 "colonized, pinning, fruiting, or resting status. One row is inserted per "
-                 "batch. Leave blank for general overhead not tied to any batch."],
+                 "colonized, pinning, fruiting, or resting status. "
+                 "The All Entries table shows the split as a single collapsed row "
+                 "(<i>Xh split across N batches ▼</i>) — click it to expand and see each "
+                 "batch's share. Del on a split row removes all entries in that group at once. "
+                 "Leave blank for general overhead not tied to any batch."],
                 ["Notes",    "No",
                  "Free text — e.g. 'inoculated 6 jars', 'processed 2 Blue Oyster blocks'."],
             ],
