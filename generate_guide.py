@@ -2995,8 +2995,9 @@ def build():
         ]),
         sp(6),
         p("The list table shows common name, scientific name, strain or variant, difficulty badge "
-          "(Beginner / Intermediate / Advanced), temperature and humidity ranges, "
-          "and a truncated notes preview. Click <b>View</b> on any row to open the detail page."),
+          "(Beginner / Intermediate / Advanced), temperature range (°F), humidity range (%), "
+          "CO2 range (ppm), and a truncated notes preview. "
+          "Click <b>View</b> on any row to open the detail page."),
         sp(10),
         h2("24.2  Species Detail Page"),
         p("The detail page for each species has three sections:"),
@@ -3005,7 +3006,8 @@ def build():
             ["Section", "What it shows", "Editable?"],
             [
                 ["Growing Conditions",
-                 "Temperature range (°F), humidity range (%RH), and substrate notes. "
+                 "Temperature range (°F), humidity range (%RH), CO2 range (ppm), "
+                 "and substrate notes. "
                  "Shows an 'Add conditions' prompt when empty.",
                  "Yes — via the Edit button"],
                 ["Description",
@@ -3062,6 +3064,28 @@ def build():
         sp(6),
         p("You can also delete any entry — including catalog-seeded entries — from the "
           "species detail page. Deletions are permanent."),
+        sp(10),
+        h3("Pre-populated Growing Conditions"),
+        p("Growing conditions are seeded automatically from two sources on first startup:"),
+        sp(4),
+        *bullet([
+            "<b>Agent config</b> — temperature, humidity, and CO2 ranges for the ~22 core species "
+            "(Blue Oyster, Shiitake, Lion's Mane, etc.) are pulled from the same species timelines "
+            "used by the AI briefing agent.",
+            "<b>Catalog descriptions</b> — fruiting temperature ranges are regex-extracted from "
+            "the structured lines in Mycelium Emporium descriptions (e.g. "
+            "<i>Colonization/Fruiting Temperatures: 65-75F/55-70F</i>) for the entries that have them.",
+        ]),
+        sp(6),
+        p("For entries that still lack conditions after automatic seeding, run the included "
+          "bulk-population script:"),
+        sp(4),
+        code_block(["python populate_species_conditions.py"]),
+        sp(4),
+        p("The script runs all three passes — agent config, regex, then a Claude Haiku batch "
+          "extraction over remaining descriptions — and prints a summary of how many entries "
+          "gained data. It is safe to re-run; all updates use COALESCE so existing values "
+          "are never overwritten. Pass <b>--sandbox</b> to run against the sandbox database."),
         sp(6),
         callout(
             "The species database is a standalone reference — it is not yet linked to the "
