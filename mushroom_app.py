@@ -2088,7 +2088,7 @@ def labor_add():
             "SELECT id FROM batches WHERE status NOT IN ('done','contaminated','aborted') ORDER BY id"
         ).fetchall()]
         if active_ids:
-            split = round(total / len(active_ids), 2)
+            split = total / len(active_ids)
             gid = str(uuid.uuid4())
             for bid in active_ids:
                 conn.execute(
