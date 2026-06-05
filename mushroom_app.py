@@ -2074,6 +2074,7 @@ def labor_add():
             (batch_val, log_date, total, activity, notes)
         )
         flash('Labor entry logged.', 'success')
+    conn.commit(); conn.close()
     return redirect(url_for('labor_list'))
 
 
