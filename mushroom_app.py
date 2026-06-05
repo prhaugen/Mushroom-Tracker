@@ -3,7 +3,7 @@ Mushroom Tracker Web App v2
 Run: python mushroom_app.py  →  http://localhost:5000
 """
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
-import sqlite3, json, os, csv, io, re
+import sqlite3, json, os, csv, io, re, uuid
 import anthropic as _anthropic
 from pathlib import Path
 from datetime import datetime, date, timedelta
@@ -2038,7 +2038,36 @@ def labor_list():
     month_start = str(date.today().replace(day=1))
     month_hours = sum(r['hours'] for r in logs if r['logged_date'] >= month_start)
     conn.close()
+
+    # Build display items: group rows sharing a group_id into one collapsible item
+    display_items = []
+    seen_groups = set()
+    grouped = {}
+    for log in logs:
+        gid = log['group_id']
+        if gid:
+            grouped.setdefault(gid, []).append(log)
+    for log in logs:
+        gid = log['group_id']
+        if gid is None:
+            display_items.append({'type': 'single', 'log': log})
+        elif gid not in seen_groups:
+            seen_groups.add(gid)
+            rows = grouped[gid]
+            display_items.append({
+                'type': 'group',
+                'group_id': gid,
+                'logged_date': log['logged_date'],
+                'activity': log['activity'],
+                'total_hours': sum(r['hours'] for r in rows),
+                'per_batch_hours': log['hours'],
+                'count': len(rows),
+                'notes': log['notes'],
+                'rows': rows,
+            })
+
     return render_template('labor.html', logs=logs, batches=batches,
+                           display_items=display_items,
                            total_hours=total_hours, month_hours=month_hours,
                            activities=LABOR_ACTIVITIES, today=str(date.today()))
 
@@ -2060,12 +2089,13 @@ def labor_add():
         ).fetchall()]
         if active_ids:
             split = round(total / len(active_ids), 2)
+            gid = str(uuid.uuid4())
             for bid in active_ids:
                 conn.execute(
-                    "INSERT INTO labor_logs (batch_id, logged_date, hours, activity, notes) VALUES (?,?,?,?,?)",
-                    (bid, log_date, split, activity, notes)
+                    "INSERT INTO labor_logs (batch_id, logged_date, hours, activity, notes, group_id) VALUES (?,?,?,?,?,?)",
+                    (bid, log_date, split, activity, notes, gid)
                 )
-            flash(f'{total:.2g}h split evenly — {split:.2g}h logged to each of {len(active_ids)} active batches.', 'success')
+            flash(f'{total:.2g}h split evenly across {len(active_ids)} active batches.', 'success')
         else:
             flash('No active batches found — entry not logged.', 'error')
     else:
@@ -2102,6 +2132,16 @@ def labor_delete(log_id):
     conn.execute("DELETE FROM labor_logs WHERE id=?", (log_id,))
     conn.commit(); conn.close()
     flash('Labor entry deleted.', 'success')
+    return redirect(url_for('labor_list'))
+
+
+@app.route('/labor/group/<group_id>/delete', methods=['POST'])
+def labor_group_delete(group_id):
+    conn = get_db()
+    n = conn.execute("SELECT COUNT(*) FROM labor_logs WHERE group_id=?", (group_id,)).fetchone()[0]
+    conn.execute("DELETE FROM labor_logs WHERE group_id=?", (group_id,))
+    conn.commit(); conn.close()
+    flash(f'Split deleted — {n} entries removed.', 'success')
     return redirect(url_for('labor_list'))
 
 

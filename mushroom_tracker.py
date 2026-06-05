@@ -646,8 +646,12 @@ def init_db():
         hours        REAL NOT NULL,
         activity     TEXT NOT NULL,
         notes        TEXT,
+        group_id     TEXT,
         created_at   TEXT DEFAULT CURRENT_TIMESTAMP
     )""")
+    _ll_cols = {r[1] for r in c.execute("PRAGMA table_info(labor_logs)")}
+    if 'group_id' not in _ll_cols:
+        c.execute("ALTER TABLE labor_logs ADD COLUMN group_id TEXT")
 
     # Fair market value per species (used for $/hr when no sales exist)
     c.execute("""CREATE TABLE IF NOT EXISTS species_prices (
