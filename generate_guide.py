@@ -3069,26 +3069,37 @@ def build():
           "species detail page. Deletions are permanent."),
         sp(10),
         h3("Pre-populated Growing Conditions"),
-        p("Growing conditions are seeded automatically from two sources on first startup:"),
-        sp(4),
-        *bullet([
-            "<b>Agent config</b> — temperature, humidity, and CO2 ranges for the ~22 core species "
-            "(Blue Oyster, Shiitake, Lion's Mane, etc.) are pulled from the same species timelines "
-            "used by the AI briefing agent.",
-            "<b>Catalog descriptions</b> — fruiting temperature ranges are regex-extracted from "
-            "the structured lines in Mycelium Emporium descriptions (e.g. "
-            "<i>Colonization/Fruiting Temperatures: 65-75F/55-70F</i>) for the entries that have them.",
-        ]),
-        sp(6),
-        p("For entries that still lack conditions after automatic seeding, run the included "
-          "bulk-population script:"),
+        p("153 of 205 entries ship with temp, humidity, and CO2 ranges already filled in. "
+          "The remaining 52 are morels, chanterelles, and other mycorrhizal or parasitic species "
+          "that cannot be cultivated on substrate indoors — no published fruiting parameters exist "
+          "for them. Run the included bulk-population script to populate a fresh database:"),
         sp(4),
         code_block(["python populate_species_conditions.py"]),
         sp(4),
-        p("The script runs all three passes — agent config, regex, then a Claude Haiku batch "
-          "extraction over remaining descriptions — and prints a summary of how many entries "
-          "gained data. It is safe to re-run; all updates use COALESCE so existing values "
-          "are never overwritten. Pass <b>--sandbox</b> to run against the sandbox database."),
+        p("The script runs five passes in sequence and prints a per-step summary:"),
+        sp(4),
+        *bullet([
+            "<b>Step 1 — Agent config</b> — temp, humidity, and CO2 for the ~22 core species "
+            "(Blue Oyster, Shiitake, Lion's Mane, etc.) from the same timelines used by the "
+            "AI briefing agent.",
+            "<b>Step 2 — Regex extraction</b> — fruiting temp (and humidity where present) parsed "
+            "from structured description lines such as "
+            "<i>Colonization/Fruiting Temperatures: 65-75F/55-70F, Humidity: 85-95%</i>.",
+            "<b>Step 3 — Claude Haiku extraction</b> — remaining descriptions sent in batches "
+            "of 20 to Claude; only values explicitly stated in the text are written.",
+            "<b>Step 4 — Researched seeds</b> — 39 species seeded by scientific name from "
+            "cultivation literature (Snow Fungus, White Elm, Tiger Milk, White Button, "
+            "Chicken of the Woods, Wood Blewit, Honey Mushroom, Chaga, and more), "
+            "plus genus-level humidity and CO2 defaults for known cultivatable families "
+            "(Pleurotus, Hericium, Ganoderma, Agaricus, etc.).",
+            "<b>Step 5 — CO2 fill</b> — Shiitake catalog strains (400–1000 ppm), name-miss "
+            "fixes for Dancing Hens (Maitake) and Scarlet Caterpillarclub (Cordyceps militaris), "
+            "Tiger Milk high-tolerance override (400–5000 ppm), then 400–800 ppm blanket "
+            "fallback for all remaining cultivatable entries.",
+        ]),
+        sp(4),
+        p("All updates use COALESCE so existing values are never overwritten. "
+          "Pass <b>--sandbox</b> to run against the sandbox database."),
         sp(6),
         callout(
             "The species database is a standalone reference — it is not yet linked to the "
