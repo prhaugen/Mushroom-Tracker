@@ -317,6 +317,49 @@ def seed_researched(conn):
     print(f"  After researched seed: {n} entries have humidity data ({updated} updates)")
 
 
+# ── Step 5: CO2 fill ─────────────────────────────────────────────────────────
+
+def seed_co2(conn):
+    c = conn.cursor()
+
+    def upd(where, params, lo, hi):
+        c.execute(f"""UPDATE species_db SET
+            co2_lo_ppm = COALESCE(co2_lo_ppm, ?),
+            co2_hi_ppm = COALESCE(co2_hi_ppm, ?)
+            WHERE {where}""", (lo, hi, *params))
+        return c.rowcount
+
+    # Shiitake strains (Lentinula spp.) share Shiitake's 400-1000 range
+    upd("scientific_name LIKE ?", ("Lentinula%",), 400, 1000)
+    # Name-miss fixes: Maitake listed as "Dancing Hens", Cordyceps militaris as "Scarlet Caterpillarclub"
+    upd("scientific_name = ?", ("Grifola frondosa",), 400, 800)
+    upd("scientific_name = ?", ("Cordyceps militaris",), 400, 800)
+    # Tiger Milk Mushroom has unusually high CO2 tolerance
+    upd("scientific_name = ?", ("Lignosus rhinocerus",), 400, 5000)
+    # Horse Mushroom — also needs temp/humidity
+    c.execute("""UPDATE species_db SET
+        temp_lo_f      = COALESCE(temp_lo_f,      50),
+        temp_hi_f      = COALESCE(temp_hi_f,      65),
+        humidity_lo_rh = COALESCE(humidity_lo_rh, 85),
+        humidity_hi_rh = COALESCE(humidity_hi_rh, 95),
+        co2_lo_ppm     = COALESCE(co2_lo_ppm,     400),
+        co2_hi_ppm     = COALESCE(co2_hi_ppm,     800)
+        WHERE scientific_name = 'Agaricus arvensis'""")
+    # Blanket 400-800 for everything else with temp but still no CO2
+    upd("temp_lo_f IS NOT NULL AND co2_lo_ppm IS NULL", (), 400, 800)
+
+    conn.commit()
+    n = conn.execute(
+        "SELECT COUNT(*) FROM species_db WHERE co2_lo_ppm IS NOT NULL"
+    ).fetchone()[0]
+    all3 = conn.execute(
+        "SELECT COUNT(*) FROM species_db WHERE temp_lo_f IS NOT NULL "
+        "AND humidity_lo_rh IS NOT NULL AND co2_lo_ppm IS NOT NULL"
+    ).fetchone()[0]
+    total = conn.execute("SELECT COUNT(*) FROM species_db").fetchone()[0]
+    print(f"  Have CO2: {n}/{total}   All three: {all3}/{total}")
+
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
@@ -344,6 +387,9 @@ def main():
 
     print("\nStep 4 — researched species seeds + genus-level humidity defaults")
     seed_researched(conn)
+
+    print("\nStep 5 — CO2 fill for remaining cultivatable entries")
+    seed_co2(conn)
 
     total   = conn.execute("SELECT COUNT(*) FROM species_db").fetchone()[0]
     has_t   = conn.execute("SELECT COUNT(*) FROM species_db WHERE temp_lo_f IS NOT NULL").fetchone()[0]
