@@ -215,6 +215,108 @@ def extract_from_descriptions_claude(conn):
           f"({total_updated} new)")
 
 
+# ── Step 4: researched species seeds ─────────────────────────────────────────
+
+# Specific species by scientific name (researched values)
+_SPECIFIC_SEEDS = [
+    # (scientific_name,              t_lo, t_hi, h_lo, h_hi, c_lo, c_hi)
+    ("Tremella fuciformis",           64,  75,  90, 100, None, None),
+    ("Hypsizygus ulmarius",           50,  65,  85,  95, None, 1500),
+    ("Lignosus rhinocerus",           77,  86,  70,  90, None, None),
+    ("Pleurotus dryinus",             55,  68,  85,  95,  400,  800),
+    ("Pleurotus spodoleucus",         60,  72,  85,  95,  400,  800),
+    ("Pleurotus cystidiosus",         68,  82,  85,  95,  400,  800),
+    ("Lentinus crinitus",             75,  86,  80,  90, None, None),
+    ("Lentinus lepideus",             55,  70,  80,  90, None, None),
+    ("Schizophyllum commune",         65,  77,  80,  95, None,  800),
+    ("Kuehneromyces mutabilis",       50,  60,  80,  90, None, None),
+    ("Hericium cirrhatum",            60,  75,  85,  95,  400, 1500),
+    ("Lepista nuda",                  45,  60,  85,  95, None, None),
+    ("Clitocybe sordida",             50,  65,  85,  95, None, None),
+    ("Oudemansiella canarii",         72,  82,  80,  90, None, None),
+    ("Macrocybe titans",              77,  86,  80,  90, None, None),
+    ("Polyporus umbellatus",          65,  75,  85,  95, None, None),
+    ("Laetiporus sulphureus",         65,  77,  80,  90, None, None),
+    ("Laetiporus conifericola",       65,  77,  80,  90, None, None),
+    ("Laetiporus zonatus",            65,  77,  80,  90, None, None),
+    ("Laetiporus gilbertsonii",       65,  77,  80,  90, None, None),
+    ("Laetiporus cincinnatus",        65,  77,  80,  90, None, None),
+    ("Agaricus bisporus",             55,  64,  85,  95,  800, 2000),
+    ("Agaricus blazei",               64,  86,  80,  95, None, 2000),
+    ("Agaricus subrufescens",         64,  86,  80,  95, None, 2000),
+    ("Bondarzewia berkeleyi",         65,  77,  85,  95, None, None),
+    ("Polyporus squamosus",           55,  70,  80,  90, None, None),
+    ("Armillariella mellea",          45,  65,  80,  90, None, None),
+    ("Armillaria mellea",             45,  65,  80,  90, None, None),
+    ("Armillaria gallica",            45,  65,  80,  90, None, None),
+    ("Armillaria nabsnona",           45,  65,  80,  90, None, None),
+    ("Inonotus obliquus",             50,  68,  80,  90, None, None),
+    ("Pluteus cervinus",              55,  72,  85,  90, None, None),
+    ("Hypholoma capnoides",           50,  65,  85,  95, None, None),
+    ("Hydnum repandum",               50,  65,  85,  95, None, None),
+    ("Ganoderma applanatum",          65,  80,  85,  95, None, 1500),
+    ("Fistulina hepatica",            55,  70,  80,  90, None, None),
+    ("Agrocybe aegerita",             50,  65,  85,  95,  400,  800),
+    ("Sparassis crispa",              55,  65,  85,  95, None, None),
+    ("Phellinus linteus",             65,  80,  85,  95, None, None),
+]
+
+# Genus-level humidity + CO2 defaults for species that have temp but no humidity
+_GENUS_HUMIDITY = [
+    # (genus_prefix,  h_lo, h_hi, c_lo, c_hi)
+    ("Pleurotus",      85,  95,  400,  800),
+    ("Hericium",       85,  95,  400, 1500),
+    ("Ganoderma",      85,  95,  400, 1500),
+    ("Hypsizygus",     85,  95,  400,  800),
+    ("Hypholoma",      85,  95,  400,  800),
+    ("Agrocybe",       85,  95,  400,  800),
+    ("Pholiota",       85,  95,  400,  800),
+    ("Panellus",       80,  90,  400,  800),
+    ("Lentinus",       80,  90,  400,  800),
+    ("Sparassis",      85,  95,  400,  800),
+    ("Phellinus",      85,  95,  400, 1500),
+    ("Trametes",       80,  90,  400,  800),
+    ("Fomitopsis",     80,  90,  400,  800),
+    ("Laetiporus",     80,  90,  400,  800),
+]
+
+def seed_researched(conn):
+    c = conn.cursor()
+    updated = 0
+    for sci, t_lo, t_hi, h_lo, h_hi, c_lo, c_hi in _SPECIFIC_SEEDS:
+        c.execute("""UPDATE species_db SET
+            temp_lo_f      = COALESCE(temp_lo_f,      ?),
+            temp_hi_f      = COALESCE(temp_hi_f,      ?),
+            humidity_lo_rh = COALESCE(humidity_lo_rh, ?),
+            humidity_hi_rh = COALESCE(humidity_hi_rh, ?),
+            co2_lo_ppm     = COALESCE(co2_lo_ppm,     ?),
+            co2_hi_ppm     = COALESCE(co2_hi_ppm,     ?)
+            WHERE scientific_name=?""",
+            (t_lo, t_hi, h_lo, h_hi, c_lo, c_hi, sci))
+        updated += c.rowcount
+    for genus, h_lo, h_hi, c_lo, c_hi in _GENUS_HUMIDITY:
+        c.execute("""UPDATE species_db SET
+            humidity_lo_rh = COALESCE(humidity_lo_rh, ?),
+            humidity_hi_rh = COALESCE(humidity_hi_rh, ?),
+            co2_lo_ppm     = COALESCE(co2_lo_ppm,     ?),
+            co2_hi_ppm     = COALESCE(co2_hi_ppm,     ?)
+            WHERE scientific_name LIKE ? AND temp_lo_f IS NOT NULL
+              AND humidity_lo_rh IS NULL""",
+            (h_lo, h_hi, c_lo, c_hi, f"{genus}%"))
+        updated += c.rowcount
+    # Blanket humidity default for any remaining cultivatable entries
+    c.execute("""UPDATE species_db SET
+        humidity_lo_rh = COALESCE(humidity_lo_rh, 85),
+        humidity_hi_rh = COALESCE(humidity_hi_rh, 95)
+        WHERE temp_lo_f IS NOT NULL AND humidity_lo_rh IS NULL""")
+    updated += c.rowcount
+    conn.commit()
+    n = conn.execute(
+        "SELECT COUNT(*) FROM species_db WHERE humidity_lo_rh IS NOT NULL"
+    ).fetchone()[0]
+    print(f"  After researched seed: {n} entries have humidity data ({updated} updates)")
+
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
@@ -239,6 +341,9 @@ def main():
 
     print("\nStep 3 — Claude extraction for remaining descriptions")
     extract_from_descriptions_claude(conn)
+
+    print("\nStep 4 — researched species seeds + genus-level humidity defaults")
+    seed_researched(conn)
 
     total   = conn.execute("SELECT COUNT(*) FROM species_db").fetchone()[0]
     has_t   = conn.execute("SELECT COUNT(*) FROM species_db WHERE temp_lo_f IS NOT NULL").fetchone()[0]
