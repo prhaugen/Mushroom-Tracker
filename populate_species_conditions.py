@@ -374,6 +374,130 @@ def seed_co2(conn):
     print(f"  Have CO2: {n}/{total}   All three: {all3}/{total}")
 
 
+# ── Step 6: difficulty assignment ─────────────────────────────────────────────
+
+_DIFFICULTY_RULES = [
+    # Specific scientific name overrides (checked first)
+    ("sci_exact", "Pleurotus eryngii",              "intermediate"),  # King Oyster
+    ("sci_exact", "Cordyceps militaris",             "intermediate"),  # cultivatable on grain
+    ("sci_exact", "Flammulina velutipes",            "intermediate"),  # Enoki, needs cold
+    ("sci_exact", "Flammulina fennae",               "intermediate"),
+    ("sci_exact", "Flammulina populicola",           "intermediate"),
+    ("sci_exact", "Isaria farinosa",                 "advanced"),
+    ("sci_exact", "Isaria tenuipes",                 "advanced"),
+    ("sci_exact", "Tolypocladium ophioglossoides",   "advanced"),
+    ("sci_exact", "Ustilago maydis",                 "intermediate"),
+    # Beginner genera
+    ("sci_like", "Pleurotus%",       "beginner"),
+    ("sci_like", "Hericium%",        "beginner"),
+    ("sci_like", "Auricularia%",     "beginner"),
+    # Intermediate genera
+    ("sci_like", "Lentinula%",       "intermediate"),
+    ("sci_like", "Hypsizygus%",      "intermediate"),
+    ("sci_like", "Pholiota%",        "intermediate"),
+    ("sci_like", "Flammulina%",      "intermediate"),
+    ("sci_like", "Agrocybe%",        "intermediate"),
+    ("sci_like", "Volvariella%",     "intermediate"),
+    ("sci_like", "Agaricus%",        "intermediate"),
+    ("sci_like", "Stropharia%",      "intermediate"),
+    ("sci_like", "Hypholoma%",       "intermediate"),
+    ("sci_like", "Lepista%",         "intermediate"),
+    ("sci_like", "Kuehneromyces%",   "intermediate"),
+    ("sci_like", "Lentinus%",        "intermediate"),
+    ("sci_like", "Laetiporus%",      "intermediate"),
+    ("sci_like", "Calocybe%",        "intermediate"),
+    ("sci_like", "Tremella%",        "intermediate"),
+    ("sci_like", "Coprinellus%",     "intermediate"),
+    ("sci_like", "Coprinus%",        "intermediate"),
+    ("sci_like", "Calvatia%",        "intermediate"),
+    ("sci_like", "Lycoperdon%",      "intermediate"),
+    ("sci_like", "Macrocybe%",       "intermediate"),
+    ("sci_like", "Panellus%",        "intermediate"),
+    ("sci_like", "Pluteus%",         "intermediate"),
+    ("sci_like", "Schizophyllum%",   "intermediate"),
+    ("sci_like", "Termitomyces%",    "intermediate"),
+    ("sci_like", "Oudemansiella%",   "intermediate"),
+    ("sci_like", "Clavicorona%",     "intermediate"),
+    ("sci_like", "Cyathus%",         "intermediate"),
+    ("sci_like", "Clitocybe%",       "intermediate"),
+    # Advanced genera
+    ("sci_like", "Morchella%",       "advanced"),
+    ("sci_like", "Ganoderma%",       "advanced"),
+    ("sci_like", "Grifola%",         "advanced"),
+    ("sci_like", "Trametes%",        "advanced"),
+    ("sci_like", "Inonotus%",        "advanced"),
+    ("sci_like", "Bondarzewia%",     "advanced"),
+    ("sci_like", "Lignosus%",        "advanced"),
+    ("sci_like", "Fomitopsis%",      "advanced"),
+    ("sci_like", "Phellinus%",       "advanced"),
+    ("sci_like", "Fistulina%",       "advanced"),
+    ("sci_like", "Polyporus%",       "advanced"),
+    ("sci_like", "Armillaria%",      "advanced"),
+    ("sci_like", "Armillariella%",   "advanced"),
+    ("sci_like", "Sparassis%",       "advanced"),
+    ("sci_like", "Cantharellus%",    "advanced"),
+    ("sci_like", "Polyozellus%",     "advanced"),
+    ("sci_like", "Hydnum%",          "advanced"),
+    ("sci_like", "Omphalotus%",      "advanced"),
+    ("sci_like", "Cordyceps%",       "advanced"),
+    ("sci_like", "Ophiocordyceps%",  "advanced"),
+    ("sci_like", "Tolypocladium%",   "advanced"),
+    ("sci_like", "Isaria%",          "advanced"),
+    ("sci_like", "Xylaria%",         "advanced"),
+    ("sci_like", "Pisolithus%",      "advanced"),
+    ("sci_like", "Phallus%",         "advanced"),
+    ("sci_like", "Annulohypoxylon%", "advanced"),
+    ("sci_like", "Daedaleopsis%",    "advanced"),
+    ("sci_like", "Meripilus%",       "advanced"),
+    ("sci_like", "Piptoporus%",      "advanced"),
+    ("sci_like", "Chlorociboria%",   "advanced"),
+    ("sci_like", "Exidia%",          "advanced"),
+    ("sci_like", "Megacollybia%",    "advanced"),
+    ("sci_like", "Globiformes%",     "advanced"),
+    ("sci_like", "Lenzites%",        "advanced"),
+    ("sci_like", "Polycephalomyces%","advanced"),
+    ("sci_like", "Aspergillus%",     "advanced"),
+    # Common name fallbacks for entries with no scientific name
+    ("common_like", "%oyster%",       "beginner"),
+    ("common_like", "%shiitake%",     "intermediate"),
+    ("common_like", "%enoki%",        "intermediate"),
+    ("common_like", "%garlic scented%","intermediate"),
+    ("common_like", "%macrocybe%",    "intermediate"),
+    ("common_like", "%reishi%",       "advanced"),
+    ("common_like", "%morel%",        "advanced"),
+    ("common_like", "%chanterelle%",  "advanced"),
+    ("common_like", "%maitake%",      "advanced"),
+    ("common_like", "%turkey tail%",  "advanced"),
+    ("common_like", "%chaga%",        "advanced"),
+    ("common_like", "%cordyceps%",    "advanced"),
+    ("common_like", "%polycephalomyces%", "advanced"),
+]
+
+def seed_difficulty(conn):
+    c = conn.cursor()
+    total = 0
+    for match_type, pattern, diff in _DIFFICULTY_RULES:
+        if match_type == "sci_exact":
+            c.execute("UPDATE species_db SET difficulty=? WHERE scientific_name=? AND difficulty IS NULL",
+                      (diff, pattern))
+        elif match_type == "sci_like":
+            c.execute("UPDATE species_db SET difficulty=? WHERE scientific_name LIKE ? AND difficulty IS NULL",
+                      (diff, pattern))
+        elif match_type == "common_like":
+            c.execute("UPDATE species_db SET difficulty=? WHERE lower(common_name) LIKE ? AND difficulty IS NULL",
+                      (diff, pattern))
+        total += c.rowcount
+    conn.commit()
+    dist = {r[0]: r[1] for r in conn.execute(
+        "SELECT difficulty, COUNT(*) FROM species_db GROUP BY difficulty"
+    ).fetchall()}
+    print(f"  Assigned {total} entries: "
+          f"{dist.get('beginner',0)} beginner, "
+          f"{dist.get('intermediate',0)} intermediate, "
+          f"{dist.get('advanced',0)} advanced, "
+          f"{dist.get(None,0)} unset")
+
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
@@ -404,6 +528,9 @@ def main():
 
     print("\nStep 5 — CO2 fill for remaining cultivatable entries")
     seed_co2(conn)
+
+    print("\nStep 6 — difficulty assignment")
+    seed_difficulty(conn)
 
     total   = conn.execute("SELECT COUNT(*) FROM species_db").fetchone()[0]
     has_t   = conn.execute("SELECT COUNT(*) FROM species_db WHERE fruiting_temp_lo_f IS NOT NULL").fetchone()[0]
