@@ -11,6 +11,7 @@ Scheduled:        daily at 06:00 via APScheduler (started in mushroom_app.py)
 import json
 import logging
 import os
+import re
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
@@ -748,14 +749,20 @@ def call_gemini(snapshot: dict) -> dict:
         contents=json.dumps(snapshot, default=str),
         config=_genai_types.GenerateContentConfig(
             system_instruction=SYSTEM_PROMPT,
-            max_output_tokens=4096,
+            max_output_tokens=8192,
         ),
     )
 
     raw = response.text.strip()
-    if raw.startswith("```"):
-        lines = raw.split('\n')
-        raw = '\n'.join(lines[1:-1] if lines[-1].strip() == '```' else lines[1:])
+
+    # Extract the JSON object — handles preamble text, markdown fences,
+    # and any trailing commentary Gemini adds after the closing brace.
+    m = re.search(r'\{.*\}', raw, re.DOTALL)
+    if not m:
+        raise RuntimeError(f"No JSON object found in Gemini response. Raw: {raw[:200]}")
+    raw = m.group(0)
+
+    # Flatten literal newlines inside string values (same fix as call_claude)
     raw = ' '.join(raw.splitlines())
     return json.loads(raw)
 
