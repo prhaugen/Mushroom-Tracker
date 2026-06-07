@@ -750,21 +750,11 @@ def call_gemini(snapshot: dict) -> dict:
         config=_genai_types.GenerateContentConfig(
             system_instruction=SYSTEM_PROMPT,
             max_output_tokens=8192,
+            response_mime_type="application/json",
         ),
     )
 
-    raw = response.text.strip()
-
-    # Extract the JSON object — handles preamble text, markdown fences,
-    # and any trailing commentary Gemini adds after the closing brace.
-    m = re.search(r'\{.*\}', raw, re.DOTALL)
-    if not m:
-        raise RuntimeError(f"No JSON object found in Gemini response. Raw: {raw[:200]}")
-    raw = m.group(0)
-
-    # Flatten literal newlines inside string values (same fix as call_claude)
-    raw = ' '.join(raw.splitlines())
-    return json.loads(raw)
+    return json.loads(response.text)
 
 
 # ── Persistence ───────────────────────────────────────────────────────────────
