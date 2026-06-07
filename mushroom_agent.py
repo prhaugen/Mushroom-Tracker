@@ -751,8 +751,17 @@ def call_gemini(snapshot: dict) -> dict:
             system_instruction=SYSTEM_PROMPT,
             max_output_tokens=8192,
             response_mime_type="application/json",
+            # Disable thinking — it burns ~8k tokens on internal reasoning,
+            # leaving almost nothing for the JSON output (finish_reason MAX_TOKENS).
+            thinking_config=_genai_types.ThinkingConfig(thinking_budget=0),
         ),
     )
+
+    if response.candidates[0].finish_reason.name == 'MAX_TOKENS':
+        raise RuntimeError(
+            "Gemini response was truncated (MAX_TOKENS). "
+            f"Usage: {response.usage_metadata}"
+        )
 
     return json.loads(response.text)
 
