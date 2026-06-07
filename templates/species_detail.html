@@ -40,12 +40,18 @@
   <!-- Growing conditions -->
   <div class="card">
     <div class="card-title" style="margin-bottom:14px">Growing Conditions</div>
-    {% if sp.temp_lo_f or sp.humidity_lo_rh or sp.co2_lo_ppm %}
+    {% if sp.fruiting_temp_lo_f or sp.colonization_temp_lo_f or sp.humidity_lo_rh or sp.co2_lo_ppm %}
     <div class="detail-grid">
-      {% if sp.temp_lo_f and sp.temp_hi_f %}
+      {% if sp.fruiting_temp_lo_f and sp.fruiting_temp_hi_f %}
       <div>
-        <div class="detail-lbl">Temperature Range</div>
-        <div class="detail-val">{{ sp.temp_lo_f|int }}–{{ sp.temp_hi_f|int }}°F</div>
+        <div class="detail-lbl">Fruiting Temp</div>
+        <div class="detail-val">{{ sp.fruiting_temp_lo_f|int }}–{{ sp.fruiting_temp_hi_f|int }}°F</div>
+      </div>
+      {% endif %}
+      {% if sp.colonization_temp_lo_f and sp.colonization_temp_hi_f %}
+      <div>
+        <div class="detail-lbl">Colonization Temp</div>
+        <div class="detail-val">{{ sp.colonization_temp_lo_f|int }}–{{ sp.colonization_temp_hi_f|int }}°F</div>
       </div>
       {% endif %}
       {% if sp.humidity_lo_rh and sp.humidity_hi_rh %}

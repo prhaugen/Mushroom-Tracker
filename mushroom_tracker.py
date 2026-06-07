@@ -214,7 +214,7 @@ def _migrate_species_descriptions(c):
 
 
 def _migrate_species_co2(c):
-    """Seed temp, humidity, and CO2 ranges from agent_config for known species."""
+    """Seed fruiting temp, colonization temp, humidity, and CO2 from agent_config."""
     from agent_config import SPECIES_TIMELINES
 
     _like_map = [
@@ -230,18 +230,21 @@ def _migrate_species_co2(c):
     ]
 
     def _apply(where, params, cfg):
-        t_lo, t_hi = cfg.get('fruiting_temp_f',      (None, None))
-        h_lo, h_hi = cfg.get('fruiting_humidity_rh', (None, None))
-        c_lo, c_hi = cfg.get('fruiting_co2_ppm',     (None, None))
+        ft_lo, ft_hi = cfg.get('fruiting_temp_f',      (None, None))
+        ct_lo, ct_hi = cfg.get('colonization_temp_f',  (None, None))
+        h_lo,  h_hi  = cfg.get('fruiting_humidity_rh', (None, None))
+        c_lo,  c_hi  = cfg.get('fruiting_co2_ppm',     (None, None))
         c.execute(f"""UPDATE species_db SET
-            temp_lo_f      = COALESCE(temp_lo_f,      ?),
-            temp_hi_f      = COALESCE(temp_hi_f,      ?),
-            humidity_lo_rh = COALESCE(humidity_lo_rh, ?),
-            humidity_hi_rh = COALESCE(humidity_hi_rh, ?),
-            co2_lo_ppm     = COALESCE(co2_lo_ppm,     ?),
-            co2_hi_ppm     = COALESCE(co2_hi_ppm,     ?)
+            fruiting_temp_lo_f     = COALESCE(fruiting_temp_lo_f,     ?),
+            fruiting_temp_hi_f     = COALESCE(fruiting_temp_hi_f,     ?),
+            colonization_temp_lo_f = COALESCE(colonization_temp_lo_f, ?),
+            colonization_temp_hi_f = COALESCE(colonization_temp_hi_f, ?),
+            humidity_lo_rh         = COALESCE(humidity_lo_rh,         ?),
+            humidity_hi_rh         = COALESCE(humidity_hi_rh,         ?),
+            co2_lo_ppm             = COALESCE(co2_lo_ppm,             ?),
+            co2_hi_ppm             = COALESCE(co2_hi_ppm,             ?)
             WHERE {where}""",
-            (t_lo, t_hi, h_lo, h_hi, c_lo, c_hi, *params))
+            (ft_lo, ft_hi, ct_lo, ct_hi, h_lo, h_hi, c_lo, c_hi, *params))
 
     for name, cfg in SPECIES_TIMELINES.items():
         _apply("lower(common_name)=?", (name,), cfg)
@@ -569,40 +572,59 @@ def init_db():
 
     # Species reference database
     c.execute("""CREATE TABLE IF NOT EXISTS species_db (
-        id              INTEGER PRIMARY KEY,
-        common_name     TEXT NOT NULL,
-        scientific_name TEXT,
-        strain          TEXT,
-        source_url      TEXT,
-        difficulty      TEXT,
-        temp_lo_f       REAL,
-        temp_hi_f       REAL,
-        humidity_lo_rh  REAL,
-        humidity_hi_rh  REAL,
-        co2_lo_ppm      REAL,
-        co2_hi_ppm      REAL,
-        substrate_notes TEXT,
-        notes           TEXT,
-        created_at      TEXT DEFAULT CURRENT_TIMESTAMP,
-        updated_at      TEXT
+        id                      INTEGER PRIMARY KEY,
+        common_name             TEXT NOT NULL,
+        scientific_name         TEXT,
+        strain                  TEXT,
+        source_url              TEXT,
+        difficulty              TEXT,
+        fruiting_temp_lo_f      REAL,
+        fruiting_temp_hi_f      REAL,
+        humidity_lo_rh          REAL,
+        humidity_hi_rh          REAL,
+        co2_lo_ppm              REAL,
+        co2_hi_ppm              REAL,
+        colonization_temp_lo_f  REAL,
+        colonization_temp_hi_f  REAL,
+        substrate_notes         TEXT,
+        notes                   TEXT,
+        created_at              TEXT DEFAULT CURRENT_TIMESTAMP,
+        updated_at              TEXT
     )""")
     if c.execute("SELECT COUNT(*) FROM species_db").fetchone()[0] == 0:
         _seed_species_db(c)
 
-    # Add description column if missing, then populate from catalog
     _sp_cols = {r[1] for r in c.execute("PRAGMA table_info(species_db)")}
+
+    # Add description column if missing, then populate from catalog
     if 'description' not in _sp_cols:
         c.execute("ALTER TABLE species_db ADD COLUMN description TEXT")
         _migrate_species_descriptions(c)
+        _sp_cols.add('description')
 
     # Add CO2 range columns if missing, then seed from agent_config timelines
-    _sp_cols = {r[1] for r in c.execute("PRAGMA table_info(species_db)")}
     if 'co2_lo_ppm' not in _sp_cols:
         c.execute("ALTER TABLE species_db ADD COLUMN co2_lo_ppm REAL")
         c.execute("ALTER TABLE species_db ADD COLUMN co2_hi_ppm REAL")
-        _migrate_species_co2(c)
+        _sp_cols.update({'co2_lo_ppm', 'co2_hi_ppm'})
     elif 'co2_hi_ppm' not in _sp_cols:
         c.execute("ALTER TABLE species_db ADD COLUMN co2_hi_ppm REAL")
+        _sp_cols.add('co2_hi_ppm')
+
+    # Rename old temp columns to fruiting_temp_*
+    if 'temp_lo_f' in _sp_cols:
+        c.execute("ALTER TABLE species_db RENAME COLUMN temp_lo_f TO fruiting_temp_lo_f")
+        c.execute("ALTER TABLE species_db RENAME COLUMN temp_hi_f TO fruiting_temp_hi_f")
+        _sp_cols.discard('temp_lo_f'); _sp_cols.discard('temp_hi_f')
+        _sp_cols.update({'fruiting_temp_lo_f', 'fruiting_temp_hi_f'})
+
+    # Add colonization temp columns if missing and seed from agent_config
+    if 'colonization_temp_lo_f' not in _sp_cols:
+        c.execute("ALTER TABLE species_db ADD COLUMN colonization_temp_lo_f REAL")
+        c.execute("ALTER TABLE species_db ADD COLUMN colonization_temp_hi_f REAL")
+        _migrate_species_co2(c)  # seeds all conditions including colonization temp
+    elif 'colonization_temp_hi_f' not in _sp_cols:
+        c.execute("ALTER TABLE species_db ADD COLUMN colonization_temp_hi_f REAL")
 
     # Vendor master list
     c.execute("""CREATE TABLE IF NOT EXISTS vendors (

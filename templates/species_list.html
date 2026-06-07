@@ -36,7 +36,7 @@
   <div class="table-wrap">
     <table>
       <thead>
-        <tr><th>Common Name</th><th>Scientific Name</th><th>Strain / Variant</th><th>Difficulty</th><th>Temp (°F)</th><th>Humidity (%)</th><th>CO2 (ppm)</th><th>Notes</th><th></th></tr>
+        <tr><th>Common Name</th><th>Scientific Name</th><th>Strain / Variant</th><th>Difficulty</th><th>Fruit Temp (°F)</th><th>Col Temp (°F)</th><th>Humidity (%)</th><th>CO2 (ppm)</th><th>Notes</th><th></th></tr>
       </thead>
       <tbody>
         {% for s in species %}
@@ -56,7 +56,11 @@
             {% else %}<span class="td-m">—</span>{% endif %}
           </td>
           <td class="td-m" style="font-size:12px">
-            {% if s.temp_lo_f and s.temp_hi_f %}{{ s.temp_lo_f|int }}–{{ s.temp_hi_f|int }}°F
+            {% if s.fruiting_temp_lo_f and s.fruiting_temp_hi_f %}{{ s.fruiting_temp_lo_f|int }}–{{ s.fruiting_temp_hi_f|int }}
+            {% else %}—{% endif %}
+          </td>
+          <td class="td-m" style="font-size:12px">
+            {% if s.colonization_temp_lo_f and s.colonization_temp_hi_f %}{{ s.colonization_temp_lo_f|int }}–{{ s.colonization_temp_hi_f|int }}
             {% else %}—{% endif %}
           </td>
           <td class="td-m" style="font-size:12px">

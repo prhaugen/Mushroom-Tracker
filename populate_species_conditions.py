@@ -26,9 +26,10 @@ PROD_DB    = Path(__file__).parent / "mushroom_data.db"
 SANDBOX_DB = Path(__file__).parent / "mushroom_data_sandbox.db"
 
 # ── Regex patterns ────────────────────────────────────────────────────────────
-# "Colonization/Fruiting Temperatures: 70-80F/55-70F"  →  fruiting = group 3,4
+# "Colonization/Fruiting Temperatures: 70-80F/55-70F"
+#   → colonization = groups 1,2   fruiting = groups 3,4
 _TEMP_COL_FRUIT = re.compile(
-    r"Colonization/Fruiting Temperatures?:\s*[\d.]+-[\d.]+F/([\d.]+)-([\d.]+)F", re.I
+    r"Colonization/Fruiting Temperatures?:\s*([\d.]+)-([\d.]+)F/([\d.]+)-([\d.]+)F", re.I
 )
 # "Fruiting Temperature: 55-70F"  →  group 1,2
 _TEMP_FRUIT_ONLY = re.compile(
@@ -54,18 +55,21 @@ _LIKE_MAP = [
 
 def _upsert_conditions(c, where_clause, params, cfg_key):
     cfg = SPECIES_TIMELINES[cfg_key]
-    t_lo, t_hi = cfg.get("fruiting_temp_f",      (None, None))
-    h_lo, h_hi = cfg.get("fruiting_humidity_rh", (None, None))
-    c_lo, c_hi = cfg.get("fruiting_co2_ppm",     (None, None))
+    ft_lo, ft_hi = cfg.get("fruiting_temp_f",      (None, None))
+    ct_lo, ct_hi = cfg.get("colonization_temp_f",  (None, None))
+    h_lo,  h_hi  = cfg.get("fruiting_humidity_rh", (None, None))
+    c_lo,  c_hi  = cfg.get("fruiting_co2_ppm",     (None, None))
     c.execute(f"""UPDATE species_db SET
-        temp_lo_f      = COALESCE(temp_lo_f,      ?),
-        temp_hi_f      = COALESCE(temp_hi_f,      ?),
-        humidity_lo_rh = COALESCE(humidity_lo_rh, ?),
-        humidity_hi_rh = COALESCE(humidity_hi_rh, ?),
-        co2_lo_ppm     = COALESCE(co2_lo_ppm,     ?),
-        co2_hi_ppm     = COALESCE(co2_hi_ppm,     ?)
+        fruiting_temp_lo_f     = COALESCE(fruiting_temp_lo_f,     ?),
+        fruiting_temp_hi_f     = COALESCE(fruiting_temp_hi_f,     ?),
+        colonization_temp_lo_f = COALESCE(colonization_temp_lo_f, ?),
+        colonization_temp_hi_f = COALESCE(colonization_temp_hi_f, ?),
+        humidity_lo_rh         = COALESCE(humidity_lo_rh,         ?),
+        humidity_hi_rh         = COALESCE(humidity_hi_rh,         ?),
+        co2_lo_ppm             = COALESCE(co2_lo_ppm,             ?),
+        co2_hi_ppm             = COALESCE(co2_hi_ppm,             ?)
         WHERE {where_clause}""",
-        (t_lo, t_hi, h_lo, h_hi, c_lo, c_hi, *params))
+        (ft_lo, ft_hi, ct_lo, ct_hi, h_lo, h_hi, c_lo, c_hi, *params))
 
 def seed_from_agent_config(conn):
     c = conn.cursor()
@@ -75,7 +79,7 @@ def seed_from_agent_config(conn):
         _upsert_conditions(c, "lower(common_name) LIKE ?", (pattern,), cfg_key)
     conn.commit()
     n = conn.execute(
-        "SELECT COUNT(*) FROM species_db WHERE temp_lo_f IS NOT NULL"
+        "SELECT COUNT(*) FROM species_db WHERE fruiting_temp_lo_f IS NOT NULL"
     ).fetchone()[0]
     print(f"  After agent_config seed: {n} entries have temp data")
 
@@ -92,36 +96,39 @@ def extract_from_descriptions_regex(conn):
     updated = 0
     for r in rows:
         d = r["description"]
-        t_lo = t_hi = h_lo = h_hi = None
+        ft_lo = ft_hi = ct_lo = ct_hi = h_lo = h_hi = None
 
         m = _TEMP_COL_FRUIT.search(d)
         if m:
-            t_lo, t_hi = float(m.group(1)), float(m.group(2))
+            ct_lo, ct_hi = float(m.group(1)), float(m.group(2))
+            ft_lo, ft_hi = float(m.group(3)), float(m.group(4))
         else:
             m2 = _TEMP_FRUIT_ONLY.search(d)
             if m2:
-                t_lo, t_hi = float(m2.group(1)), float(m2.group(2))
+                ft_lo, ft_hi = float(m2.group(1)), float(m2.group(2))
 
         mh = _HUMIDITY.search(d)
         if mh:
             h_lo, h_hi = float(mh.group(1)), float(mh.group(2))
 
-        if t_lo is None and h_lo is None:
+        if ft_lo is None and ct_lo is None and h_lo is None:
             continue
 
         c.execute("""UPDATE species_db SET
-            temp_lo_f      = COALESCE(temp_lo_f,      ?),
-            temp_hi_f      = COALESCE(temp_hi_f,      ?),
-            humidity_lo_rh = COALESCE(humidity_lo_rh, ?),
-            humidity_hi_rh = COALESCE(humidity_hi_rh, ?)
+            fruiting_temp_lo_f     = COALESCE(fruiting_temp_lo_f,     ?),
+            fruiting_temp_hi_f     = COALESCE(fruiting_temp_hi_f,     ?),
+            colonization_temp_lo_f = COALESCE(colonization_temp_lo_f, ?),
+            colonization_temp_hi_f = COALESCE(colonization_temp_hi_f, ?),
+            humidity_lo_rh         = COALESCE(humidity_lo_rh,         ?),
+            humidity_hi_rh         = COALESCE(humidity_hi_rh,         ?)
             WHERE id=?""",
-            (t_lo, t_hi, h_lo, h_hi, r["id"]))
+            (ft_lo, ft_hi, ct_lo, ct_hi, h_lo, h_hi, r["id"]))
         if c.rowcount:
             updated += 1
 
     conn.commit()
     n = conn.execute(
-        "SELECT COUNT(*) FROM species_db WHERE temp_lo_f IS NOT NULL"
+        "SELECT COUNT(*) FROM species_db WHERE fruiting_temp_lo_f IS NOT NULL"
     ).fetchone()[0]
     print(f"  After regex extraction: {n} entries have temp data ({updated} new)")
 
@@ -129,16 +136,19 @@ def extract_from_descriptions_regex(conn):
 # ── Step 3: Claude batch extraction for remaining descriptions ─────────────────
 
 _SYSTEM = """\
-Extract mushroom fruiting growing conditions from description text.
+Extract mushroom growing conditions from description text.
 Return a JSON array — one object per species — using exactly this shape:
-{"id":<int>,"temp_lo_f":<num|null>,"temp_hi_f":<num|null>,\
-"humidity_lo_rh":<num|null>,"humidity_hi_rh":<num|null>,\
-"co2_lo_ppm":<num|null>,"co2_hi_ppm":<num|null>}
+{"id":<int>,
+ "fruiting_temp_lo_f":<num|null>,"fruiting_temp_hi_f":<num|null>,
+ "colonization_temp_lo_f":<num|null>,"colonization_temp_hi_f":<num|null>,
+ "humidity_lo_rh":<num|null>,"humidity_hi_rh":<num|null>,
+ "co2_lo_ppm":<num|null>,"co2_hi_ppm":<num|null>}
 
 Rules:
 - Only extract values explicitly stated. Return null for anything not mentioned.
-- Temperatures must be Fahrenheit. Convert from Celsius if needed (C×9/5+32).
-- Humidity values are % RH (e.g. "85-95%" → 85, 95).
+- Distinguish fruiting temp from colonization temp when both are present.
+- Temperatures must be Fahrenheit. Convert from Celsius if needed (C*9/5+32).
+- Humidity values are % RH (e.g. "85-95%" gives 85, 95).
 - CO2 in ppm. Return null unless a numeric ppm range is stated.
 - Output only the JSON array, no markdown, no commentary.\
 """
@@ -147,7 +157,7 @@ def extract_from_descriptions_claude(conn):
     rows = conn.execute("""
         SELECT id, common_name, description FROM species_db
         WHERE description IS NOT NULL AND description != ''
-          AND temp_lo_f IS NULL
+          AND fruiting_temp_lo_f IS NULL
         ORDER BY id
     """).fetchall()
 
@@ -185,22 +195,26 @@ def extract_from_descriptions_claude(conn):
 
         batch_updated = 0
         for r in results:
-            t_lo = r.get("temp_lo_f")
-            t_hi = r.get("temp_hi_f")
-            h_lo = r.get("humidity_lo_rh")
-            h_hi = r.get("humidity_hi_rh")
-            c_lo = r.get("co2_lo_ppm")
-            c_hi = r.get("co2_hi_ppm")
-            if any(v is not None for v in (t_lo, t_hi, h_lo, h_hi, c_lo, c_hi)):
+            ft_lo = r.get("fruiting_temp_lo_f")
+            ft_hi = r.get("fruiting_temp_hi_f")
+            ct_lo = r.get("colonization_temp_lo_f")
+            ct_hi = r.get("colonization_temp_hi_f")
+            h_lo  = r.get("humidity_lo_rh")
+            h_hi  = r.get("humidity_hi_rh")
+            c_lo  = r.get("co2_lo_ppm")
+            c_hi  = r.get("co2_hi_ppm")
+            if any(v is not None for v in (ft_lo, ft_hi, ct_lo, ct_hi, h_lo, h_hi, c_lo, c_hi)):
                 c.execute("""UPDATE species_db SET
-                    temp_lo_f      = COALESCE(temp_lo_f,      ?),
-                    temp_hi_f      = COALESCE(temp_hi_f,      ?),
-                    humidity_lo_rh = COALESCE(humidity_lo_rh, ?),
-                    humidity_hi_rh = COALESCE(humidity_hi_rh, ?),
-                    co2_lo_ppm     = COALESCE(co2_lo_ppm,     ?),
-                    co2_hi_ppm     = COALESCE(co2_hi_ppm,     ?)
+                    fruiting_temp_lo_f     = COALESCE(fruiting_temp_lo_f,     ?),
+                    fruiting_temp_hi_f     = COALESCE(fruiting_temp_hi_f,     ?),
+                    colonization_temp_lo_f = COALESCE(colonization_temp_lo_f, ?),
+                    colonization_temp_hi_f = COALESCE(colonization_temp_hi_f, ?),
+                    humidity_lo_rh         = COALESCE(humidity_lo_rh,         ?),
+                    humidity_hi_rh         = COALESCE(humidity_hi_rh,         ?),
+                    co2_lo_ppm             = COALESCE(co2_lo_ppm,             ?),
+                    co2_hi_ppm             = COALESCE(co2_hi_ppm,             ?)
                     WHERE id=?""",
-                    (t_lo, t_hi, h_lo, h_hi, c_lo, c_hi, r["id"]))
+                    (ft_lo, ft_hi, ct_lo, ct_hi, h_lo, h_hi, c_lo, c_hi, r["id"]))
                 batch_updated += c.rowcount
 
         conn.commit()
@@ -209,7 +223,7 @@ def extract_from_descriptions_claude(conn):
               f"{len(batch)} sent, {batch_updated} updated")
 
     n = conn.execute(
-        "SELECT COUNT(*) FROM species_db WHERE temp_lo_f IS NOT NULL"
+        "SELECT COUNT(*) FROM species_db WHERE fruiting_temp_lo_f IS NOT NULL"
     ).fetchone()[0]
     print(f"  After Claude extraction: {n} entries have temp data "
           f"({total_updated} new)")
@@ -285,8 +299,8 @@ def seed_researched(conn):
     updated = 0
     for sci, t_lo, t_hi, h_lo, h_hi, c_lo, c_hi in _SPECIFIC_SEEDS:
         c.execute("""UPDATE species_db SET
-            temp_lo_f      = COALESCE(temp_lo_f,      ?),
-            temp_hi_f      = COALESCE(temp_hi_f,      ?),
+            fruiting_temp_lo_f      = COALESCE(fruiting_temp_lo_f,      ?),
+            fruiting_temp_hi_f      = COALESCE(fruiting_temp_hi_f,      ?),
             humidity_lo_rh = COALESCE(humidity_lo_rh, ?),
             humidity_hi_rh = COALESCE(humidity_hi_rh, ?),
             co2_lo_ppm     = COALESCE(co2_lo_ppm,     ?),
@@ -300,7 +314,7 @@ def seed_researched(conn):
             humidity_hi_rh = COALESCE(humidity_hi_rh, ?),
             co2_lo_ppm     = COALESCE(co2_lo_ppm,     ?),
             co2_hi_ppm     = COALESCE(co2_hi_ppm,     ?)
-            WHERE scientific_name LIKE ? AND temp_lo_f IS NOT NULL
+            WHERE scientific_name LIKE ? AND fruiting_temp_lo_f IS NOT NULL
               AND humidity_lo_rh IS NULL""",
             (h_lo, h_hi, c_lo, c_hi, f"{genus}%"))
         updated += c.rowcount
@@ -308,7 +322,7 @@ def seed_researched(conn):
     c.execute("""UPDATE species_db SET
         humidity_lo_rh = COALESCE(humidity_lo_rh, 85),
         humidity_hi_rh = COALESCE(humidity_hi_rh, 95)
-        WHERE temp_lo_f IS NOT NULL AND humidity_lo_rh IS NULL""")
+        WHERE fruiting_temp_lo_f IS NOT NULL AND humidity_lo_rh IS NULL""")
     updated += c.rowcount
     conn.commit()
     n = conn.execute(
@@ -338,22 +352,22 @@ def seed_co2(conn):
     upd("scientific_name = ?", ("Lignosus rhinocerus",), 400, 5000)
     # Horse Mushroom — also needs temp/humidity
     c.execute("""UPDATE species_db SET
-        temp_lo_f      = COALESCE(temp_lo_f,      50),
-        temp_hi_f      = COALESCE(temp_hi_f,      65),
+        fruiting_temp_lo_f      = COALESCE(fruiting_temp_lo_f,      50),
+        fruiting_temp_hi_f      = COALESCE(fruiting_temp_hi_f,      65),
         humidity_lo_rh = COALESCE(humidity_lo_rh, 85),
         humidity_hi_rh = COALESCE(humidity_hi_rh, 95),
         co2_lo_ppm     = COALESCE(co2_lo_ppm,     400),
         co2_hi_ppm     = COALESCE(co2_hi_ppm,     800)
         WHERE scientific_name = 'Agaricus arvensis'""")
     # Blanket 400-800 for everything else with temp but still no CO2
-    upd("temp_lo_f IS NOT NULL AND co2_lo_ppm IS NULL", (), 400, 800)
+    upd("fruiting_temp_lo_f IS NOT NULL AND co2_lo_ppm IS NULL", (), 400, 800)
 
     conn.commit()
     n = conn.execute(
         "SELECT COUNT(*) FROM species_db WHERE co2_lo_ppm IS NOT NULL"
     ).fetchone()[0]
     all3 = conn.execute(
-        "SELECT COUNT(*) FROM species_db WHERE temp_lo_f IS NOT NULL "
+        "SELECT COUNT(*) FROM species_db WHERE fruiting_temp_lo_f IS NOT NULL "
         "AND humidity_lo_rh IS NOT NULL AND co2_lo_ppm IS NOT NULL"
     ).fetchone()[0]
     total = conn.execute("SELECT COUNT(*) FROM species_db").fetchone()[0]
@@ -392,11 +406,11 @@ def main():
     seed_co2(conn)
 
     total   = conn.execute("SELECT COUNT(*) FROM species_db").fetchone()[0]
-    has_t   = conn.execute("SELECT COUNT(*) FROM species_db WHERE temp_lo_f IS NOT NULL").fetchone()[0]
+    has_t   = conn.execute("SELECT COUNT(*) FROM species_db WHERE fruiting_temp_lo_f IS NOT NULL").fetchone()[0]
     has_h   = conn.execute("SELECT COUNT(*) FROM species_db WHERE humidity_lo_rh IS NOT NULL").fetchone()[0]
     has_co2 = conn.execute("SELECT COUNT(*) FROM species_db WHERE co2_lo_ppm IS NOT NULL").fetchone()[0]
     has_all = conn.execute(
-        "SELECT COUNT(*) FROM species_db WHERE temp_lo_f IS NOT NULL "
+        "SELECT COUNT(*) FROM species_db WHERE fruiting_temp_lo_f IS NOT NULL "
         "AND humidity_lo_rh IS NOT NULL AND co2_lo_ppm IS NOT NULL"
     ).fetchone()[0]
 

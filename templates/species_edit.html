@@ -55,14 +55,24 @@
       <div class="section-label">Growing Conditions</div>
       <div class="fg-grid">
         <div class="fg">
-          <label>Temp Low (°F)</label>
-          <input type="number" name="temp_lo_f" step="0.5" placeholder="e.g. 55"
-                 value="{{ sp.temp_lo_f if editing and sp.temp_lo_f is not none else '' }}">
+          <label>Fruiting Temp Low (°F)</label>
+          <input type="number" name="fruiting_temp_lo_f" step="0.5" placeholder="e.g. 55"
+                 value="{{ sp.fruiting_temp_lo_f if editing and sp.fruiting_temp_lo_f is not none else '' }}">
         </div>
         <div class="fg">
-          <label>Temp High (°F)</label>
-          <input type="number" name="temp_hi_f" step="0.5" placeholder="e.g. 75"
-                 value="{{ sp.temp_hi_f if editing and sp.temp_hi_f is not none else '' }}">
+          <label>Fruiting Temp High (°F)</label>
+          <input type="number" name="fruiting_temp_hi_f" step="0.5" placeholder="e.g. 75"
+                 value="{{ sp.fruiting_temp_hi_f if editing and sp.fruiting_temp_hi_f is not none else '' }}">
+        </div>
+        <div class="fg">
+          <label>Colonization Temp Low (°F)</label>
+          <input type="number" name="colonization_temp_lo_f" step="0.5" placeholder="e.g. 70"
+                 value="{{ sp.colonization_temp_lo_f if editing and sp.colonization_temp_lo_f is not none else '' }}">
+        </div>
+        <div class="fg">
+          <label>Colonization Temp High (°F)</label>
+          <input type="number" name="colonization_temp_hi_f" step="0.5" placeholder="e.g. 77"
+                 value="{{ sp.colonization_temp_hi_f if editing and sp.colonization_temp_hi_f is not none else '' }}">
         </div>
         <div class="fg">
           <label>Humidity Low (%RH)</label>
