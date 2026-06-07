@@ -2998,7 +2998,8 @@ def build():
         ]),
         sp(6),
         p("The list table shows common name, scientific name, strain or variant, difficulty badge "
-          "(Beginner / Intermediate / Advanced), temperature range (°F), humidity range (%), "
+          "(Beginner / Intermediate / Advanced), fruiting temperature range (°F), "
+          "colonization temperature range (°F), humidity range (%), "
           "CO2 range (ppm), and a truncated notes preview. "
           "Click <b>View</b> on any row to open the detail page."),
         sp(10),
@@ -3009,8 +3010,8 @@ def build():
             ["Section", "What it shows", "Editable?"],
             [
                 ["Growing Conditions",
-                 "Temperature range (°F), humidity range (%RH), CO2 range (ppm), "
-                 "and substrate notes. "
+                 "Fruiting temperature range (°F), colonization temperature range (°F), "
+                 "humidity range (%RH), CO2 range (ppm), and substrate notes. "
                  "Shows an 'Add conditions' prompt when empty.",
                  "Yes — via the Edit button"],
                 ["Description",
@@ -3079,12 +3080,13 @@ def build():
         p("The script runs five passes in sequence and prints a per-step summary:"),
         sp(4),
         *bullet([
-            "<b>Step 1 — Agent config</b> — temp, humidity, and CO2 for the ~22 core species "
-            "(Blue Oyster, Shiitake, Lion's Mane, etc.) from the same timelines used by the "
-            "AI briefing agent.",
-            "<b>Step 2 — Regex extraction</b> — fruiting temp (and humidity where present) parsed "
-            "from structured description lines such as "
-            "<i>Colonization/Fruiting Temperatures: 65-75F/55-70F, Humidity: 85-95%</i>.",
+            "<b>Step 1 — Agent config</b> — fruiting temp, colonization temp, humidity, and CO2 "
+            "for the ~22 core species (Blue Oyster, Shiitake, Lion's Mane, etc.) from the same "
+            "timelines used by the AI briefing agent.",
+            "<b>Step 2 — Regex extraction</b> — both colonization and fruiting temp (and humidity "
+            "where present) parsed from structured description lines such as "
+            "<i>Colonization/Fruiting Temperatures: 70-80F/55-70F, Humidity: 85-95%</i>. "
+            "82 of 205 entries have colonization temp data.",
             "<b>Step 3 — Claude Haiku extraction</b> — remaining descriptions sent in batches "
             "of 20 to Claude; only values explicitly stated in the text are written.",
             "<b>Step 4 — Researched seeds</b> — 39 species seeded by scientific name from "
