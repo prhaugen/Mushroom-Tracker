@@ -29,7 +29,7 @@ try:
 except ImportError:
     _GEMINI_AVAILABLE = False
 
-GEMINI_MODEL = "gemini-2.0-flash"
+GEMINI_MODEL = "gemini-2.5-flash"
 
 import mushroom_tracker as _mt
 from agent_config import (
