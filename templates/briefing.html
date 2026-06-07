@@ -19,6 +19,7 @@
       <button type="submit" class="btn btn-secondary btn-sm">&#9733; Run Briefing Now</button>
     </form>
     <form method="POST" action="{{ url_for('briefing_gemini_run') }}" style="margin:0">
+      <input type="hidden" name="briefing_date" value="{{ target_date }}">
       <button type="submit" class="btn btn-ghost btn-sm">&#9671; Gemini Take</button>
     </form>
   </div>
@@ -191,6 +192,7 @@
     </div>
     {% endif %}
     <form method="POST" action="{{ url_for('briefing_gemini_run') }}" style="margin:0;margin-left:auto">
+      <input type="hidden" name="briefing_date" value="{{ target_date }}">
       <button type="submit" class="btn btn-ghost btn-sm" style="font-size:11px">&#8635; Refresh</button>
     </form>
   </div>
@@ -268,7 +270,8 @@
 {% elif briefing %}
 <div style="margin-top:24px;text-align:center">
   <form method="POST" action="{{ url_for('briefing_gemini_run') }}" style="margin:0">
-    <button type="submit" class="btn btn-ghost btn-sm">&#9671; Get Gemini Take on Today's Briefing</button>
+    <input type="hidden" name="briefing_date" value="{{ target_date }}">
+    <button type="submit" class="btn btn-ghost btn-sm">&#9671; Get Gemini Take on This Briefing</button>
   </form>
 </div>
 {% endif %}

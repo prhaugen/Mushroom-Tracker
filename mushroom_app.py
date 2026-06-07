@@ -2610,14 +2610,14 @@ def briefing_run():
 
 @app.route('/briefing/gemini/run', methods=['POST'])
 def briefing_gemini_run():
+    briefing_date = request.form.get('briefing_date') or str(date.today())
     try:
         from mushroom_agent import get_snapshot, call_gemini, GEMINI_MODEL
         _mt.DB_PATH = active_db_path()
         conn = get_db()
         snapshot = get_snapshot(conn)
         result = call_gemini(snapshot)
-        result.setdefault('briefing_date', str(date.today()))
-        briefing_date = result['briefing_date']
+        result['briefing_date'] = briefing_date
         conn.execute("DELETE FROM gemini_briefings WHERE briefing_date=?", (briefing_date,))
         conn.execute(
             "INSERT INTO gemini_briefings (briefing_date, raw_json, model, triggered_by, generated_at) "
@@ -2629,7 +2629,7 @@ def briefing_gemini_run():
         flash(f"Gemini take generated — {attn} attention item{'s' if attn != 1 else ''}.", 'success')
     except Exception as exc:
         flash(f"Gemini briefing failed: {exc}", 'error')
-    return redirect(url_for('briefing'))
+    return redirect(url_for('briefing', briefing_date=briefing_date))
 
 
 # ── Scheduler ─────────────────────────────────────────────────────────────────
