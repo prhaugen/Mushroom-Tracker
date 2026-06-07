@@ -2549,11 +2549,20 @@ def briefing(briefing_date=None):
     record = conn.execute(
         "SELECT * FROM daily_briefings WHERE briefing_date = ?", (target_date,)
     ).fetchone()
+    gemini_record = conn.execute(
+        "SELECT * FROM gemini_briefings WHERE briefing_date = ?", (target_date,)
+    ).fetchone()
     conn.close()
     briefing_data = None
     if record:
         try:
             briefing_data = json.loads(record['raw_json'])
+        except Exception:
+            pass
+    gemini_data = None
+    if gemini_record:
+        try:
+            gemini_data = json.loads(gemini_record['raw_json'])
         except Exception:
             pass
     roadmap_data = None
@@ -2581,6 +2590,7 @@ def briefing(briefing_date=None):
 
     return render_template('briefing.html',
         briefing=briefing_data, record=record,
+        gemini=gemini_data, gemini_record=gemini_record,
         history=history, target_date=target_date,
         roadmap_data=roadmap_data)
 
@@ -2595,6 +2605,30 @@ def briefing_run():
         flash(f"Briefing generated — {attn} attention item{'s' if attn != 1 else ''}.", 'success')
     except Exception as exc:
         flash(f"Briefing failed: {exc}", 'error')
+    return redirect(url_for('briefing'))
+
+
+@app.route('/briefing/gemini/run', methods=['POST'])
+def briefing_gemini_run():
+    try:
+        from mushroom_agent import get_snapshot, call_gemini, GEMINI_MODEL
+        _mt.DB_PATH = active_db_path()
+        conn = get_db()
+        snapshot = get_snapshot(conn)
+        result = call_gemini(snapshot)
+        result.setdefault('briefing_date', str(date.today()))
+        briefing_date = result['briefing_date']
+        conn.execute("DELETE FROM gemini_briefings WHERE briefing_date=?", (briefing_date,))
+        conn.execute(
+            "INSERT INTO gemini_briefings (briefing_date, raw_json, model, triggered_by, generated_at) "
+            "VALUES (?,?,?,?,?)",
+            (briefing_date, json.dumps(result), GEMINI_MODEL, 'manual',
+             datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+        conn.commit(); conn.close()
+        attn = len(result.get('attention_required', []))
+        flash(f"Gemini take generated — {attn} attention item{'s' if attn != 1 else ''}.", 'success')
+    except Exception as exc:
+        flash(f"Gemini briefing failed: {exc}", 'error')
     return redirect(url_for('briefing'))
 
 

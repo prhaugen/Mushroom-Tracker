@@ -377,6 +377,13 @@ def init_db():
             generated_at    TEXT DEFAULT CURRENT_TIMESTAMP,
             triggered_by    TEXT DEFAULT 'scheduler'
         );
+        CREATE TABLE IF NOT EXISTS gemini_briefings (
+            briefing_date TEXT PRIMARY KEY,
+            raw_json      TEXT NOT NULL,
+            model         TEXT,
+            triggered_by  TEXT DEFAULT 'manual',
+            generated_at  TEXT DEFAULT CURRENT_TIMESTAMP
+        );
         CREATE TABLE IF NOT EXISTS sales (
             id                   INTEGER PRIMARY KEY AUTOINCREMENT,
             batch_id             INTEGER REFERENCES batches(id),

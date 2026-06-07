@@ -14,9 +14,14 @@
       {% endif %}
     </div>
   </div>
-  <form method="POST" action="{{ url_for('briefing_run') }}" style="margin:0">
-    <button type="submit" class="btn btn-secondary btn-sm">&#9733; Run Briefing Now</button>
-  </form>
+  <div class="gap-row">
+    <form method="POST" action="{{ url_for('briefing_run') }}" style="margin:0">
+      <button type="submit" class="btn btn-secondary btn-sm">&#9733; Run Briefing Now</button>
+    </form>
+    <form method="POST" action="{{ url_for('briefing_gemini_run') }}" style="margin:0">
+      <button type="submit" class="btn btn-ghost btn-sm">&#9671; Gemini Take</button>
+    </form>
+  </div>
 </div>
 
 <!-- 7-day history nav -->
@@ -172,6 +177,101 @@
 {% endif %}
 
 {% endif %}{# end briefing exists #}
+
+{# ── Gemini Take ─────────────────────────────────────────────────────────── #}
+{% if gemini %}
+<div style="margin-top:32px">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+    <div style="font-size:13px;font-weight:700;color:var(--text-muted);letter-spacing:.04em;text-transform:uppercase">
+      Gemini Take
+    </div>
+    {% if gemini_record %}
+    <div style="font-size:11px;color:var(--text-muted)">
+      {{ gemini_record.model }} &nbsp;·&nbsp; {{ gemini_record.generated_at[:16] }}
+    </div>
+    {% endif %}
+    <form method="POST" action="{{ url_for('briefing_gemini_run') }}" style="margin:0;margin-left:auto">
+      <button type="submit" class="btn btn-ghost btn-sm" style="font-size:11px">&#8635; Refresh</button>
+    </form>
+  </div>
+
+  <!-- Gemini summary -->
+  <div class="card mb-16" style="border-left:3px solid var(--blue)">
+    <div class="card-head">
+      <div class="card-title">Summary</div>
+    </div>
+    <p class="body-text">{{ gemini.summary }}</p>
+    <div class="stats" style="grid-template-columns:repeat(3,1fr);margin-top:16px">
+      <div class="stat r">
+        <div class="stat-label">Critical</div>
+        <div class="stat-val">{{ gemini.attention_required | selectattr('severity','equalto','critical') | list | length }}</div>
+      </div>
+      <div class="stat a">
+        <div class="stat-label">Need Attention</div>
+        <div class="stat-val">{{ gemini.attention_required | length }}</div>
+      </div>
+      <div class="stat g">
+        <div class="stat-label">On Track</div>
+        <div class="stat-val">{{ gemini.on_track | length }}</div>
+      </div>
+    </div>
+  </div>
+
+  {% if gemini.attention_required %}
+  <div class="card mb-16" style="border-left:3px solid var(--blue)">
+    <div class="card-head"><div class="card-title">Attention Required</div></div>
+    <div class="alert-list">
+      {% for item in gemini.attention_required %}
+      {% if item.severity == 'critical' %}{% set sev_class = 'alert-critical' %}
+      {% elif item.severity == 'warning' %}{% set sev_class = 'alert-warning' %}
+      {% else %}{% set sev_class = 'alert-info' %}{% endif %}
+      <div class="alert-card {{ sev_class }}">
+        <div class="alert-card-head">
+          <div class="gap-row">
+            <span class="alert-title">{{ item.batch_label }} &mdash; {{ item.species }}</span>
+            <span class="alert-sev">{{ item.severity }}</span>
+          </div>
+          <a href="{{ url_for('batch_detail', batch_id=item.batch_id) }}" class="alert-link">View Batch &rarr;</a>
+        </div>
+        <div class="alert-issue">{{ item.issue }}</div>
+        <div class="alert-action"><span class="alert-action-label">Action:</span> {{ item.suggested_action }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if gemini.on_track %}
+  <div class="card mb-16" style="border-left:3px solid var(--blue)">
+    <div class="card-head"><div class="card-title">On Track</div></div>
+    <div class="chip-group">
+      {% for item in gemini.on_track %}
+      <a href="{{ url_for('batch_detail', batch_id=item.batch_id) }}" class="on-track-pill">
+        &#10003; {{ item.batch_label }} &mdash; {{ item.species }}
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if gemini.pattern_observations %}
+  <div class="card" style="border-left:3px solid var(--blue)">
+    <div class="card-head"><div class="card-title">Pattern Observations</div></div>
+    <ul class="obs-list">
+      {% for obs in gemini.pattern_observations %}
+      <li class="obs-item"><span class="obs-bullet">&#8227;</span>{{ obs }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+</div>
+{% elif briefing %}
+<div style="margin-top:24px;text-align:center">
+  <form method="POST" action="{{ url_for('briefing_gemini_run') }}" style="margin:0">
+    <button type="submit" class="btn btn-ghost btn-sm">&#9671; Get Gemini Take on Today's Briefing</button>
+  </form>
+</div>
+{% endif %}
 
 {% if roadmap_data %}
 {# ── Roadmap snapshot ──────────────────────────────────────────────── #}

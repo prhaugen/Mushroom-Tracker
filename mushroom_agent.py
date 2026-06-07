@@ -22,6 +22,15 @@ try:
 except ImportError:
     _ANTHROPIC_AVAILABLE = False
 
+try:
+    import google.genai as _genai
+    from google.genai import types as _genai_types
+    _GEMINI_AVAILABLE = True
+except ImportError:
+    _GEMINI_AVAILABLE = False
+
+GEMINI_MODEL = "gemini-2.0-flash"
+
 import mushroom_tracker as _mt
 from agent_config import (
     DEFAULT_TIMELINE, ENV_GUARDRAILS, FLUSH_DEGRADATION,
@@ -708,6 +717,46 @@ def call_claude(snapshot: dict) -> dict:
     # is safe. Escaped \n sequences (two chars) are unaffected.
     raw = ' '.join(raw.splitlines())
 
+    return json.loads(raw)
+
+
+# ── Gemini API ───────────────────────────────────────────────────────────────
+
+def _get_gemini_key() -> str | None:
+    key = os.environ.get('GEMINI_API_KEY')
+    if key:
+        return key
+    try:
+        import winreg
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, 'Environment') as reg:
+            value, _ = winreg.QueryValueEx(reg, 'GEMINI_API_KEY')
+            return value
+    except Exception:
+        return None
+
+
+def call_gemini(snapshot: dict) -> dict:
+    if not _GEMINI_AVAILABLE:
+        raise RuntimeError("google-genai not installed — run: pip install google-genai")
+    api_key = _get_gemini_key()
+    if not api_key:
+        raise RuntimeError("GEMINI_API_KEY environment variable not set")
+
+    client = _genai.Client(api_key=api_key)
+    response = client.models.generate_content(
+        model=GEMINI_MODEL,
+        contents=json.dumps(snapshot, default=str),
+        config=_genai_types.GenerateContentConfig(
+            system_instruction=SYSTEM_PROMPT,
+            max_output_tokens=4096,
+        ),
+    )
+
+    raw = response.text.strip()
+    if raw.startswith("```"):
+        lines = raw.split('\n')
+        raw = '\n'.join(lines[1:-1] if lines[-1].strip() == '```' else lines[1:])
+    raw = ' '.join(raw.splitlines())
     return json.loads(raw)
 
 
