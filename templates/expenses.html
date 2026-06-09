@@ -126,7 +126,14 @@
           <td class="td-m">{{ log.vendor_name or log.vendor or '—' }}</td>
           <td class="td-m">{{ log.notes or '' }}</td>
           <td style="white-space:nowrap">
-            <button onclick="editEntry({{ log.id }}, '{{ log.expense_date }}', {{ log.amount }}, '{{ log.category }}', {{ log.batch_id or 'null' }}, {{ log.vendor_id or 'null' }}, {{ log.notes|tojson if log.notes else '\"\"' }})"
+            <button onclick="editEntry(this)"
+                    data-id="{{ log.id }}"
+                    data-date="{{ log.expense_date }}"
+                    data-amount="{{ log.amount }}"
+                    data-category="{{ log.category }}"
+                    data-batch="{{ log.batch_id or '' }}"
+                    data-vendor="{{ log.vendor_id or '' }}"
+                    data-notes="{{ (log.notes or '') | e }}"
                     class="btn btn-ghost btn-sm" style="font-size:11px;padding:2px 8px">Edit</button>
             <form method="POST" action="{{ url_for('expense_delete', exp_id=log.id) }}" style="display:inline"
                   onsubmit="return confirm('Delete this expense?')">
@@ -157,15 +164,16 @@ function updateSplitHint() {
     : '';
 }
 
-function editEntry(id, date, amount, category, batchId, vendorId, notes) {
-  document.getElementById('expForm').action  = '/expenses/' + id + '/edit';
-  document.getElementById('fDate').value     = date;
-  document.getElementById('fAmount').value   = amount;
-  document.getElementById('fCategory').value = category;
-  document.getElementById('fVendor').value   = vendorId !== null ? String(vendorId) : '';
-  document.getElementById('fNotes').value    = notes;
+function editEntry(btn) {
+  const d = btn.dataset;
+  document.getElementById('expForm').action  = '/expenses/' + d.id + '/edit';
+  document.getElementById('fDate').value     = d.date;
+  document.getElementById('fAmount').value   = d.amount;
+  document.getElementById('fCategory').value = d.category;
+  document.getElementById('fVendor').value   = d.vendor || '';
+  document.getElementById('fNotes').value    = d.notes;
   const bs = document.getElementById('fBatch');
-  Array.from(bs.options).forEach(o => { o.selected = batchId !== null && o.value === String(batchId); });
+  Array.from(bs.options).forEach(o => { o.selected = d.batch && o.value === d.batch; });
   updateSplitHint();
   document.getElementById('submitBtn').textContent = 'Save';
   document.getElementById('cancelBtn').style.display = 'inline-flex';
