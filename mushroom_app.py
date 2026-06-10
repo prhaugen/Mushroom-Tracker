@@ -160,7 +160,9 @@ def dashboard():
         ORDER BY f.created_at DESC LIMIT 6
     """, (chamber['id'],)).fetchall()
 
-    total_yield  = sum(b['total_yield_g'] for b in batches)
+    total_yield  = conn.execute(
+        "SELECT COALESCE(SUM(total_yield_g),0) FROM batches WHERE chamber_id=?",
+        (chamber['id'],)).fetchone()[0]
     active_count = sum(1 for b in batches if b['status'] not in ('done','contaminated','aborted'))
     env_count    = conn.execute(
         "SELECT COUNT(*) FROM environment_logs WHERE chamber_id=?", (chamber['id'],)).fetchone()[0]
