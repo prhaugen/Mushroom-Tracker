@@ -879,6 +879,14 @@ def build():
             "<b>python seed_data.py --sandbox</b>",
             label="Sandbox mode:", color=AMBER_BG, border=AMBER_BORDER
         ),
+        sp(10),
+        callout(
+            "<b>Weight units</b> — a small <b>g</b> pill in the top-right of the navbar "
+            "(next to PROD) toggles all weight displays between grams and pounds+ounces. "
+            "Click once to switch; your preference is saved in the browser and persists "
+            "across every page.",
+            label="Tip:"
+        ),
         sp(16),
         rule(),
         sp(8),

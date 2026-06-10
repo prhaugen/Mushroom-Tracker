@@ -644,6 +644,44 @@ def build():
         ),
     ]
 
+    story += [
+        sp(10),
+        h2("3.5  Weight Units"),
+        p("All weight values in the app display in <b>grams</b> by default. "
+          "A small pill button in the top-right of the navigation bar — "
+          "immediately to the right of the PROD/SANDBOX pill — lets you "
+          "switch every weight display between grams and pounds+ounces with "
+          "a single click."),
+        sp(6),
+        data_table(
+            ["Mode", "Button label", "Example values"],
+            [
+                ["Grams (default)", "g",
+                 "210g &nbsp;·&nbsp; 1 450g &nbsp;·&nbsp; 38g"],
+                ["Imperial", "lb·oz",
+                 "7.4 oz &nbsp;·&nbsp; 3 lb 3 oz &nbsp;·&nbsp; 1.3 oz"],
+            ],
+            col_widths=[4*cm, 3.5*cm, 8.7*cm],
+        ),
+        sp(6),
+        p("The conversion rules:"),
+        sp(4),
+        *bullet([
+            "Values below one pound (453.6 g) display as ounces with one decimal — e.g. <b>7.4 oz</b>",
+            "Values at or above one pound display as whole pounds plus rounded ounces — "
+            "e.g. <b>3 lb 3 oz</b>",
+            "Whole pounds with less than half an ounce remainder display as pounds only — "
+            "e.g. <b>2 lb</b>",
+        ]),
+        sp(6),
+        callout(
+            "The unit preference is saved in your browser's local storage and persists across "
+            "all pages and browser sessions. Chart axis labels remain in grams — the toggle "
+            "affects only the numeric weight values shown in stat cards, tables, and detail grids.",
+            label="Note:", color=BLUE_BG, border=BLUE_BORDER
+        ),
+    ]
+
     story.append(PageBreak())
 
     # ══════════════════════════════════════════════════════════════════════
