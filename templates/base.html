@@ -614,7 +614,7 @@ input[name="quality_rating"]{display:none}
     </a>
     <!-- Species icon: leaf/book -->
     <a href="{{ url_for('species_list') }}"
-       class="nav-link{% if request.endpoint in ('species_list','species_detail','species_edit','species_add') %} active{% endif %}">
+       class="nav-link{% if request.endpoint in ('species_list','species_detail','species_edit','species_add','species_prices') %} active{% endif %}">
       <svg viewBox="0 0 14 14" width="13" height="13" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
         <path d="M7 1.5 Q11 2 12 7 Q10 12 7 12.5 Q4 12 2 7 Q3 2 7 1.5Z" opacity=".75"/>
         <path d="M7 1.5 L7 12.5" stroke="var(--bg)" stroke-width=".9" fill="none" opacity=".6"/>
@@ -727,7 +727,7 @@ input[name="quality_rating"]{display:none}
       Sales
     </a>
     <!-- Labor + Expenses dropdown -->
-    {% set _biz_active = request.endpoint in ('labor_list','species_prices','expenses_list','vendors_list','vendor_add','vendor_edit') %}
+    {% set _biz_active = request.endpoint in ('labor_list','expenses_list','vendors_list','vendor_add','vendor_edit') %}
     <div class="nav-dropdown">
       <div class="nav-link{% if _biz_active %} active{% endif %}" tabindex="0"
            style="cursor:default" role="button" aria-haspopup="true">
@@ -743,7 +743,7 @@ input[name="quality_rating"]{display:none}
       </div>
       <div class="nav-dropdown-menu">
         <a href="{{ url_for('labor_list') }}"
-           class="nav-dd-item{% if request.endpoint in ('labor_list','species_prices') %} active{% endif %}">
+           class="nav-dd-item{% if request.endpoint == 'labor_list' %} active{% endif %}">
           <svg viewBox="0 0 14 14" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.2" xmlns="http://www.w3.org/2000/svg">
             <circle cx="7" cy="7" r="5.5" opacity=".85"/>
             <path d="M7 4V7.5L9.5 9" stroke-linecap="round" stroke-linejoin="round"/>
