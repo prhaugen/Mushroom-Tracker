@@ -853,7 +853,8 @@ def build():
         sp(4),
         *bullet([
             "<b>Avg BE%</b> -- average biological efficiency across all batches with data",
-            "<b>Total Yield</b> -- cumulative grams harvested across all batches",
+            "<b>Total Yield</b> -- cumulative grams harvested across all batches in this chamber, "
+            "including retired and finished batches (all time, this chamber)",
             "<b>Active Batches</b> -- batches not yet marked done or contaminated",
             "<b>Days Running</b> -- days since the earliest inoculation date",
         ]),
@@ -2818,8 +2819,9 @@ def build():
           "so you can see at a glance how your time is distributed across the operation."),
         sp(10),
         h2("21.3  Species Prices (Fair Market Value)"),
-        p("The <b>Species Prices</b> page (linked from the top-right of the Labor page) "
-          "holds your estimated fair market value per pound for each species. "
+        p("The <b>Species Prices</b> page is accessed via the <b>FMV Prices</b> button "
+          "in the top-right corner of the Species list page (<b>Species</b> tab in the nav bar). "
+          "It holds your estimated fair market value per pound for each species. "
           "These prices are used to compute revenue for unsold yield in the $/hr and "
           "P&L calculations — they are not sale prices and do not affect the Sales module."),
         sp(6),
