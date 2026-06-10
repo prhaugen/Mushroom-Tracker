@@ -29,13 +29,13 @@
         {% for row in species_summary %}
         <tr>
           <td class="fw-600">{{ row.species }}</td>
-          <td style="text-align:right;color:var(--text-muted)">{{ row.harvested_g|int }}g</td>
-          <td style="text-align:right;color:var(--text-muted)">{{ row.sold_g|int }}g</td>
+          <td style="text-align:right;color:var(--text-muted)"><span data-g="{{ row.harvested_g }}">{{ row.harvested_g|int }}g</span></td>
+          <td style="text-align:right;color:var(--text-muted)"><span data-g="{{ row.sold_g }}">{{ row.sold_g|int }}g</span></td>
           <td style="text-align:right">
             {% if row.on_hand_g > 0 %}
-            <span style="font-weight:600;color:var(--green)">{{ row.on_hand_g|int }}g</span>
+            <span style="font-weight:600;color:var(--green)"><span data-g="{{ row.on_hand_g }}">{{ row.on_hand_g|int }}g</span></span>
             {% else %}
-            <span class="td-m">0g</span>
+            <span class="td-m"><span data-g="0">0g</span></span>
             {% endif %}
           </td>
         </tr>
@@ -52,13 +52,15 @@
     <div class="stat-label">Total Revenue</div>
     <div class="stat-val">${{ "%.2f"|format(total_revenue) }}</div>
   </div>
+  {% set fresh_total = sales|selectattr('fresh_weight_sold_g')|sum(attribute='fresh_weight_sold_g') %}
+  {% set dried_total = sales|selectattr('dried_weight_sold_g')|sum(attribute='dried_weight_sold_g') %}
   <div class="stat">
     <div class="stat-label">Fresh Sold</div>
-    <div class="stat-val">{{ sales|selectattr('fresh_weight_sold_g')|sum(attribute='fresh_weight_sold_g')|int }}g</div>
+    <div class="stat-val"><span data-g="{{ fresh_total }}">{{ fresh_total|int }}g</span></div>
   </div>
   <div class="stat">
     <div class="stat-label">Dried Sold</div>
-    <div class="stat-val">{{ sales|selectattr('dried_weight_sold_g')|sum(attribute='dried_weight_sold_g')|int }}g</div>
+    <div class="stat-val"><span data-g="{{ dried_total }}">{{ dried_total|int }}g</span></div>
   </div>
 </div>
 
@@ -72,8 +74,8 @@
           <th>Batch</th>
           <th>Destination</th>
           <th>Customer</th>
-          <th>Fresh (g)</th>
-          <th>Dried (g)</th>
+          <th>Fresh (<span class="wt-unit">g</span>)</th>
+          <th>Dried (<span class="wt-unit">g</span>)</th>
           <th>$/lb</th>
           <th>Revenue</th>
           <th>Notes</th>
@@ -93,8 +95,8 @@
           </td>
           <td class="td-m">{{ (s.destination or '—') | replace('_',' ') | title }}</td>
           <td class="td-m">{{ s.customer or '—' }}</td>
-          <td>{% if s.fresh_weight_sold_g %}{{ s.fresh_weight_sold_g|int }}g{% else %}—{% endif %}</td>
-          <td>{% if s.dried_weight_sold_g %}{{ s.dried_weight_sold_g|int }}g{% else %}—{% endif %}</td>
+          <td>{% if s.fresh_weight_sold_g %}<span data-g="{{ s.fresh_weight_sold_g }}">{{ s.fresh_weight_sold_g|int }}g</span>{% else %}—{% endif %}</td>
+          <td>{% if s.dried_weight_sold_g %}<span data-g="{{ s.dried_weight_sold_g }}">{{ s.dried_weight_sold_g|int }}g</span>{% else %}—{% endif %}</td>
           <td class="td-m">{% if s.price_per_lb %}${{ "%.2f"|format(s.price_per_lb) }}{% else %}—{% endif %}</td>
           <td class="text-green fw-600">{% if rev > 0 %}${{ "%.2f"|format(rev) }}{% else %}—{% endif %}</td>
           <td class="td-m">{{ s.notes or '' }}</td>

@@ -38,12 +38,12 @@
   </div>
   <div class="stat g">
     <div class="stat-label">Total Yield</div>
-    <div class="stat-val">{{ batch.total_yield_g|int }}g</div>
+    <div class="stat-val"><span data-g="{{ batch.total_yield_g }}">{{ batch.total_yield_g|int }}g</span></div>
     <div class="stat-sub">{{ batch.total_flushes }} flush{% if batch.total_flushes != 1 %}es{% endif %}</div>
   </div>
   <div class="stat">
     <div class="stat-label">Dry Substrate</div>
-    <div class="stat-val" style="font-size:18px">{% if batch.dry_weight_g %}{{ batch.dry_weight_g|int }}g{% else %}—{% endif %}</div>
+    <div class="stat-val" style="font-size:18px">{% if batch.dry_weight_g %}<span data-g="{{ batch.dry_weight_g }}">{{ batch.dry_weight_g|int }}g</span>{% else %}—{% endif %}</div>
     <div class="stat-sub">pre-hydration</div>
   </div>
   <div class="stat">
@@ -52,7 +52,7 @@
   </div>
   <div class="stat">
     <div class="stat-label">Avg / Flush</div>
-    <div class="stat-val">{% if batch.total_flushes > 0 %}{{ (batch.total_yield_g / batch.total_flushes)|int }}g{% else %}—{% endif %}</div>
+    <div class="stat-val">{% if batch.total_flushes > 0 %}<span data-g="{{ batch.total_yield_g / batch.total_flushes }}">{{ (batch.total_yield_g / batch.total_flushes)|int }}g</span>{% else %}—{% endif %}</div>
   </div>
 </div>
 
@@ -94,7 +94,7 @@
     <span>Total cycle <b>{{ cycle_days }} days</b></span>
     {% endif %}
     {% if batch.total_yield_g %}
-    <span>Cumulative yield <b>{{ batch.total_yield_g|int }}g</b></span>
+    <span>Cumulative yield <b><span data-g="{{ batch.total_yield_g }}">{{ batch.total_yield_g|int }}g</span></b></span>
     {% endif %}
     {% if batch.dry_weight_g and batch.total_yield_g %}
     <span>Final BE% <b class="text-green">{{ "%.1f"|format(batch.total_yield_g / batch.dry_weight_g * 100) }}%</b></span>
@@ -157,7 +157,7 @@
     <div class="card-title" style="margin-bottom:14px">Substrate & Spawn</div>
     <div class="detail-grid">
       {% if batch.dry_weight_g %}
-      <div><div class="detail-lbl">Dry Weight</div><div class="detail-val">{{ batch.dry_weight_g|int }}g</div></div>
+      <div><div class="detail-lbl">Dry Weight</div><div class="detail-val"><span data-g="{{ batch.dry_weight_g }}">{{ batch.dry_weight_g|int }}g</span></div></div>
       {% endif %}
       {% if batch.moisture_pct %}
       <div><div class="detail-lbl">Moisture %</div><div class="detail-val">{{ batch.moisture_pct }}%</div></div>
@@ -309,7 +309,7 @@
           <td class="td-m">{{ f.pinning_date or '—' }}</td>
           <td class="td-m">{{ f.harvest_date or f.created_at[:10] }}</td>
           <td class="td-m" style="text-align:center">{% if f.days_pin_to_harvest is not none %}{{ f.days_pin_to_harvest }}d{% else %}—{% endif %}</td>
-          <td class="text-green fw-600">{{ f.fresh_weight_g|int }}g</td>
+          <td class="text-green fw-600"><span data-g="{{ f.fresh_weight_g }}">{{ f.fresh_weight_g|int }}g</span></td>
           <td class="td-m">{% if f.quality_rating %}{{ '★' * f.quality_rating }}{{ '☆' * (5 - f.quality_rating) }}{% else %}—{% endif %}</td>
           <td class="td-m">{{ f.notes or '' }}</td>
           <td style="white-space:nowrap">
@@ -455,8 +455,8 @@ document.querySelectorAll('.cs-dur').forEach(el => {
         <tr>
           <td class="td-m">{{ s.sale_date or '' }}</td>
           <td class="td-m">{% if s.flush_number %}#{{ s.flush_number }}{% else %}—{% endif %}</td>
-          <td>{% if s.fresh_weight_sold_g %}{{ s.fresh_weight_sold_g|int }}g{% else %}—{% endif %}</td>
-          <td>{% if s.dried_weight_sold_g %}{{ s.dried_weight_sold_g|int }}g{% else %}—{% endif %}</td>
+          <td>{% if s.fresh_weight_sold_g %}<span data-g="{{ s.fresh_weight_sold_g }}">{{ s.fresh_weight_sold_g|int }}g</span>{% else %}—{% endif %}</td>
+          <td>{% if s.dried_weight_sold_g %}<span data-g="{{ s.dried_weight_sold_g }}">{{ s.dried_weight_sold_g|int }}g</span>{% else %}—{% endif %}</td>
           <td class="td-m">{{ s.destination or '—' }}</td>
           <td class="td-m">{% if s.price_per_lb %}${{ "%.2f"|format(s.price_per_lb) }}{% else %}—{% endif %}</td>
           <td class="text-green fw-600">{% if rev > 0 %}${{ "%.2f"|format(rev) }}{% else %}—{% endif %}</td>

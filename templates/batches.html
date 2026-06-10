@@ -49,7 +49,7 @@
         <div class="bnum-lbl">Flushes</div>
       </div>
       <div>
-        <div class="bnum-val">{{ b.total_yield_g|int }}g</div>
+        <div class="bnum-val"><span data-g="{{ b.total_yield_g }}">{{ b.total_yield_g|int }}g</span></div>
         <div class="bnum-lbl">Yield</div>
       </div>
       <div>
@@ -110,7 +110,7 @@
             <div class="bnum-lbl">Flushes</div>
           </div>
           <div>
-            <div class="bnum-val">{{ b.total_yield_g|int }}g</div>
+            <div class="bnum-val"><span data-g="{{ b.total_yield_g }}">{{ b.total_yield_g|int }}g</span></div>
             <div class="bnum-lbl">Yield</div>
           </div>
           <div>

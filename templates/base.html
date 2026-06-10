@@ -826,6 +826,11 @@ input[name="quality_rating"]{display:none}
     {% else %}
     <a href="{{ url_for('switch_db', mode='prod') }}" class="db-pill sandbox" title="Switch to production database">SANDBOX</a>
     {% endif %}
+    <button id="wtToggle" onclick="toggleWeightUnit()" title="Toggle weight units: grams / pounds+ounces"
+            style="font-size:10px;font-weight:700;letter-spacing:.06em;
+                   padding:3px 9px;border-radius:10px;border:1px solid rgba(116,194,122,.22);
+                   background:rgba(116,194,122,.1);color:var(--green);cursor:pointer;
+                   margin-left:4px;white-space:nowrap;font-family:var(--font)">g</button>
   </div>
 </nav>
 <main class="main">
@@ -868,6 +873,62 @@ input[name="quality_rating"]{display:none}
     </svg>
   </button>
 </div>
+
+<script>
+// ── Weight unit toggle ────────────────────────────────────────────────────
+(function () {
+  var WT_KEY = 'wtUnit';
+
+  function fmtWeight(g, unit) {
+    if (!unit || unit === 'g') return Math.round(g) + 'g';
+    var oz   = g / 28.3495;
+    var lbs  = Math.floor(oz / 16);
+    var remOz = oz % 16;
+    if (lbs === 0) return remOz.toFixed(1) + ' oz';
+    if (remOz < 0.5) return lbs + ' lb';
+    return lbs + ' lb ' + Math.round(remOz) + ' oz';
+  }
+
+  function applyUnit(unit) {
+    document.querySelectorAll('[data-g]').forEach(function (el) {
+      el.textContent = fmtWeight(parseFloat(el.dataset.g), unit);
+    });
+    var label = unit === 'imp' ? 'lb·oz' : 'g';
+    document.querySelectorAll('.wt-unit').forEach(function (el) {
+      el.textContent = label;
+    });
+    var btn = document.getElementById('wtToggle');
+    if (btn) {
+      btn.textContent = label;
+      if (unit === 'imp') {
+        btn.style.background   = 'rgba(106,173,204,.1)';
+        btn.style.color        = 'var(--blue)';
+        btn.style.borderColor  = 'rgba(106,173,204,.22)';
+      } else {
+        btn.style.background   = 'rgba(116,194,122,.1)';
+        btn.style.color        = 'var(--green)';
+        btn.style.borderColor  = 'rgba(116,194,122,.22)';
+      }
+    }
+  }
+
+  window.toggleWeightUnit = function () {
+    var next = (localStorage.getItem(WT_KEY) || 'g') === 'g' ? 'imp' : 'g';
+    localStorage.setItem(WT_KEY, next);
+    applyUnit(next);
+  };
+
+  function init() {
+    applyUnit(localStorage.getItem(WT_KEY) || 'g');
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
 
 <script>
 (function () {

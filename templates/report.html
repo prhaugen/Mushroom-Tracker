@@ -10,7 +10,7 @@
 <div class="stats mb-20">
   <div class="stat g">
     <div class="stat-label">Total Yield</div>
-    <div class="stat-val">{{ total_yield|int }}g</div>
+    <div class="stat-val"><span data-g="{{ total_yield }}">{{ total_yield|int }}g</span></div>
     <div class="stat-sub">all batches</div>
   </div>
   <div class="stat">
@@ -56,8 +56,8 @@
             {% if b.bran_pct %}{% set _ = parts.append("Bran " ~ b.bran_pct|int ~ "%") %}{% endif %}
             {{ parts|join(" / ") or '—' }}
           </td>
-          <td class="td-m">{% if b.dry_weight_g %}{{ b.dry_weight_g|int }}g{% else %}—{% endif %}</td>
-          <td class="text-green fw-600">{{ b.total_yield_g|int }}g</td>
+          <td class="td-m">{% if b.dry_weight_g %}<span data-g="{{ b.dry_weight_g }}">{{ b.dry_weight_g|int }}g</span>{% else %}—{% endif %}</td>
+          <td class="text-green fw-600"><span data-g="{{ b.total_yield_g }}">{{ b.total_yield_g|int }}g</span></td>
           <td>
             {% if be %}
             {% set bc = 'be-excellent' if be >= 100 else ('be-good' if be >= 60 else ('be-avg' if be >= 30 else 'be-low')) %}
@@ -143,8 +143,8 @@
     <div style="display:flex;flex-direction:column;gap:12px">
       <div style="display:flex;gap:24px">
         <div><div style="font-size:24px;font-weight:700;color:var(--green)">${{ "%.2f"|format(total_revenue) }}</div><div style="font-size:10px;text-transform:uppercase;color:var(--text-muted)">Total Revenue</div></div>
-        <div><div style="font-size:24px;font-weight:700">{{ total_sold_fresh|int }}g</div><div style="font-size:10px;text-transform:uppercase;color:var(--text-muted)">Fresh Sold</div></div>
-        <div><div style="font-size:24px;font-weight:700">{{ total_sold_dried|int }}g</div><div style="font-size:10px;text-transform:uppercase;color:var(--text-muted)">Dried Sold</div></div>
+        <div><div style="font-size:24px;font-weight:700"><span data-g="{{ total_sold_fresh }}">{{ total_sold_fresh|int }}g</span></div><div style="font-size:10px;text-transform:uppercase;color:var(--text-muted)">Fresh Sold</div></div>
+        <div><div style="font-size:24px;font-weight:700"><span data-g="{{ total_sold_dried }}">{{ total_sold_dried|int }}g</span></div><div style="font-size:10px;text-transform:uppercase;color:var(--text-muted)">Dried Sold</div></div>
       </div>
       <div class="divider" style="margin:4px 0"></div>
       {% set dest_counts = {} %}

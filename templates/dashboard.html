@@ -26,7 +26,7 @@
 <div class="stats">
   <div class="stat g">
     <div class="stat-label">Total Yield</div>
-    <div class="stat-val">{{ total_yield|int }}g</div>
+    <div class="stat-val"><span data-g="{{ total_yield }}">{{ total_yield|int }}g</span></div>
     <div class="stat-sub">across all batches</div>
   </div>
   <div class="stat {% if avg_be and avg_be >= 60 %}g{% elif avg_be %}a{% endif %}">
@@ -135,7 +135,7 @@
           <div class="bnum-lbl">Flushes</div>
         </div>
         <div>
-          <div class="bnum-val">{{ b.total_yield_g|int }}g</div>
+          <div class="bnum-val"><span data-g="{{ b.total_yield_g }}">{{ b.total_yield_g|int }}g</span></div>
           <div class="bnum-lbl">Yield</div>
         </div>
         <div>
@@ -223,7 +223,7 @@
           <td class="fw-600"><a href="{{ url_for('batch_detail', batch_id=f.batch_id) }}" class="link-blue">{{ f.label }}</a></td>
           <td>{{ f.species }}</td>
           <td class="td-m">#{{ f.flush_number }}</td>
-          <td class="text-green fw-600">{{ f.fresh_weight_g|int }}g</td>
+          <td class="text-green fw-600"><span data-g="{{ f.fresh_weight_g }}">{{ f.fresh_weight_g|int }}g</span></td>
           <td class="td-m">{% if f.quality_rating %}{{ '★' * f.quality_rating }}{% else %}—{% endif %}</td>
         </tr>
         {% endfor %}
