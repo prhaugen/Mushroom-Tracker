@@ -2061,7 +2061,7 @@ def species_delete(sp_id):
 
 # ── Vendors ───────────────────────────────────────────────────────────────────
 
-VENDOR_CATEGORIES = ['spawn', 'substrate', 'blocks', 'equipment', 'consumables', 'packaging', 'other']
+VENDOR_CATEGORIES = ['spawn', 'substrate', 'liquid culture', 'blocks', 'equipment', 'consumables', 'packaging', 'other']
 
 def _get_vendors(conn):
     return conn.execute("SELECT * FROM vendors ORDER BY name COLLATE NOCASE").fetchall()
