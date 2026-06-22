@@ -636,7 +636,7 @@ input[name="quality_rating"]{display:none}
     {% set _supply_active = request.endpoint in (
         'substrate_batches_list','substrate_batch_add','substrate_batch_edit',
         'lc_lots_list','lc_lot_add','lc_lot_edit',
-        'lc_batches_list','lc_batch_add','lc_batch_edit',
+        'lc_jars_list','lc_jar_add','lc_jar_edit',
         'grain_jars_list','grain_jar_add','grain_jar_edit',
         'agar_plates_list','agar_plate_add','agar_plate_edit',
         'checklists_list','checklist_view') %}
@@ -675,8 +675,8 @@ input[name="quality_rating"]{display:none}
           </svg>
           LC Lots
         </a>
-        <a href="{{ url_for('lc_batches_list') }}"
-           class="nav-dd-item{% if request.endpoint in ('lc_batches_list','lc_batch_add','lc_batch_edit') %} active{% endif %}">
+        <a href="{{ url_for('lc_jars_list') }}"
+           class="nav-dd-item{% if request.endpoint in ('lc_jars_list','lc_jar_add','lc_jar_edit') %} active{% endif %}">
           <svg viewBox="0 0 14 14" width="13" height="13" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
             <rect x="6" y="1" width="2" height="1.5" rx=".5" opacity=".55"/>
             <rect x="4.5" y="2.5" width="5" height="7.5" rx="2"/>
@@ -685,7 +685,7 @@ input[name="quality_rating"]{display:none}
             <path d="M5.5 6h3" stroke="var(--bg)" stroke-width=".9" opacity=".35" fill="none"/>
             <circle cx="11" cy="3.5" r="1.5" fill="var(--green)" opacity=".85"/>
           </svg>
-          LC Batches
+          LC Jars
         </a>
         <a href="{{ url_for('grain_jars_list') }}"
            class="nav-dd-item{% if request.endpoint in ('grain_jars_list','grain_jar_add','grain_jar_edit') %} active{% endif %}">

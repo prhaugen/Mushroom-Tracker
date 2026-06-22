@@ -1154,33 +1154,33 @@ def agar_plate_delete(plate_id):
     return redirect(url_for('agar_plates_list'))
 
 
-# ── LC Batches (own-culture) ──────────────────────────────────────────────────
+# ── LC Jars (own-culture) ─────────────────────────────────────────────────────
 
-@app.route('/lc-batches')
-def lc_batches_list():
+@app.route('/lc-jars')
+def lc_jars_list():
     init_db()
     conn = get_db()
-    batches_lc = conn.execute("""
+    lc_jars = conn.execute("""
         SELECT lb.*,
                ap.tissue_collection_date AS agar_tissue_date,
                ll.vendor AS lot_vendor, ll.species AS lot_species, ll.lot_number
-        FROM lc_batches lb
+        FROM lc_jars lb
         LEFT JOIN agar_plates ap ON lb.source_type = 'agar_plate' AND lb.source_id = ap.id
         LEFT JOIN lc_lots ll ON lb.source_type = 'purchased_syringe' AND lb.source_id = ll.id
         ORDER BY lb.prepared_date DESC, lb.id DESC
     """).fetchall()
     conn.close()
-    return render_template('lc_batches.html', batches_lc=batches_lc)
+    return render_template('lc_jars.html', lc_jars=lc_jars)
 
 
-@app.route('/lc-batches/add', methods=['GET', 'POST'])
-def lc_batch_add():
+@app.route('/lc-jars/add', methods=['GET', 'POST'])
+def lc_jar_add():
     init_db()
     conn = get_db()
     if request.method == 'POST':
         f = request.form
         conn.execute("""
-            INSERT INTO lc_batches
+            INSERT INTO lc_jars
             (source_type, source_id, species, media_type,
              prepared_date, colonization_date, outcome, notes)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
@@ -1193,8 +1193,8 @@ def lc_batch_add():
              f.get('outcome') or None,
              f.get('notes') or None))
         conn.commit(); conn.close()
-        flash('LC batch logged.', 'success')
-        return redirect(url_for('lc_batches_list'))
+        flash('LC jar logged.', 'success')
+        return redirect(url_for('lc_jars_list'))
     agar_plates_src = conn.execute(
         "SELECT p.id, p.tissue_collection_date, b.label, b.species "
         "FROM agar_plates p LEFT JOIN batches b ON p.source_batch_id = b.id "
@@ -1204,22 +1204,22 @@ def lc_batch_add():
         "SELECT id, vendor, species, lot_number FROM lc_lots ORDER BY order_date DESC"
     ).fetchall()
     conn.close()
-    return render_template('lc_batch_form.html', batch_lc=None,
+    return render_template('lc_jar_form.html', lc_jar=None,
                            agar_plates_src=agar_plates_src, lc_lots_src=lc_lots_src,
                            today=str(date.today()))
 
 
-@app.route('/lc-batches/<int:batch_id>/edit', methods=['GET', 'POST'])
-def lc_batch_edit(batch_id):
+@app.route('/lc-jars/<int:jar_id>/edit', methods=['GET', 'POST'])
+def lc_jar_edit(jar_id):
     conn = get_db()
-    batch_lc = conn.execute("SELECT * FROM lc_batches WHERE id=?", (batch_id,)).fetchone()
-    if not batch_lc:
-        conn.close(); flash('LC batch not found.', 'error')
-        return redirect(url_for('lc_batches_list'))
+    lc_jar = conn.execute("SELECT * FROM lc_jars WHERE id=?", (jar_id,)).fetchone()
+    if not lc_jar:
+        conn.close(); flash('LC jar not found.', 'error')
+        return redirect(url_for('lc_jars_list'))
     if request.method == 'POST':
         f = request.form
         conn.execute("""
-            UPDATE lc_batches SET
+            UPDATE lc_jars SET
             source_type=?, source_id=?, species=?, media_type=?,
             prepared_date=?, colonization_date=?, outcome=?, notes=?
             WHERE id=?""",
@@ -1231,10 +1231,10 @@ def lc_batch_edit(batch_id):
              f.get('colonization_date') or None,
              f.get('outcome') or None,
              f.get('notes') or None,
-             batch_id))
+             jar_id))
         conn.commit(); conn.close()
-        flash('LC batch updated.', 'success')
-        return redirect(url_for('lc_batches_list'))
+        flash('LC jar updated.', 'success')
+        return redirect(url_for('lc_jars_list'))
     agar_plates_src = conn.execute(
         "SELECT p.id, p.tissue_collection_date, b.label, b.species "
         "FROM agar_plates p LEFT JOIN batches b ON p.source_batch_id = b.id "
@@ -1244,18 +1244,18 @@ def lc_batch_edit(batch_id):
         "SELECT id, vendor, species, lot_number FROM lc_lots ORDER BY order_date DESC"
     ).fetchall()
     conn.close()
-    return render_template('lc_batch_form.html', batch_lc=batch_lc,
+    return render_template('lc_jar_form.html', lc_jar=lc_jar,
                            agar_plates_src=agar_plates_src, lc_lots_src=lc_lots_src,
                            today=str(date.today()))
 
 
-@app.route('/lc-batches/<int:batch_id>/delete', methods=['POST'])
-def lc_batch_delete(batch_id):
+@app.route('/lc-jars/<int:jar_id>/delete', methods=['POST'])
+def lc_jar_delete(jar_id):
     conn = get_db()
-    conn.execute("DELETE FROM lc_batches WHERE id=?", (batch_id,))
+    conn.execute("DELETE FROM lc_jars WHERE id=?", (jar_id,))
     conn.commit(); conn.close()
-    flash('LC batch deleted.', 'success')
-    return redirect(url_for('lc_batches_list'))
+    flash('LC jar deleted.', 'success')
+    return redirect(url_for('lc_jars_list'))
 
 
 # ── LC Lots ───────────────────────────────────────────────────────────────────

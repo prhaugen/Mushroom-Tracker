@@ -447,7 +447,7 @@ def init_db():
             notes                      TEXT,
             created_at                 TEXT DEFAULT CURRENT_TIMESTAMP
         );
-        CREATE TABLE IF NOT EXISTS lc_batches (
+        CREATE TABLE IF NOT EXISTS lc_jars (
             id                INTEGER PRIMARY KEY AUTOINCREMENT,
             source_type       TEXT NOT NULL,
             source_id         INTEGER,
@@ -510,10 +510,18 @@ def init_db():
     if "chamber_type" not in existing_c:
         c.execute("ALTER TABLE chambers ADD COLUMN chamber_type TEXT")
 
-    # Non-destructive column addition for grain_jars: lc_batch_id alongside lc_lot_id
+    # Rename lc_batches table to lc_jars if old name still exists and lc_jars does not
+    _tables_now = {r[0] for r in c.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    if 'lc_batches' in _tables_now and 'lc_jars' not in _tables_now:
+        c.execute("ALTER TABLE lc_batches RENAME TO lc_jars")
+
+    # Non-destructive column addition for grain_jars: lc_jar_id alongside lc_lot_id
     _gj_cols = {r[1] for r in c.execute("PRAGMA table_info(grain_jars)")}
-    if 'lc_batch_id' not in _gj_cols:
-        c.execute("ALTER TABLE grain_jars ADD COLUMN lc_batch_id INTEGER REFERENCES lc_batches(id)")
+    if 'lc_jar_id' not in _gj_cols and 'lc_batch_id' not in _gj_cols:
+        c.execute("ALTER TABLE grain_jars ADD COLUMN lc_jar_id INTEGER REFERENCES lc_jars(id)")
+    _gj_cols2 = {r[1] for r in c.execute("PRAGMA table_info(grain_jars)")}
+    if 'lc_batch_id' in _gj_cols2 and 'lc_jar_id' not in _gj_cols2:
+        c.execute("ALTER TABLE grain_jars RENAME COLUMN lc_batch_id TO lc_jar_id")
 
     # Non-destructive column additions for batches
     existing_b = {r[1] for r in c.execute("PRAGMA table_info(batches)")}

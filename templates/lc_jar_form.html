@@ -1,16 +1,16 @@
 {% extends "base.html" %}
-{% block title %}{{ 'Edit' if batch_lc else 'Log' }} LC Batch — Mushroom Tracker{% endblock %}
+{% block title %}{{ 'Edit' if lc_jar else 'Log' }} LC Jar — Mushroom Tracker{% endblock %}
 {% block content %}
 <div class="page-head-row">
   <div class="page-head">
     <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">
-      <a href="{{ url_for('lc_batches_list') }}" style="color:var(--text-muted);text-decoration:none">LC Batches</a>
-      / {{ 'Edit Batch' if batch_lc else 'Log Batch' }}
+      <a href="{{ url_for('lc_jars_list') }}" style="color:var(--text-muted);text-decoration:none">LC Jars</a>
+      / {{ 'Edit Jar' if lc_jar else 'Log Jar' }}
     </div>
-    <div class="page-title">{{ 'Edit LC Batch' if batch_lc else 'Log LC Batch' }}</div>
-    <div class="page-sub">Liquid culture batch — from agar plate or purchased syringe</div>
+    <div class="page-title">{{ 'Edit LC Jar' if lc_jar else 'Log LC Jar' }}</div>
+    <div class="page-sub">Liquid culture jar — from agar plate or purchased syringe</div>
   </div>
-  <a href="{{ url_for('lc_batches_list') }}" class="btn btn-ghost btn-sm">Back</a>
+  <a href="{{ url_for('lc_jars_list') }}" class="btn btn-ghost btn-sm">Back</a>
 </div>
 
 <div class="card form-wrap">
@@ -24,13 +24,13 @@
           <div style="display:flex;gap:10px;margin-top:4px">
             <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;text-transform:none;letter-spacing:0;font-weight:400">
               <input type="radio" name="source_type" value="purchased_syringe"
-                     {{ 'checked' if not batch_lc or batch_lc.source_type == 'purchased_syringe' }}
+                     {{ 'checked' if not lc_jar or lc_jar.source_type == 'purchased_syringe' }}
                      onchange="toggleSourceFields()">
               Purchased syringe (LC lot)
             </label>
             <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;text-transform:none;letter-spacing:0;font-weight:400">
               <input type="radio" name="source_type" value="agar_plate"
-                     {{ 'checked' if batch_lc and batch_lc.source_type == 'agar_plate' }}
+                     {{ 'checked' if lc_jar and lc_jar.source_type == 'agar_plate' }}
                      onchange="toggleSourceFields()">
               Own-culture (agar plate)
             </label>
@@ -38,26 +38,26 @@
           <span class="form-hint">Own-culture marks the transition to self-sustaining production</span>
         </div>
 
-        <div class="fg full" id="field-syringe" style="{{ 'display:none' if batch_lc and batch_lc.source_type == 'agar_plate' else '' }}">
+        <div class="fg full" id="field-syringe" style="{{ 'display:none' if lc_jar and lc_jar.source_type == 'agar_plate' else '' }}">
           <label>LC Lot (purchased syringe)</label>
           <select name="source_id" id="syringe-select">
             <option value="">— none / unknown —</option>
             {% for lot in lc_lots_src %}
             <option value="{{ lot.id }}"
-              {{ 'selected' if batch_lc and batch_lc.source_type == 'purchased_syringe' and batch_lc.source_id == lot.id }}>
+              {{ 'selected' if lc_jar and lc_jar.source_type == 'purchased_syringe' and lc_jar.source_id == lot.id }}>
               {{ lot.vendor }} — {{ lot.species }}{% if lot.lot_number %} · {{ lot.lot_number }}{% endif %}
             </option>
             {% endfor %}
           </select>
         </div>
 
-        <div class="fg full" id="field-agar" style="{{ '' if batch_lc and batch_lc.source_type == 'agar_plate' else 'display:none' }}">
+        <div class="fg full" id="field-agar" style="{{ '' if lc_jar and lc_jar.source_type == 'agar_plate' else 'display:none' }}">
           <label>Agar Plate (source)</label>
           <select name="source_id" id="agar-select">
             <option value="">— none / unknown —</option>
             {% for p in agar_plates_src %}
             <option value="{{ p.id }}"
-              {{ 'selected' if batch_lc and batch_lc.source_type == 'agar_plate' and batch_lc.source_id == p.id }}>
+              {{ 'selected' if lc_jar and lc_jar.source_type == 'agar_plate' and lc_jar.source_id == p.id }}>
               {{ p.tissue_collection_date or '?' }} — {{ p.label or '?' }} ({{ p.species or '?' }})
             </option>
             {% endfor %}
@@ -67,21 +67,21 @@
     </div>
 
     <div class="form-section">
-      <div class="section-label">Batch Details</div>
+      <div class="section-label">Jar Details</div>
       <div class="fg-grid">
         <div class="fg">
           <label>Species</label>
           <select name="species">
             <option value="">— select —</option>
             {% for sp in SPECIES %}
-            <option value="{{ sp }}" {{ 'selected' if batch_lc and batch_lc.species == sp }}>{{ sp }}</option>
+            <option value="{{ sp }}" {{ 'selected' if lc_jar and lc_jar.species == sp }}>{{ sp }}</option>
             {% endfor %}
           </select>
         </div>
         <div class="fg">
           <label>Media Type</label>
           <input type="text" name="media_type" list="media-list" placeholder="e.g. PDB, MEB"
-                 value="{{ batch_lc.media_type if batch_lc else '' }}">
+                 value="{{ lc_jar.media_type if lc_jar else '' }}">
           <datalist id="media-list">
             <option value="Potato Dextrose Broth (PDB)">
             <option value="Malt Extract Broth (MEB)">
@@ -92,22 +92,22 @@
         <div class="fg">
           <label>Prepared Date</label>
           <input type="date" name="prepared_date"
-                 value="{{ batch_lc.prepared_date if batch_lc and batch_lc.prepared_date else today }}">
+                 value="{{ lc_jar.prepared_date if lc_jar and lc_jar.prepared_date else today }}">
         </div>
         <div class="fg">
           <label>Colonization Date</label>
           <input type="date" name="colonization_date"
-                 value="{{ batch_lc.colonization_date if batch_lc and batch_lc.colonization_date else '' }}">
+                 value="{{ lc_jar.colonization_date if lc_jar and lc_jar.colonization_date else '' }}">
           <span class="form-hint">When mycelium became fully colonized</span>
         </div>
         <div class="fg">
           <label>Outcome</label>
           <select name="outcome">
             <option value="">— pending —</option>
-            <option value="clean" {{ 'selected' if batch_lc and batch_lc.outcome == 'clean' }}>Clean</option>
-            <option value="contaminated" {{ 'selected' if batch_lc and batch_lc.outcome == 'contaminated' }}>Contaminated</option>
-            <option value="slow" {{ 'selected' if batch_lc and batch_lc.outcome == 'slow' }}>Slow growth</option>
-            <option value="no_growth" {{ 'selected' if batch_lc and batch_lc.outcome == 'no_growth' }}>No growth</option>
+            <option value="clean" {{ 'selected' if lc_jar and lc_jar.outcome == 'clean' }}>Clean</option>
+            <option value="contaminated" {{ 'selected' if lc_jar and lc_jar.outcome == 'contaminated' }}>Contaminated</option>
+            <option value="slow" {{ 'selected' if lc_jar and lc_jar.outcome == 'slow' }}>Slow growth</option>
+            <option value="no_growth" {{ 'selected' if lc_jar and lc_jar.outcome == 'no_growth' }}>No growth</option>
           </select>
         </div>
       </div>
@@ -117,13 +117,13 @@
       <div class="section-label">Notes</div>
       <div class="fg">
         <textarea name="notes" rows="3"
-                  placeholder="Growth observations, which grain jars were inoculated from this batch, any issues...">{{ batch_lc.notes if batch_lc and batch_lc.notes else '' }}</textarea>
+                  placeholder="Growth observations, which grain jars were inoculated from this jar, any issues...">{{ lc_jar.notes if lc_jar and lc_jar.notes else '' }}</textarea>
       </div>
     </div>
 
     <div class="form-actions">
-      <button type="submit" class="btn btn-primary">{{ 'Save Changes' if batch_lc else 'Log Batch' }}</button>
-      <a href="{{ url_for('lc_batches_list') }}" class="btn btn-ghost">Cancel</a>
+      <button type="submit" class="btn btn-primary">{{ 'Save Changes' if lc_jar else 'Log Jar' }}</button>
+      <a href="{{ url_for('lc_jars_list') }}" class="btn btn-ghost">Cancel</a>
     </div>
   </form>
 </div>

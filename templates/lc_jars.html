@@ -1,23 +1,23 @@
 {% extends "base.html" %}
-{% block title %}LC Batches — Mushroom Tracker{% endblock %}
+{% block title %}LC Jars — Mushroom Tracker{% endblock %}
 {% block content %}
 <div class="page-head-row">
   <div class="page-head">
-    <div class="page-title">LC Batches</div>
-    <div class="page-sub">{{ batches_lc|length }} batch{% if batches_lc|length != 1 %}es{% endif %} — own-culture liquid culture batches from agar plates or purchased syringes</div>
+    <div class="page-title">LC Jars</div>
+    <div class="page-sub">{{ lc_jars|length }} jar{% if lc_jars|length != 1 %}s{% endif %} — own-culture liquid culture jars from agar plates or purchased syringes</div>
   </div>
-  <a href="{{ url_for('lc_batch_add') }}" class="btn btn-primary">+ Log Batch</a>
+  <a href="{{ url_for('lc_jar_add') }}" class="btn btn-primary">+ Log Jar</a>
 </div>
 
-{% if batches_lc %}
-{% set own_culture = batches_lc | selectattr('source_type','equalto','agar_plate') | list %}
-{% set purchased   = batches_lc | selectattr('source_type','equalto','purchased_syringe') | list %}
-{% set clean_cnt   = batches_lc | selectattr('outcome','equalto','clean') | list | length %}
+{% if lc_jars %}
+{% set own_culture = lc_jars | selectattr('source_type','equalto','agar_plate') | list %}
+{% set purchased   = lc_jars | selectattr('source_type','equalto','purchased_syringe') | list %}
+{% set clean_cnt   = lc_jars | selectattr('outcome','equalto','clean') | list | length %}
 
 <div class="stats mb-20" style="grid-template-columns:repeat(4,1fr)">
   <div class="stat">
-    <div class="stat-label">Total Batches</div>
-    <div class="stat-val">{{ batches_lc|length }}</div>
+    <div class="stat-label">Total Jars</div>
+    <div class="stat-val">{{ lc_jars|length }}</div>
   </div>
   <div class="stat b">
     <div class="stat-label">Own-Culture</div>
@@ -51,7 +51,7 @@
         </tr>
       </thead>
       <tbody>
-        {% for lb in batches_lc %}
+        {% for lb in lc_jars %}
         {% set outcome_color = 'var(--green)' if lb.outcome == 'clean' else ('var(--red)' if lb.outcome == 'contaminated' else ('var(--amber)' if lb.outcome in ('slow','no_growth') else 'var(--text-muted)')) %}
         <tr>
           <td>
@@ -80,9 +80,9 @@
           </td>
           <td class="td-m" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ lb.notes or '' }}</td>
           <td style="white-space:nowrap">
-            <a href="{{ url_for('lc_batch_edit', batch_id=lb.id) }}" class="btn btn-ghost btn-sm">Edit</a>
-            <form method="POST" action="{{ url_for('lc_batch_delete', batch_id=lb.id) }}" style="display:inline"
-                  onsubmit="return confirm('Delete this LC batch?')">
+            <a href="{{ url_for('lc_jar_edit', jar_id=lb.id) }}" class="btn btn-ghost btn-sm">Edit</a>
+            <form method="POST" action="{{ url_for('lc_jar_delete', jar_id=lb.id) }}" style="display:inline"
+                  onsubmit="return confirm('Delete this LC jar?')">
               <button type="submit" class="btn btn-danger btn-sm">Del</button>
             </form>
           </td>
@@ -95,10 +95,10 @@
 {% else %}
 <div class="card">
   <div class="empty">
-    <div class="empty-title">No LC batches logged yet</div>
-    <div class="empty-sub">Log each liquid culture batch here — whether from a purchased syringe or your own agar-derived culture.
-    The first <b>agar_plate</b>-sourced batch marks your transition to own-culture production.</div>
-    <a href="{{ url_for('lc_batch_add') }}" class="btn btn-primary">Log First Batch</a>
+    <div class="empty-title">No LC jars logged yet</div>
+    <div class="empty-sub">Log each liquid culture jar here — whether from a purchased syringe or your own agar-derived culture.
+    The first <b>agar_plate</b>-sourced jar marks your transition to own-culture production.</div>
+    <a href="{{ url_for('lc_jar_add') }}" class="btn btn-primary">Log First Jar</a>
   </div>
 </div>
 {% endif %}

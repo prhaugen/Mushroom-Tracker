@@ -425,7 +425,7 @@ def build():
         ("16",   "Culture Tracking",                           "19"),
         ("16.1", "LC Syringe Lots",                            "19"),
         ("16.2", "Agar Plate Records",                         "20"),
-        ("16.3", "LC Batches (Own-Culture)",                   "20"),
+        ("16.3", "LC Jars (Own-Culture)",                      "20"),
         ("17",   "Substrate Batches",                          "20"),
         ("17.1", "Logging a Substrate Run",                    "20"),
         ("17.2", "Linking Blocks to a Substrate Batch",        "21"),
@@ -2495,8 +2495,8 @@ def build():
                 ["Agar Plates", "Supply → Agar",
                  "Tissue culture plates cloned from a fruiting block. "
                  "Links back to the source batch and flush number."],
-                ["LC Batches",  "Supply → LC Batches",
-                 "Each liquid culture preparation batch — whether expanded from "
+                ["LC Jars",     "Supply → LC Jars",
+                 "Each liquid culture preparation jar — whether expanded from "
                  "an agar plate (own-culture) or drawn from a purchased syringe. "
                  "Links forward to the grain jars inoculated from it."],
             ],
@@ -2504,10 +2504,10 @@ def build():
         ),
         sp(6),
         p("The full traceability chain runs: "
-          "<b>LC Lot</b> (purchase) <b>→ LC Batch</b> (prep) <b>→ Grain Jars</b> <b>→ "
+          "<b>LC Lot</b> (purchase) <b>→ LC Jar</b> (prep) <b>→ Grain Jars</b> <b>→ "
           "Substrate Batch</b> <b>→ Fruiting Block</b> <b>→ Flushes</b>. "
           "For own-culture production the path extends further upstream: "
-          "<b>Fruiting Block</b> (source) <b>→ Agar Plate</b> (tissue) <b>→ LC Batch</b> <b>→ "
+          "<b>Fruiting Block</b> (source) <b>→ Agar Plate</b> (tissue) <b>→ LC Jar</b> <b>→ "
           "Grain Jars</b> — forming a closed loop from your best-performing blocks."),
         sp(8),
         h2("16.1  LC Syringe Lots"),
@@ -2606,9 +2606,9 @@ def build():
             label="Analytics:"
         ),
         sp(14),
-        h2("16.3  LC Batches (Own-Culture)"),
-        p("Navigate to <b>Supply → LC Batches</b> to view and log liquid culture batch records. "
-          "An LC batch is one preparation of liquid culture medium inoculated from either "
+        h2("16.3  LC Jars (Own-Culture)"),
+        p("Navigate to <b>Supply → LC Jars</b> to view and log liquid culture jar records. "
+          "An LC jar is one preparation of liquid culture medium inoculated from either "
           "an agar plate (own-culture) or a purchased syringe (purchased). "
           "It is the intermediate step between the culture source and the grain jars."),
         sp(6),
@@ -2617,8 +2617,8 @@ def build():
         sp(4),
         *bullet([
             "<b>Purchased syringe (LC lot)</b> — select from your logged LC lots. "
-            "Use this for batches prepared from a vendor syringe. "
-            "The LC lot provides vendor-level traceability; the LC batch records "
+            "Use this for jars prepared from a vendor syringe. "
+            "The LC lot provides vendor-level traceability; the LC jar records "
             "the specific preparation and outcome.",
             "<b>Own-culture (agar plate)</b> — select from your logged agar plates. "
             "Only the fields for the selected source type are submitted — "
@@ -2651,21 +2651,21 @@ def build():
             col_widths=[3.8*cm, 2*cm, 10.4*cm],
         ),
         sp(8),
-        h3("Linking LC Batches to Grain Jars"),
+        h3("Linking LC Jars to Grain Jars"),
         p("When logging a grain jar (Supply → Grain Jars), the form includes an "
-          "<b>LC Batch</b> selector alongside the existing LC Lot selector. "
+          "<b>LC Jar</b> selector alongside the existing LC Lot selector. "
           "Set one or the other — not both. "
           "If you inoculated from a purchased syringe directly, use LC Lot. "
-          "If you inoculated from a prepared LC batch (own or purchased via LC Batch), "
-          "use LC Batch. "
+          "If you inoculated from a prepared LC jar (own or purchased via LC Jar), "
+          "use LC Jar. "
           "This FK is the forward link that enables end-to-end traceability."),
         sp(6),
         callout(
-            "The first LC Batch record with <b>source_type = agar_plate</b> marks the "
+            "The first LC Jar record with <b>source_type = agar_plate</b> marks the "
             "transition from purchased to own-culture production. "
             "Once you have both types, the yield comparison is a direct segmentation: "
             "BE% for grain jars linked via lc_lot_id (purchased) vs. "
-            "grain jars linked via lc_batch_id with source_type = agar_plate (own-culture).",
+            "grain jars linked via lc_jar_id with source_type = agar_plate (own-culture).",
             label="Transition Moment:"
         ),
     ]
