@@ -116,11 +116,14 @@ def next_batch_label(conn, species: str) -> str:
 
 
 def get_all_species(conn) -> list:
-    """Return sorted union of built-in SPECIES list and any user-added custom species."""
+    """Return sorted union of species_db, built-in SPECIES list, and custom species."""
+    db_species = [r[0] for r in conn.execute(
+        "SELECT DISTINCT common_name FROM species_db WHERE common_name IS NOT NULL ORDER BY common_name"
+    ).fetchall()]
     custom = [r[0] for r in conn.execute(
         "SELECT name FROM custom_species ORDER BY name"
     ).fetchall()]
-    combined = sorted(set(SPECIES) | set(custom), key=str.casefold)
+    combined = sorted(set(SPECIES) | set(db_species) | set(custom), key=str.casefold)
     return combined
 
 

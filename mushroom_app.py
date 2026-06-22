@@ -1204,10 +1204,9 @@ def lc_batch_add():
         "SELECT id, vendor, species, lot_number FROM lc_lots ORDER BY order_date DESC"
     ).fetchall()
     conn.close()
-    from mushroom_tracker import SPECIES as _SPECIES
     return render_template('lc_batch_form.html', batch_lc=None,
                            agar_plates_src=agar_plates_src, lc_lots_src=lc_lots_src,
-                           SPECIES=_SPECIES, today=str(date.today()))
+                           today=str(date.today()))
 
 
 @app.route('/lc-batches/<int:batch_id>/edit', methods=['GET', 'POST'])
@@ -1245,10 +1244,9 @@ def lc_batch_edit(batch_id):
         "SELECT id, vendor, species, lot_number FROM lc_lots ORDER BY order_date DESC"
     ).fetchall()
     conn.close()
-    from mushroom_tracker import SPECIES as _SPECIES
     return render_template('lc_batch_form.html', batch_lc=batch_lc,
                            agar_plates_src=agar_plates_src, lc_lots_src=lc_lots_src,
-                           SPECIES=_SPECIES, today=str(date.today()))
+                           today=str(date.today()))
 
 
 @app.route('/lc-batches/<int:batch_id>/delete', methods=['POST'])
