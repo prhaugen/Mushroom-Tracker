@@ -22,8 +22,8 @@
           </select>
         </div>
         <div class="fg">
-          <label for="vendor">Vendor (free text) <span style="color:var(--red)">*</span></label>
-          <input type="text" id="vendor" name="vendor" required
+          <label for="vendor">Vendor (free text)</label>
+          <input type="text" id="vendor" name="vendor"
                  placeholder="e.g. Mycelium Supply Co."
                  value="{{ lot.vendor if lot else '' }}">
         </div>
@@ -61,6 +61,7 @@
                  placeholder="e.g. Potato Dextrose Broth"
                  value="{{ lot.media_type if lot else '' }}">
           <datalist id="media-suggestions">
+            <option value="Unknown / Sourced">
             <option value="Potato Dextrose Broth (PDB)">
             <option value="Malt Extract Broth (MEB)">
             <option value="Coconut Water">
