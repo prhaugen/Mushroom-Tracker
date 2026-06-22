@@ -439,6 +439,75 @@ document.querySelectorAll('.cs-dur').forEach(el => {
 });
 </script>
 
+<!-- Contamination Events -->
+<div class="card mb-16">
+  <div class="card-head">
+    <span class="card-title">Contamination Events</span>
+  </div>
+
+  {% if contam_events %}
+  <div class="table-wrap" style="margin-bottom:16px">
+    <table>
+      <thead>
+        <tr><th>Logged</th><th>Stage</th><th>Day in Cycle</th><th>Appearance</th><th>Notes</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for ev in contam_events %}
+        <tr>
+          <td class="td-m">{{ ev.logged_at[:10] }}</td>
+          <td><span class="badge" style="background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)">{{ ev.stage }}</span></td>
+          <td class="td-m" style="text-align:center">{{ ('Day ' ~ ev.day_in_cycle) if ev.day_in_cycle else '—' }}</td>
+          <td class="td-m">{{ ev.appearance | replace('_', ' ') | title if ev.appearance else '—' }}</td>
+          <td class="td-m">{{ ev.notes or '' }}</td>
+          <td style="white-space:nowrap">
+            <form method="POST" action="{{ url_for('contamination_event_delete', event_id=ev.id) }}" style="display:inline"
+                  onsubmit="return confirm('Delete this contamination event?')">
+              <button type="submit" class="btn btn-danger btn-sm" style="font-size:11px;padding:2px 8px">Del</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <form method="POST" action="{{ url_for('contamination_event_add', batch_id=batch.id) }}">
+    <div class="fg-grid" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;align-items:end">
+      <div class="fg" style="margin:0">
+        <label>Stage</label>
+        <select name="stage">
+          <option value="grain">Grain</option>
+          <option value="substrate">Substrate</option>
+          <option value="block" selected>Block</option>
+        </select>
+      </div>
+      <div class="fg" style="margin:0">
+        <label>Appearance</label>
+        <select name="appearance">
+          <option value="">— unknown —</option>
+          <option value="trichoderma">Trichoderma</option>
+          <option value="wet_rot">Wet Rot</option>
+          <option value="bacterial">Bacterial Blotch</option>
+          <option value="cobweb">Cobweb Mold</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div class="fg" style="margin:0">
+        <label>Day in Cycle</label>
+        <input type="number" name="day_in_cycle" min="1" placeholder="e.g. 5">
+      </div>
+      <div class="fg" style="margin:0;grid-column:span 2">
+        <label>Notes</label>
+        <input type="text" name="notes" placeholder="Where spotted, extent, conditions...">
+      </div>
+      <div style="padding-bottom:1px">
+        <button type="submit" class="btn btn-danger btn-sm">+ Log Event</button>
+      </div>
+    </div>
+  </form>
+</div>
+
 <!-- Sales -->
 {% if sales %}
 <div class="card">

@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if plate else 'Log' }} Agar Plate — Mushroom Tracker{% endblock %}
+{% block content %}
+<div class="page-head-row">
+  <div class="page-head">
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">
+      <a href="{{ url_for('agar_plates_list') }}" style="color:var(--text-muted);text-decoration:none">Agar Plates</a>
+      / {{ 'Edit Plate' if plate else 'Log Plate' }}
+    </div>
+    <div class="page-title">{{ 'Edit Agar Plate' if plate else 'Log Agar Plate' }}</div>
+    <div class="page-sub">Tissue culture — source block through transfer outcome</div>
+  </div>
+  <a href="{{ url_for('agar_plates_list') }}" class="btn btn-ghost btn-sm">Back</a>
+</div>
+
+<div class="card form-wrap">
+  <form method="POST">
+
+    <div class="form-section">
+      <div class="section-label">Source Block</div>
+      <div class="fg-grid">
+        <div class="fg">
+          <label>Source Batch <span style="color:var(--red)">*</span></label>
+          <select name="source_batch_id">
+            <option value="">— select batch —</option>
+            {% for b in batches %}
+            {% set be = (b.total_yield_g / b.dry_weight_g * 100) | round(1) if b.dry_weight_g else none %}
+            <option value="{{ b.id }}"
+              {{ 'selected' if plate and plate.source_batch_id == b.id }}>
+              {{ b.label }} — {{ b.species }}{% if be %} (BE {{ be }}%){% endif %}
+            </option>
+            {% endfor %}
+          </select>
+          <span class="form-hint">Pick the batch this tissue was taken from — highest BE% batches make the best cloning candidates</span>
+        </div>
+        <div class="fg">
+          <label>Flush Number (source)</label>
+          <input type="number" name="flush_number_source" min="1" placeholder="e.g. 1"
+                 value="{{ plate.flush_number_source if plate and plate.flush_number_source else '' }}">
+          <span class="form-hint">Tissue from flush 1 vs 3 may show different vigor — track it for later correlation</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="section-label">Plate Details</div>
+      <div class="fg-grid">
+        <div class="fg">
+          <label>Tissue Collection Date</label>
+          <input type="date" name="tissue_collection_date"
+                 value="{{ plate.tissue_collection_date if plate and plate.tissue_collection_date else today }}">
+        </div>
+        <div class="fg">
+          <label>Media Type</label>
+          <input type="text" name="media_type" list="media-list" placeholder="e.g. MEA"
+                 value="{{ plate.media_type if plate else '' }}">
+          <datalist id="media-list">
+            <option value="MEA">
+            <option value="PDA">
+            <option value="MYPA">
+            <option value="Oat Bran Agar">
+            <option value="Rye Agar">
+          </datalist>
+        </div>
+        <div class="fg">
+          <label>Transfer Date</label>
+          <input type="date" name="transfer_date"
+                 value="{{ plate.transfer_date if plate and plate.transfer_date else '' }}">
+          <span class="form-hint">Date transferred to LC or to a new plate</span>
+        </div>
+        <div class="fg">
+          <label>Outcome</label>
+          <select name="outcome">
+            <option value="">— pending —</option>
+            <option value="clean" {{ 'selected' if plate and plate.outcome == 'clean' }}>Clean</option>
+            <option value="contaminated" {{ 'selected' if plate and plate.outcome == 'contaminated' }}>Contaminated</option>
+            <option value="slow" {{ 'selected' if plate and plate.outcome == 'slow' }}>Slow growth</option>
+            <option value="no_growth" {{ 'selected' if plate and plate.outcome == 'no_growth' }}>No growth</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="section-label">Notes</div>
+      <div class="fg">
+        <textarea name="notes" rows="3"
+                  placeholder="Growth vigor, contamination type, transfer destination (LC lot), observations...">{{ plate.notes if plate and plate.notes else '' }}</textarea>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">{{ 'Save Changes' if plate else 'Log Plate' }}</button>
+      <a href="{{ url_for('agar_plates_list') }}" class="btn btn-ghost">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Agar Plates — Mushroom Tracker{% endblock %}
+{% block content %}
+<div class="page-head-row">
+  <div class="page-head">
+    <div class="page-title">Agar Plates</div>
+    <div class="page-sub">{{ plates|length }} plate{% if plates|length != 1 %}s{% endif %} — tissue cultures tracked from source block through transfer outcome</div>
+  </div>
+  <a href="{{ url_for('agar_plate_add') }}" class="btn btn-primary">+ Log Plate</a>
+</div>
+
+{% if plates %}
+{% set outcomes = plates | map(attribute='outcome') | list %}
+{% set clean_cnt = outcomes | select('equalto','clean') | list | length %}
+{% set contam_cnt = outcomes | select('equalto','contaminated') | list | length %}
+<div class="stats mb-20" style="grid-template-columns:repeat(4,1fr)">
+  <div class="stat">
+    <div class="stat-label">Total Plates</div>
+    <div class="stat-val">{{ plates|length }}</div>
+  </div>
+  <div class="stat g">
+    <div class="stat-label">Clean</div>
+    <div class="stat-val">{{ clean_cnt }}</div>
+  </div>
+  <div class="stat r">
+    <div class="stat-label">Contaminated</div>
+    <div class="stat-val">{{ contam_cnt }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Success Rate</div>
+    <div class="stat-val">{% if plates|length %}{{ (clean_cnt / plates|length * 100)|int }}%{% else %}—{% endif %}</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Tissue Date</th>
+          <th>Source Batch</th>
+          <th>Species</th>
+          <th>Flush #</th>
+          <th>Media</th>
+          <th>Transfer Date</th>
+          <th>Outcome</th>
+          <th>Notes</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in plates %}
+        {% set outcome_color = 'var(--green)' if p.outcome == 'clean' else ('var(--red)' if p.outcome == 'contaminated' else ('var(--amber)' if p.outcome in ('slow','no_growth') else 'var(--text-muted)')) %}
+        <tr>
+          <td class="td-m td-mono">{{ p.tissue_collection_date or '—' }}</td>
+          <td class="fw-600">
+            {% if p.source_batch_id %}
+            <a href="{{ url_for('batch_detail', batch_id=p.source_batch_id) }}"
+               style="color:var(--blue);text-decoration:none">{{ p.batch_label }}</a>
+            {% else %}—{% endif %}
+          </td>
+          <td class="td-m">{{ p.batch_species or '—' }}</td>
+          <td class="td-m" style="text-align:center">{{ ('#' ~ p.flush_number_source) if p.flush_number_source else '—' }}</td>
+          <td class="td-m">{{ p.media_type or '—' }}</td>
+          <td class="td-m td-mono">{{ p.transfer_date or '—' }}</td>
+          <td>
+            {% if p.outcome %}
+            <span style="font-size:11px;font-weight:700;color:{{ outcome_color }}">{{ p.outcome | replace('_', ' ') | title }}</span>
+            {% else %}<span class="td-m">pending</span>{% endif %}
+          </td>
+          <td class="td-m" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ p.notes or '' }}</td>
+          <td style="white-space:nowrap">
+            <a href="{{ url_for('agar_plate_edit', plate_id=p.id) }}" class="btn btn-ghost btn-sm">Edit</a>
+            <form method="POST" action="{{ url_for('agar_plate_delete', plate_id=p.id) }}" style="display:inline"
+                  onsubmit="return confirm('Delete this agar plate record?')">
+              <button type="submit" class="btn btn-danger btn-sm">Del</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="card">
+  <div class="empty">
+    <div class="empty-title">No agar plates logged yet</div>
+    <div class="empty-sub">Log each tissue culture plate here — source batch, flush number, media type, and outcome.
+    Tissue from your highest-BE% batches becomes your culture library.</div>
+    <a href="{{ url_for('agar_plate_add') }}" class="btn btn-primary">Log First Plate</a>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

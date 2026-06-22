@@ -444,6 +444,29 @@ def init_db():
             notes                      TEXT,
             created_at                 TEXT DEFAULT CURRENT_TIMESTAMP
         );
+        CREATE TABLE IF NOT EXISTS lc_batches (
+            id                INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_type       TEXT NOT NULL,
+            source_id         INTEGER,
+            species           TEXT,
+            media_type        TEXT,
+            prepared_date     TEXT,
+            colonization_date TEXT,
+            outcome           TEXT,
+            notes             TEXT,
+            created_at        TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS agar_plates (
+            id                     INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_batch_id        INTEGER REFERENCES batches(id),
+            flush_number_source    INTEGER,
+            tissue_collection_date TEXT,
+            media_type             TEXT,
+            transfer_date          TEXT,
+            outcome                TEXT,
+            notes                  TEXT,
+            created_at             TEXT DEFAULT CURRENT_TIMESTAMP
+        );
         CREATE TABLE IF NOT EXISTS roadmap_milestones (
             id           INTEGER PRIMARY KEY AUTOINCREMENT,
             phase        INTEGER NOT NULL,
@@ -483,6 +506,11 @@ def init_db():
     existing_c = {r[1] for r in c.execute("PRAGMA table_info(chambers)")}
     if "chamber_type" not in existing_c:
         c.execute("ALTER TABLE chambers ADD COLUMN chamber_type TEXT")
+
+    # Non-destructive column addition for grain_jars: lc_batch_id alongside lc_lot_id
+    _gj_cols = {r[1] for r in c.execute("PRAGMA table_info(grain_jars)")}
+    if 'lc_batch_id' not in _gj_cols:
+        c.execute("ALTER TABLE grain_jars ADD COLUMN lc_batch_id INTEGER REFERENCES lc_batches(id)")
 
     # Non-destructive column additions for batches
     existing_b = {r[1] for r in c.execute("PRAGMA table_info(batches)")}
@@ -545,6 +573,29 @@ def init_db():
         notes      TEXT,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )""")
+
+    # Structured contamination events (additive — keeps contamination_flag/type on batches)
+    c.execute("""CREATE TABLE IF NOT EXISTS contamination_events (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        batch_id     INTEGER NOT NULL REFERENCES batches(id),
+        stage        TEXT NOT NULL,
+        day_in_cycle INTEGER,
+        appearance   TEXT,
+        notes        TEXT,
+        logged_at    TEXT DEFAULT CURRENT_TIMESTAMP
+    )""")
+    # One-time seed: migrate existing contaminated batches into events table
+    _seeded = {r[0] for r in c.execute("SELECT DISTINCT batch_id FROM contamination_events")}
+    for _row in c.execute(
+        "SELECT id, contamination_type, created_at FROM batches "
+        "WHERE contamination_flag=1 AND contamination_type IS NOT NULL"
+    ).fetchall():
+        if _row[0] not in _seeded:
+            c.execute(
+                "INSERT INTO contamination_events (batch_id, stage, appearance, logged_at) "
+                "VALUES (?, 'block', ?, ?)",
+                (_row[0], _row[1], _row[2])
+            )
 
     # App-wide key-value settings (non-sensitive)
     c.execute("""CREATE TABLE IF NOT EXISTS app_settings (

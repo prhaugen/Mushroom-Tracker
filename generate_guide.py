@@ -393,6 +393,7 @@ def build():
         ("6.7",  "Updating Batch Status",                       "10"),
         ("6.8",  "Batch Detail Page",                           "10"),
         ("6.9",  "Cold Shock Tracking",                        "11"),
+        ("6.10", "Contamination Events",                        "11"),
         ("7",    "Logging Flushes",                             "12"),
         ("8",    "Sales Tracking",                              "11"),
         ("9",    "Logging Environment Readings",                "12"),
@@ -413,7 +414,9 @@ def build():
         ("14",   "Reports",                                    "17"),
         ("14.1", "P&L Summary",                               "17"),
         ("14.2", "Real vs Theoretical Toggle",                "17"),
-        ("15",   "AI Daily Briefing",                          "17"),
+        ("14.3", "Sourced-Block BE% Filter",                  "17"),
+        ("14.4", "Contamination Report Breakdown",            "18"),
+        ("15",   "AI Daily Briefing",                          "18"),
         ("15.1", "What It Does",                               "17"),
         ("15.2", "Requirements",                               "17"),
         ("15.3", "The Briefing Dashboard",                     "17"),
@@ -421,6 +424,8 @@ def build():
         ("15.5", "Reading the Output",                         "18"),
         ("16",   "Culture Tracking",                           "19"),
         ("16.1", "LC Syringe Lots",                            "19"),
+        ("16.2", "Agar Plate Records",                         "20"),
+        ("16.3", "LC Batches (Own-Culture)",                   "20"),
         ("17",   "Substrate Batches",                          "20"),
         ("17.1", "Logging a Substrate Run",                    "20"),
         ("17.2", "Linking Blocks to a Substrate Batch",        "21"),
@@ -1470,6 +1475,62 @@ def build():
             "that pairing is the data that will improve your results.",
             label="Tip:", color=BLUE_BG, border=BLUE_BORDER
         ),
+        sp(16),
+        h2("6.10  Contamination Events"),
+        p("The <b>Contamination Events</b> panel on the Batch Detail page replaces the old "
+          "single contamination flag with a structured event log. "
+          "Each event records exactly <i>when</i> in the cycle, <i>where</i> in the "
+          "substrate chain, and <i>what</i> appeared — information that a flag alone cannot capture."),
+        sp(8),
+        h3("Fields"),
+        sp(4),
+        data_table(
+            ["Field", "Required", "Notes"],
+            [
+                ["Stage",         "Yes",
+                 "Where in the production chain the contamination appeared. "
+                 "<b>grain</b> = inside the grain jar during colonization. "
+                 "<b>substrate</b> = in the block substrate before fruiting pins form. "
+                 "<b>block</b> = on the fruiting surface during a flush."],
+                ["Day in Cycle",  "No",
+                 "Days since inoculation (grain/substrate stages) or since the last flush (block stage). "
+                 "Used to identify the colonization window where problems cluster."],
+                ["Appearance",    "No",
+                 "<b>Trichoderma</b> (bright green mold). "
+                 "<b>Wet rot</b> (dark slime, bacterial). "
+                 "<b>Bacterial</b> (yellow or sour-smelling). "
+                 "<b>Cobweb</b> (white wispy, often recoverable). "
+                 "<b>Other</b> (anything else — describe in notes)."],
+                ["Notes",         "No",
+                 "Location on the block, corrective action taken, whether the block was salvaged."],
+            ],
+            col_widths=[3*cm, 2.3*cm, 10.9*cm],
+        ),
+        sp(8),
+        h3("Why Stage Matters"),
+        p("Stage plus day-in-cycle reveals root cause. "
+          "Grain-stage events at days 3–7 point to inoculation hygiene or spawn quality. "
+          "Substrate-stage events at days 10–14 point to sterilization failure or field capacity. "
+          "Block-stage events during fruiting point to environment or surface hygiene. "
+          "Without this classification, all you know is that something went wrong; "
+          "with it, you know <i>where to fix it</i>."),
+        sp(6),
+        callout(
+            "Existing contaminated batches (those with the contamination flag set before this "
+            "feature was added) are automatically seeded as a single <b>block</b>-stage event "
+            "using the old contamination type field as the appearance. "
+            "You do not need to backfill them manually — but you can add more precise events "
+            "if you remember the details.",
+            label="Migration:"
+        ),
+        sp(8),
+        h3("Report Breakdown"),
+        p("The Report page aggregates all contamination events into a breakdown table: "
+          "stage × appearance × event count, sorted by frequency. "
+          "An overall contamination rate (percentage of batches with at least one event) "
+          "appears above the table. "
+          "As events accumulate, the most common stage–appearance combination tells you "
+          "exactly where your operation's hygiene bottleneck is."),
     ]
 
     story.append(PageBreak())
@@ -2152,6 +2213,71 @@ def build():
             "number of real sales transactions.",
             label="Note:", color=AMBER_BG, border=AMBER_BORDER
         ),
+        sp(14),
+        h2("14.3  Sourced-Block BE% Filter"),
+        p("The BE% Ranking table header includes a three-button filter: "
+          "<b>All</b> / <b>Sourced</b> / <b>Self-inoculated</b>. "
+          "Clicking a filter hides non-matching rows and re-numbers ranks within the visible set. "
+          "The filter is client-side — no page reload required."),
+        sp(6),
+        data_table(
+            ["Filter", "Shows", "When Useful"],
+            [
+                ["All",
+                 "Every batch with yield data.",
+                 "Default view. Use to see your overall operation ranking."],
+                ["Sourced",
+                 "Only batches where <b>Sourced Block</b> was checked at creation — "
+                 "purchased fruiting blocks or bags from a supplier.",
+                 "Benchmarking vendor block quality. Sourced blocks are a vendor's recipe, "
+                 "so BE% differences reveal vendor-to-vendor and species-to-species variation "
+                 "without your substrate formula being a variable."],
+                ["Self-inoculated",
+                 "Only batches you grew from spawn — your own substrate recipe.",
+                 "Isolating the effect of your recipe and process. "
+                 "This is the baseline that improves as your recipes improve."],
+            ],
+            col_widths=[2.8*cm, 5.4*cm, 8*cm],
+        ),
+        sp(6),
+        p("When both sourced and self-inoculated batches exist, a <b>comparison callout</b> "
+          "appears below the filter buttons showing each group's average BE%. "
+          "This callout only renders when both averages are defined — "
+          "it disappears if all your batches are one type."),
+        sp(6),
+        callout(
+            "Sourced block rows are marked with a small <b>S</b> badge next to the species name "
+            "in the ranking table so the source type is visible at a glance even in the "
+            "<b>All</b> view.",
+            label="Visual:"
+        ),
+        sp(14),
+        h2("14.4  Contamination Report Breakdown"),
+        p("Below the P&L card, the Report page shows a <b>Contamination Analysis</b> section. "
+          "It is driven entirely by events logged through the Contamination Events panel "
+          "on each Batch Detail page."),
+        sp(6),
+        data_table(
+            ["Element", "Description"],
+            [
+                ["Contamination Rate",
+                 "Percentage of all batches that have at least one contamination event logged. "
+                 "Calculated as: (distinct batch_ids in contamination_events) ÷ (total batches) × 100."],
+                ["Breakdown Table",
+                 "One row per unique stage × appearance combination, sorted by event count descending. "
+                 "Shows which contamination type is most frequent and at which stage it appears. "
+                 "A cluster at <b>grain / trichoderma</b> points to spawn or inoculation hygiene. "
+                 "A cluster at <b>block / wet_rot</b> points to harvest-surface hygiene or excess moisture."],
+            ],
+            col_widths=[3.5*cm, 12.7*cm],
+        ),
+        sp(6),
+        callout(
+            "The breakdown only becomes meaningful after 15–20 events are logged. "
+            "Early on, one unusual event skews every category. "
+            "Use it as a trend indicator once you have a full growing season of data.",
+            label="Guidance:", color=AMBER_BG, border=AMBER_BORDER
+        ),
     ]
 
     story.append(PageBreak())
@@ -2356,9 +2482,33 @@ def build():
     story += [
         h1("16. Culture Tracking"),
         rule(),
-        p("The Culture section tracks the upstream inputs to your grow — the liquid culture "
-          "syringes, agar plates, and grain jars that become your fruiting blocks. "
-          "This section documents the first piece of that chain: LC syringe lots."),
+        p("The Culture section tracks the full upstream chain from tissue collection through "
+          "liquid culture and into grain jars. "
+          "Three entities make up this chain, each accessible from the <b>Supply</b> dropdown:"),
+        sp(4),
+        data_table(
+            ["Entity", "Nav Item", "What It Records"],
+            [
+                ["LC Lots",    "Supply → LC Lots",
+                 "Purchased liquid culture syringes from a vendor. "
+                 "One record per order. Identified by vendor and lot number."],
+                ["Agar Plates", "Supply → Agar",
+                 "Tissue culture plates cloned from a fruiting block. "
+                 "Links back to the source batch and flush number."],
+                ["LC Batches",  "Supply → LC Batches",
+                 "Each liquid culture preparation batch — whether expanded from "
+                 "an agar plate (own-culture) or drawn from a purchased syringe. "
+                 "Links forward to the grain jars inoculated from it."],
+            ],
+            col_widths=[2.5*cm, 3.5*cm, 10.2*cm],
+        ),
+        sp(6),
+        p("The full traceability chain runs: "
+          "<b>LC Lot</b> (purchase) <b>→ LC Batch</b> (prep) <b>→ Grain Jars</b> <b>→ "
+          "Substrate Batch</b> <b>→ Fruiting Block</b> <b>→ Flushes</b>. "
+          "For own-culture production the path extends further upstream: "
+          "<b>Fruiting Block</b> (source) <b>→ Agar Plate</b> (tissue) <b>→ LC Batch</b> <b>→ "
+          "Grain Jars</b> — forming a closed loop from your best-performing blocks."),
         sp(8),
         h2("16.1  LC Syringe Lots"),
         p("Navigate to <b>Supply &rarr; Culture</b> in the top navigation bar to view and manage your "
@@ -2407,15 +2557,117 @@ def build():
             "vendor quality issue; a pattern across lots is a workflow issue on your end.",
             label="Diagnostic:"
         ),
-        sp(10),
-        h3("Transitioning to Own-Culture LC"),
-        p("When you begin producing your own liquid culture from agar plates "
-          "(Phase 4, target February 2027), the same LC Lots table carries forward. "
-          "Set Vendor to <b>own culture</b> and Lot Number to the source block's "
-          "batch label (e.g. <i>BO-007</i>). The data model does not change at "
-          "the transition — only the source of the culture changes. "
-          "Yield comparisons before and after the transition are a direct query: "
-          "group BE% by own-culture lots vs. purchased lots."),
+        sp(14),
+        h2("16.2  Agar Plate Records"),
+        p("Navigate to <b>Supply → Agar</b> to view and log agar plate records. "
+          "An agar plate is a tissue culture taken from a fruiting block — "
+          "the first step in producing your own liquid culture. "
+          "Log a plate when you cut tissue and transfer it to a petri dish."),
+        sp(6),
+        h3("Source Block Selection"),
+        p("The add form shows a dropdown of all batches with yield data. "
+          "Each option includes the batch label, species, and BE% so you can see "
+          "at a glance which block you are cloning. "
+          "Choose your highest-performing blocks — the genetic material you capture "
+          "from a 120% BE% flush is worth isolating; a 60% BE% block is not."),
+        sp(6),
+        data_table(
+            ["Field", "Required", "Notes"],
+            [
+                ["Source Batch",            "No",
+                 "The fruiting block you cut tissue from. BE% is shown in the dropdown "
+                 "to guide cloning decisions. Leave blank for lab isolates or transfers from "
+                 "external culture libraries."],
+                ["Flush # (source)",        "No",
+                 "Which flush the tissue came from. Tissue from flush 1 may produce "
+                 "different vigor than tissue from flush 4 — capturing this lets you "
+                 "correlate flush number against downstream LC and grain jar performance."],
+                ["Tissue Collection Date",  "No",
+                 "When you cut the tissue and inoculated the plate. Use this as the primary "
+                 "identifier when referencing this plate in downstream records."],
+                ["Media Type",              "No",
+                 "Growth medium: MEA (Malt Extract Agar), PDA (Potato Dextrose Agar), "
+                 "MYPA, or Oat Bran Agar. Different media favor different metabolite profiles."],
+                ["Transfer Date",           "No",
+                 "When you transferred the colonized plate to liquid culture or a secondary plate."],
+                ["Outcome",                 "No",
+                 "clean / contaminated / slow / no growth. "
+                 "A contaminated plate is discarded; a slow plate may still be usable if the "
+                 "contamination was caught early."],
+            ],
+            col_widths=[3.5*cm, 2*cm, 10.7*cm],
+        ),
+        sp(8),
+        callout(
+            "The Agar list page shows four summary stats at the top: total plates, "
+            "clean, contaminated, and success rate. "
+            "A low success rate with many contaminated outcomes points to sterilization, "
+            "transfer technique, or media preparation as the weak link.",
+            label="Analytics:"
+        ),
+        sp(14),
+        h2("16.3  LC Batches (Own-Culture)"),
+        p("Navigate to <b>Supply → LC Batches</b> to view and log liquid culture batch records. "
+          "An LC batch is one preparation of liquid culture medium inoculated from either "
+          "an agar plate (own-culture) or a purchased syringe (purchased). "
+          "It is the intermediate step between the culture source and the grain jars."),
+        sp(6),
+        h3("Source Type Toggle"),
+        p("The add form opens with a two-option radio toggle:"),
+        sp(4),
+        *bullet([
+            "<b>Purchased syringe (LC lot)</b> — select from your logged LC lots. "
+            "Use this for batches prepared from a vendor syringe. "
+            "The LC lot provides vendor-level traceability; the LC batch records "
+            "the specific preparation and outcome.",
+            "<b>Own-culture (agar plate)</b> — select from your logged agar plates. "
+            "Only the fields for the selected source type are submitted — "
+            "the other select is disabled so stale values cannot be written.",
+        ]),
+        sp(6),
+        data_table(
+            ["Field", "Required", "Notes"],
+            [
+                ["Source Type",       "Yes",
+                 "purchased_syringe or agar_plate. Determines which source selector is shown."],
+                ["Source (LC Lot or Agar Plate)", "No",
+                 "The specific lot or plate this batch was expanded from. "
+                 "Can be left blank if the source was not recorded."],
+                ["Species",           "No",
+                 "Species of the culture. Inferred from the source record if you select one."],
+                ["Media Type",        "No",
+                 "Liquid medium: PDB (Potato Dextrose Broth), MEB (Malt Extract Broth), "
+                 "Coconut Water, Honey Water. "
+                 "Affects colonization speed and vigor on grain."],
+                ["Prepared Date",     "No",
+                 "When the LC was prepared and inoculated. Defaults to today."],
+                ["Colonization Date", "No",
+                 "When the LC was fully colonized and ready to use for grain inoculation."],
+                ["Outcome",           "No",
+                 "clean / contaminated / slow / no growth. "
+                 "A clean batch moves forward; a contaminated batch is discarded "
+                 "and the event should be noted so you can identify failure patterns."],
+            ],
+            col_widths=[3.8*cm, 2*cm, 10.4*cm],
+        ),
+        sp(8),
+        h3("Linking LC Batches to Grain Jars"),
+        p("When logging a grain jar (Supply → Grain Jars), the form includes an "
+          "<b>LC Batch</b> selector alongside the existing LC Lot selector. "
+          "Set one or the other — not both. "
+          "If you inoculated from a purchased syringe directly, use LC Lot. "
+          "If you inoculated from a prepared LC batch (own or purchased via LC Batch), "
+          "use LC Batch. "
+          "This FK is the forward link that enables end-to-end traceability."),
+        sp(6),
+        callout(
+            "The first LC Batch record with <b>source_type = agar_plate</b> marks the "
+            "transition from purchased to own-culture production. "
+            "Once you have both types, the yield comparison is a direct segmentation: "
+            "BE% for grain jars linked via lc_lot_id (purchased) vs. "
+            "grain jars linked via lc_batch_id with source_type = agar_plate (own-culture).",
+            label="Transition Moment:"
+        ),
     ]
 
     story.append(PageBreak())

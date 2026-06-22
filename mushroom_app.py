@@ -467,6 +467,9 @@ def batch_detail(batch_id):
     cold_shocks = conn.execute(
         "SELECT * FROM cold_shocks WHERE batch_id=? ORDER BY date_in ASC, created_at ASC",
         (batch_id,)).fetchall()
+    contam_events = conn.execute(
+        "SELECT * FROM contamination_events WHERE batch_id=? ORDER BY logged_at ASC",
+        (batch_id,)).fetchall()
     yield_chart = [{'flush': f['flush_number'], 'weight': f['fresh_weight_g'],
                     'quality': f['quality_rating']} for f in flushes]
     cycle_days = None
@@ -602,7 +605,8 @@ def batch_detail(batch_id):
         batch=batch, flushes=flushes, sales=sales, yield_chart=yield_chart,
         cycle_days=cycle_days, sp_defaults=sp_defaults, targets_customized=targets_customized,
         batch_chart_data=batch_chart_data, env_res=env_res, resolutions=_ENV_RESOLUTIONS,
-        batch_notes=batch_notes, cold_shocks=cold_shocks)
+        batch_notes=batch_notes, cold_shocks=cold_shocks,
+        contam_events=contam_events)
 
 
 @app.route('/batch/<int:batch_id>/update', methods=['POST'])
@@ -1060,6 +1064,200 @@ def grain_jar_delete(jar_id):
     conn.close()
     flash('Grain jar deleted.', 'success')
     return redirect(url_for('grain_jars_list'))
+
+
+# ── Agar Plates ──────────────────────────────────────────────────────────────
+
+@app.route('/agar-plates')
+def agar_plates_list():
+    init_db()
+    conn = get_db()
+    plates = conn.execute("""
+        SELECT p.*, b.label AS batch_label, b.species AS batch_species,
+               b.total_yield_g, b.dry_weight_g
+        FROM agar_plates p
+        LEFT JOIN batches b ON p.source_batch_id = b.id
+        ORDER BY p.tissue_collection_date DESC, p.id DESC
+    """).fetchall()
+    conn.close()
+    return render_template('agar_plates.html', plates=plates)
+
+
+@app.route('/agar-plates/add', methods=['GET', 'POST'])
+def agar_plate_add():
+    init_db()
+    conn = get_db()
+    if request.method == 'POST':
+        f = request.form
+        conn.execute("""
+            INSERT INTO agar_plates
+            (source_batch_id, flush_number_source, tissue_collection_date,
+             media_type, transfer_date, outcome, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (int(f['source_batch_id']) if f.get('source_batch_id') else None,
+             int(f['flush_number_source']) if f.get('flush_number_source') else None,
+             f.get('tissue_collection_date') or None,
+             f.get('media_type') or None,
+             f.get('transfer_date') or None,
+             f.get('outcome') or None,
+             f.get('notes') or None))
+        conn.commit(); conn.close()
+        flash('Agar plate logged.', 'success')
+        return redirect(url_for('agar_plates_list'))
+    batches = conn.execute(
+        "SELECT id, label, species, total_yield_g, dry_weight_g FROM batches ORDER BY label"
+    ).fetchall()
+    conn.close()
+    return render_template('agar_plate_form.html', plate=None, batches=batches,
+                           today=str(date.today()))
+
+
+@app.route('/agar-plates/<int:plate_id>/edit', methods=['GET', 'POST'])
+def agar_plate_edit(plate_id):
+    conn = get_db()
+    plate = conn.execute("SELECT * FROM agar_plates WHERE id=?", (plate_id,)).fetchone()
+    if not plate:
+        conn.close(); flash('Plate not found.', 'error')
+        return redirect(url_for('agar_plates_list'))
+    if request.method == 'POST':
+        f = request.form
+        conn.execute("""
+            UPDATE agar_plates SET
+            source_batch_id=?, flush_number_source=?, tissue_collection_date=?,
+            media_type=?, transfer_date=?, outcome=?, notes=?
+            WHERE id=?""",
+            (int(f['source_batch_id']) if f.get('source_batch_id') else None,
+             int(f['flush_number_source']) if f.get('flush_number_source') else None,
+             f.get('tissue_collection_date') or None,
+             f.get('media_type') or None,
+             f.get('transfer_date') or None,
+             f.get('outcome') or None,
+             f.get('notes') or None,
+             plate_id))
+        conn.commit(); conn.close()
+        flash('Agar plate updated.', 'success')
+        return redirect(url_for('agar_plates_list'))
+    batches = conn.execute(
+        "SELECT id, label, species, total_yield_g, dry_weight_g FROM batches ORDER BY label"
+    ).fetchall()
+    conn.close()
+    return render_template('agar_plate_form.html', plate=plate, batches=batches,
+                           today=str(date.today()))
+
+
+@app.route('/agar-plates/<int:plate_id>/delete', methods=['POST'])
+def agar_plate_delete(plate_id):
+    conn = get_db()
+    conn.execute("DELETE FROM agar_plates WHERE id=?", (plate_id,))
+    conn.commit(); conn.close()
+    flash('Agar plate deleted.', 'success')
+    return redirect(url_for('agar_plates_list'))
+
+
+# ── LC Batches (own-culture) ──────────────────────────────────────────────────
+
+@app.route('/lc-batches')
+def lc_batches_list():
+    init_db()
+    conn = get_db()
+    batches_lc = conn.execute("""
+        SELECT lb.*,
+               ap.tissue_collection_date AS agar_tissue_date,
+               ll.vendor AS lot_vendor, ll.species AS lot_species, ll.lot_number
+        FROM lc_batches lb
+        LEFT JOIN agar_plates ap ON lb.source_type = 'agar_plate' AND lb.source_id = ap.id
+        LEFT JOIN lc_lots ll ON lb.source_type = 'purchased_syringe' AND lb.source_id = ll.id
+        ORDER BY lb.prepared_date DESC, lb.id DESC
+    """).fetchall()
+    conn.close()
+    return render_template('lc_batches.html', batches_lc=batches_lc)
+
+
+@app.route('/lc-batches/add', methods=['GET', 'POST'])
+def lc_batch_add():
+    init_db()
+    conn = get_db()
+    if request.method == 'POST':
+        f = request.form
+        conn.execute("""
+            INSERT INTO lc_batches
+            (source_type, source_id, species, media_type,
+             prepared_date, colonization_date, outcome, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (f.get('source_type') or 'purchased_syringe',
+             int(f['source_id']) if f.get('source_id') else None,
+             f.get('species') or None,
+             f.get('media_type') or None,
+             f.get('prepared_date') or None,
+             f.get('colonization_date') or None,
+             f.get('outcome') or None,
+             f.get('notes') or None))
+        conn.commit(); conn.close()
+        flash('LC batch logged.', 'success')
+        return redirect(url_for('lc_batches_list'))
+    agar_plates_src = conn.execute(
+        "SELECT p.id, p.tissue_collection_date, b.label, b.species "
+        "FROM agar_plates p LEFT JOIN batches b ON p.source_batch_id = b.id "
+        "ORDER BY p.tissue_collection_date DESC"
+    ).fetchall()
+    lc_lots_src = conn.execute(
+        "SELECT id, vendor, species, lot_number FROM lc_lots ORDER BY order_date DESC"
+    ).fetchall()
+    conn.close()
+    from mushroom_tracker import SPECIES as _SPECIES
+    return render_template('lc_batch_form.html', batch_lc=None,
+                           agar_plates_src=agar_plates_src, lc_lots_src=lc_lots_src,
+                           SPECIES=_SPECIES, today=str(date.today()))
+
+
+@app.route('/lc-batches/<int:batch_id>/edit', methods=['GET', 'POST'])
+def lc_batch_edit(batch_id):
+    conn = get_db()
+    batch_lc = conn.execute("SELECT * FROM lc_batches WHERE id=?", (batch_id,)).fetchone()
+    if not batch_lc:
+        conn.close(); flash('LC batch not found.', 'error')
+        return redirect(url_for('lc_batches_list'))
+    if request.method == 'POST':
+        f = request.form
+        conn.execute("""
+            UPDATE lc_batches SET
+            source_type=?, source_id=?, species=?, media_type=?,
+            prepared_date=?, colonization_date=?, outcome=?, notes=?
+            WHERE id=?""",
+            (f.get('source_type') or 'purchased_syringe',
+             int(f['source_id']) if f.get('source_id') else None,
+             f.get('species') or None,
+             f.get('media_type') or None,
+             f.get('prepared_date') or None,
+             f.get('colonization_date') or None,
+             f.get('outcome') or None,
+             f.get('notes') or None,
+             batch_id))
+        conn.commit(); conn.close()
+        flash('LC batch updated.', 'success')
+        return redirect(url_for('lc_batches_list'))
+    agar_plates_src = conn.execute(
+        "SELECT p.id, p.tissue_collection_date, b.label, b.species "
+        "FROM agar_plates p LEFT JOIN batches b ON p.source_batch_id = b.id "
+        "ORDER BY p.tissue_collection_date DESC"
+    ).fetchall()
+    lc_lots_src = conn.execute(
+        "SELECT id, vendor, species, lot_number FROM lc_lots ORDER BY order_date DESC"
+    ).fetchall()
+    conn.close()
+    from mushroom_tracker import SPECIES as _SPECIES
+    return render_template('lc_batch_form.html', batch_lc=batch_lc,
+                           agar_plates_src=agar_plates_src, lc_lots_src=lc_lots_src,
+                           SPECIES=_SPECIES, today=str(date.today()))
+
+
+@app.route('/lc-batches/<int:batch_id>/delete', methods=['POST'])
+def lc_batch_delete(batch_id):
+    conn = get_db()
+    conn.execute("DELETE FROM lc_batches WHERE id=?", (batch_id,))
+    conn.commit(); conn.close()
+    flash('LC batch deleted.', 'success')
+    return redirect(url_for('lc_batches_list'))
 
 
 # ── LC Lots ───────────────────────────────────────────────────────────────────
@@ -1556,6 +1754,17 @@ def report():
         JOIN batches b ON f.batch_id=b.id ORDER BY b.id, f.flush_number
     """).fetchall()
 
+    # Contamination breakdown: rate by stage × appearance
+    all_contam_events = conn.execute("SELECT * FROM contamination_events").fetchall()
+    _contam_breakdown = {}
+    for ev in all_contam_events:
+        key = (ev['stage'], ev['appearance'] or 'unknown')
+        _contam_breakdown[key] = _contam_breakdown.get(key, 0) + 1
+    contam_breakdown = sorted(_contam_breakdown.items(), key=lambda x: -x[1])
+    total_batches_cnt = len(batches)
+    contam_batch_ids = {ev['batch_id'] for ev in all_contam_events}
+    contam_rate_pct = round(len(contam_batch_ids) / total_batches_cnt * 100, 1) if total_batches_cnt else 0
+
     # Build flush degradation chart: one dataset per batch
     batch_map = {b['id']: b for b in batches}
     max_flush = max((f['flush_number'] for f in all_flushes), default=0)
@@ -1678,6 +1887,13 @@ def report():
         [(b, bio_efficiency(b['total_yield_g'], b['dry_weight_g']), _dollars_per_hr(b)) for b in batches],
         key=lambda x: (x[1] or -1), reverse=True)
 
+    def _avg_be(rows):
+        vals = [be for _, be, _ in rows if be is not None]
+        return round(sum(vals) / len(vals), 1) if vals else None
+
+    sourced_be_avg = _avg_be([(b, be, d) for b, be, d in be_ranking if b['sourced_block']])
+    self_be_avg    = _avg_be([(b, be, d) for b, be, d in be_ranking if not b['sourced_block']])
+
     # Sales summary
     sales = conn.execute("""
         SELECT s.*, b.label, b.species FROM sales s
@@ -1699,11 +1915,13 @@ def report():
     return render_template('report.html',
         batches=batches, all_flushes=all_flushes,
         be_ranking=be_ranking,
+        sourced_be_avg=sourced_be_avg, self_be_avg=self_be_avg,
         bar_chart={'labels': [b['label'] for b in batches], 'datasets': bar_datasets},
         degradation_chart={'datasets': degradation_datasets,
                            'labels': [f'Flush {i}' for i in range(1, max_flush+1)]},
         harvest_timing_chart={'datasets': harvest_timing_datasets},
         env_stats=env_stats, total_yield=total_yield,
+        contam_breakdown=contam_breakdown, contam_rate_pct=contam_rate_pct,
         sales=sales, total_revenue=total_revenue,
         total_sold_fresh=total_sold_fresh, total_sold_dried=total_sold_dried,
         pnl={'real_revenue': _real_revenue, 'theoretical_revenue': _theoretical_revenue,
@@ -2437,6 +2655,37 @@ def cold_shock_delete(cs_id):
     conn.close()
     flash('Cold shock deleted.', 'success')
     return redirect(url_for('batch_detail', batch_id=cs['batch_id'] if cs else 0))
+
+
+@app.route('/batch/<int:batch_id>/contamination/add', methods=['POST'])
+def contamination_event_add(batch_id):
+    init_db()
+    f = request.form
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO contamination_events (batch_id, stage, day_in_cycle, appearance, notes) "
+        "VALUES (?, ?, ?, ?, ?)",
+        (batch_id,
+         f.get('stage') or 'block',
+         int(f['day_in_cycle']) if f.get('day_in_cycle') else None,
+         f.get('appearance') or None,
+         f.get('notes') or None)
+    )
+    conn.commit(); conn.close()
+    flash('Contamination event logged.', 'success')
+    return redirect(url_for('batch_detail', batch_id=batch_id))
+
+
+@app.route('/contamination/<int:event_id>/delete', methods=['POST'])
+def contamination_event_delete(event_id):
+    conn = get_db()
+    ev = conn.execute("SELECT batch_id FROM contamination_events WHERE id=?", (event_id,)).fetchone()
+    if ev:
+        conn.execute("DELETE FROM contamination_events WHERE id=?", (event_id,))
+        conn.commit()
+    conn.close()
+    flash('Contamination event deleted.', 'success')
+    return redirect(url_for('batch_detail', batch_id=ev['batch_id'] if ev else 0))
 
 
 @app.route('/env/<int:log_id>/edit', methods=['GET','POST'])
