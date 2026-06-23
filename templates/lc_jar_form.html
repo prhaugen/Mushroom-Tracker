@@ -8,7 +8,7 @@
       / {{ 'Edit Jar' if lc_jar else 'Log Jar' }}
     </div>
     <div class="page-title">{{ 'Edit LC Jar' if lc_jar else 'Log LC Jar' }}</div>
-    <div class="page-sub">Liquid culture jar — from agar plate or purchased syringe</div>
+    <div class="page-sub">Liquid culture jar — from a purchased syringe, agar plate, or direct tissue clone</div>
   </div>
   <a href="{{ url_for('lc_jars_list') }}" class="btn btn-ghost btn-sm">Back</a>
 </div>
@@ -21,7 +21,7 @@
       <div class="fg-grid">
         <div class="fg full">
           <label>Source Type</label>
-          <div style="display:flex;gap:10px;margin-top:4px">
+          <div style="display:flex;gap:16px;margin-top:4px;flex-wrap:wrap">
             <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;text-transform:none;letter-spacing:0;font-weight:400">
               <input type="radio" name="source_type" value="purchased_syringe"
                      {{ 'checked' if not lc_jar or lc_jar.source_type == 'purchased_syringe' }}
@@ -34,11 +34,17 @@
                      onchange="toggleSourceFields()">
               Own-culture (agar plate)
             </label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;text-transform:none;letter-spacing:0;font-weight:400">
+              <input type="radio" name="source_type" value="tissue_clone"
+                     {{ 'checked' if lc_jar and lc_jar.source_type == 'tissue_clone' }}
+                     onchange="toggleSourceFields()">
+              Tissue clone (fruiting block)
+            </label>
           </div>
-          <span class="form-hint">Own-culture marks the transition to self-sustaining production</span>
+          <span class="form-hint">Tissue clone = mushroom tissue placed directly into liquid culture, skipping the agar plate step</span>
         </div>
 
-        <div class="fg full" id="field-syringe" style="{{ 'display:none' if lc_jar and lc_jar.source_type == 'agar_plate' else '' }}">
+        <div class="fg full" id="field-syringe" style="{{ 'display:none' if lc_jar and lc_jar.source_type in ('agar_plate','tissue_clone') else '' }}">
           <label>LC Lot (purchased syringe)</label>
           <select name="source_id" id="syringe-select">
             <option value="">— none / unknown —</option>
@@ -62,6 +68,29 @@
             </option>
             {% endfor %}
           </select>
+        </div>
+
+        <div class="fg full" id="field-tissue" style="{{ '' if lc_jar and lc_jar.source_type == 'tissue_clone' else 'display:none' }}">
+          <label>Source Block</label>
+          <select name="source_id" id="tissue-select">
+            <option value="">— none / unknown —</option>
+            {% for b in batches_src %}
+            {% set be = (b.total_yield_g / b.dry_weight_g * 100) | round(1) if b.total_yield_g and b.dry_weight_g else None %}
+            <option value="{{ b.id }}"
+              {{ 'selected' if lc_jar and lc_jar.source_type == 'tissue_clone' and lc_jar.source_id == b.id }}>
+              {{ b.label }} — {{ b.species }}{% if be %} ({{ be }}% BE){% endif %}
+            </option>
+            {% endfor %}
+          </select>
+          <span class="form-hint">BE% shown to help identify your best-performing blocks to clone</span>
+        </div>
+
+        <div class="fg" id="field-flush" style="{{ '' if lc_jar and lc_jar.source_type == 'tissue_clone' else 'display:none' }}">
+          <label>Flush # (tissue from)</label>
+          <input type="number" name="flush_number_source" min="1" step="1"
+                 placeholder="e.g. 1"
+                 value="{{ lc_jar.flush_number_source if lc_jar and lc_jar.flush_number_source else '' }}" id="flush-input">
+          <span class="form-hint">Which flush the tissue was cut from</span>
         </div>
       </div>
     </div>
@@ -132,10 +161,13 @@
 function toggleSourceFields() {
   const t = document.querySelector('input[name="source_type"]:checked').value;
   document.getElementById('field-syringe').style.display = t === 'purchased_syringe' ? '' : 'none';
-  document.getElementById('field-agar').style.display    = t === 'agar_plate' ? '' : 'none';
-  // Disable the hidden select so it doesn't submit a stale value
+  document.getElementById('field-agar').style.display    = t === 'agar_plate'         ? '' : 'none';
+  document.getElementById('field-tissue').style.display  = t === 'tissue_clone'       ? '' : 'none';
+  document.getElementById('field-flush').style.display   = t === 'tissue_clone'       ? '' : 'none';
   document.getElementById('syringe-select').disabled = t !== 'purchased_syringe';
   document.getElementById('agar-select').disabled    = t !== 'agar_plate';
+  document.getElementById('tissue-select').disabled  = t !== 'tissue_clone';
+  document.getElementById('flush-input').disabled    = t !== 'tissue_clone';
 }
 toggleSourceFields();
 </script>

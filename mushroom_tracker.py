@@ -523,6 +523,11 @@ def init_db():
     if 'lc_batch_id' in _gj_cols2 and 'lc_jar_id' not in _gj_cols2:
         c.execute("ALTER TABLE grain_jars RENAME COLUMN lc_batch_id TO lc_jar_id")
 
+    # Non-destructive column additions for lc_jars
+    _lj_cols = {r[1] for r in c.execute("PRAGMA table_info(lc_jars)")}
+    if 'flush_number_source' not in _lj_cols:
+        c.execute("ALTER TABLE lc_jars ADD COLUMN flush_number_source INTEGER")
+
     # Non-destructive column additions for batches
     existing_b = {r[1] for r in c.execute("PRAGMA table_info(batches)")}
     for col, typedef in {

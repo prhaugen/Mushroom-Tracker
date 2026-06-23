@@ -4,15 +4,16 @@
 <div class="page-head-row">
   <div class="page-head">
     <div class="page-title">LC Jars</div>
-    <div class="page-sub">{{ lc_jars|length }} jar{% if lc_jars|length != 1 %}s{% endif %} — own-culture liquid culture jars from agar plates or purchased syringes</div>
+    <div class="page-sub">{{ lc_jars|length }} jar{% if lc_jars|length != 1 %}s{% endif %} — purchased syringes, agar plates, and direct tissue clones</div>
   </div>
   <a href="{{ url_for('lc_jar_add') }}" class="btn btn-primary">+ Log Jar</a>
 </div>
 
 {% if lc_jars %}
-{% set own_culture = lc_jars | selectattr('source_type','equalto','agar_plate') | list %}
-{% set purchased   = lc_jars | selectattr('source_type','equalto','purchased_syringe') | list %}
-{% set clean_cnt   = lc_jars | selectattr('outcome','equalto','clean') | list | length %}
+{% set own_culture   = lc_jars | selectattr('source_type','in',['agar_plate','tissue_clone']) | list %}
+{% set purchased     = lc_jars | selectattr('source_type','equalto','purchased_syringe') | list %}
+{% set tissue_clones = lc_jars | selectattr('source_type','equalto','tissue_clone') | list %}
+{% set clean_cnt     = lc_jars | selectattr('outcome','equalto','clean') | list | length %}
 
 <div class="stats mb-20" style="grid-template-columns:repeat(4,1fr)">
   <div class="stat">
@@ -22,7 +23,7 @@
   <div class="stat b">
     <div class="stat-label">Own-Culture</div>
     <div class="stat-val">{{ own_culture|length }}</div>
-    <div class="stat-sub">from agar</div>
+    <div class="stat-sub">agar + tissue clone</div>
   </div>
   <div class="stat">
     <div class="stat-label">Purchased Syringe</div>
@@ -57,6 +58,8 @@
           <td>
             {% if lb.source_type == 'agar_plate' %}
             <span class="badge" style="background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)">own-culture</span>
+            {% elif lb.source_type == 'tissue_clone' %}
+            <span class="badge" style="background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)">tissue clone</span>
             {% else %}
             <span class="badge" style="background:var(--gray-bg);color:var(--gray);border:1px solid var(--gray-border)">purchased</span>
             {% endif %}
@@ -65,6 +68,8 @@
             {% if lb.source_type == 'agar_plate' and lb.agar_tissue_date %}
               Agar plate {{ lb.agar_tissue_date }}
               {% if lb.label %}({{ lb.label }}){% endif %}
+            {% elif lb.source_type == 'tissue_clone' and lb.tissue_batch_label %}
+              {{ lb.tissue_batch_label }}{% if lb.flush_number_source %} · flush {{ lb.flush_number_source }}{% endif %}
             {% elif lb.source_type == 'purchased_syringe' and lb.lot_vendor %}
               {{ lb.lot_vendor }}{% if lb.lot_number %} · {{ lb.lot_number }}{% endif %}
             {% else %}—{% endif %}
@@ -96,8 +101,7 @@
 <div class="card">
   <div class="empty">
     <div class="empty-title">No LC jars logged yet</div>
-    <div class="empty-sub">Log each liquid culture jar here — whether from a purchased syringe or your own agar-derived culture.
-    The first <b>agar_plate</b>-sourced jar marks your transition to own-culture production.</div>
+    <div class="empty-sub">Log each liquid culture jar here — purchased syringes, agar plate transfers, or direct tissue clones from a fruiting block.</div>
     <a href="{{ url_for('lc_jar_add') }}" class="btn btn-primary">Log First Jar</a>
   </div>
 </div>

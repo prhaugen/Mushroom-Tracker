@@ -1163,10 +1163,12 @@ def lc_jars_list():
     lc_jars = conn.execute("""
         SELECT lb.*,
                ap.tissue_collection_date AS agar_tissue_date,
-               ll.vendor AS lot_vendor, ll.species AS lot_species, ll.lot_number
+               ll.vendor AS lot_vendor, ll.species AS lot_species, ll.lot_number,
+               tc.label AS tissue_batch_label, tc.species AS tissue_batch_species
         FROM lc_jars lb
         LEFT JOIN agar_plates ap ON lb.source_type = 'agar_plate' AND lb.source_id = ap.id
         LEFT JOIN lc_lots ll ON lb.source_type = 'purchased_syringe' AND lb.source_id = ll.id
+        LEFT JOIN batches tc ON lb.source_type = 'tissue_clone' AND lb.source_id = tc.id
         ORDER BY lb.prepared_date DESC, lb.id DESC
     """).fetchall()
     conn.close()
@@ -1181,11 +1183,12 @@ def lc_jar_add():
         f = request.form
         conn.execute("""
             INSERT INTO lc_jars
-            (source_type, source_id, species, media_type,
+            (source_type, source_id, flush_number_source, species, media_type,
              prepared_date, colonization_date, outcome, notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (f.get('source_type') or 'purchased_syringe',
              int(f['source_id']) if f.get('source_id') else None,
+             int(f['flush_number_source']) if f.get('flush_number_source') else None,
              f.get('species') or None,
              f.get('media_type') or None,
              f.get('prepared_date') or None,
@@ -1203,10 +1206,13 @@ def lc_jar_add():
     lc_lots_src = conn.execute(
         "SELECT id, vendor, species, lot_number FROM lc_lots ORDER BY order_date DESC"
     ).fetchall()
+    batches_src = conn.execute(
+        "SELECT id, label, species, total_yield_g, dry_weight_g FROM batches ORDER BY label"
+    ).fetchall()
     conn.close()
     return render_template('lc_jar_form.html', lc_jar=None,
                            agar_plates_src=agar_plates_src, lc_lots_src=lc_lots_src,
-                           today=str(date.today()))
+                           batches_src=batches_src, today=str(date.today()))
 
 
 @app.route('/lc-jars/<int:jar_id>/edit', methods=['GET', 'POST'])
@@ -1220,11 +1226,12 @@ def lc_jar_edit(jar_id):
         f = request.form
         conn.execute("""
             UPDATE lc_jars SET
-            source_type=?, source_id=?, species=?, media_type=?,
+            source_type=?, source_id=?, flush_number_source=?, species=?, media_type=?,
             prepared_date=?, colonization_date=?, outcome=?, notes=?
             WHERE id=?""",
             (f.get('source_type') or 'purchased_syringe',
              int(f['source_id']) if f.get('source_id') else None,
+             int(f['flush_number_source']) if f.get('flush_number_source') else None,
              f.get('species') or None,
              f.get('media_type') or None,
              f.get('prepared_date') or None,
@@ -1243,10 +1250,13 @@ def lc_jar_edit(jar_id):
     lc_lots_src = conn.execute(
         "SELECT id, vendor, species, lot_number FROM lc_lots ORDER BY order_date DESC"
     ).fetchall()
+    batches_src = conn.execute(
+        "SELECT id, label, species, total_yield_g, dry_weight_g FROM batches ORDER BY label"
+    ).fetchall()
     conn.close()
     return render_template('lc_jar_form.html', lc_jar=lc_jar,
                            agar_plates_src=agar_plates_src, lc_lots_src=lc_lots_src,
-                           today=str(date.today()))
+                           batches_src=batches_src, today=str(date.today()))
 
 
 @app.route('/lc-jars/<int:jar_id>/delete', methods=['POST'])
