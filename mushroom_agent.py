@@ -697,7 +697,7 @@ def call_claude(snapshot: dict) -> dict:
     client = anthropic.Anthropic(api_key=api_key)
     message = client.messages.create(
         model="claude-sonnet-4-6",
-        max_tokens=4096,
+        max_tokens=8192,
         system=SYSTEM_PROMPT,
         messages=[{"role": "user", "content": json.dumps(snapshot, default=str)}],
     )

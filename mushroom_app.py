@@ -2927,7 +2927,7 @@ def _govee_request(path: str, api_key: str, body: dict | None = None) -> dict:
     method = 'POST' if body else 'GET'
     req = urllib.request.Request(_GOVEE_BASE + path, data=data,
                                  headers=headers, method=method)
-    with urllib.request.urlopen(req, timeout=10) as resp:
+    with urllib.request.urlopen(req, timeout=30) as resp:
         return json.loads(resp.read().decode())
 
 
