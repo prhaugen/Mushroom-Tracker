@@ -425,7 +425,7 @@ def build():
         ("16",   "Culture Tracking",                           "19"),
         ("16.1", "LC Syringe Lots",                            "19"),
         ("16.2", "Agar Plate Records",                         "20"),
-        ("16.3", "LC Jars (Own-Culture)",                      "20"),
+        ("16.3", "LC Jars",                                       "20"),
         ("17",   "Substrate Batches",                          "20"),
         ("17.1", "Logging a Substrate Run",                    "20"),
         ("17.2", "Linking Blocks to a Substrate Batch",        "21"),
@@ -2496,8 +2496,8 @@ def build():
                  "Tissue culture plates cloned from a fruiting block. "
                  "Links back to the source batch and flush number."],
                 ["LC Jars",     "Supply → LC Jars",
-                 "Each liquid culture preparation jar — whether expanded from "
-                 "an agar plate (own-culture) or drawn from a purchased syringe. "
+                 "Each liquid culture preparation jar — from a purchased syringe, "
+                 "an agar plate transfer, or a direct tissue clone from a fruiting block. "
                  "Links forward to the grain jars inoculated from it."],
             ],
             col_widths=[2.5*cm, 3.5*cm, 10.2*cm],
@@ -2506,9 +2506,10 @@ def build():
         p("The full traceability chain runs: "
           "<b>LC Lot</b> (purchase) <b>→ LC Jar</b> (prep) <b>→ Grain Jars</b> <b>→ "
           "Substrate Batch</b> <b>→ Fruiting Block</b> <b>→ Flushes</b>. "
-          "For own-culture production the path extends further upstream: "
-          "<b>Fruiting Block</b> (source) <b>→ Agar Plate</b> (tissue) <b>→ LC Jar</b> <b>→ "
-          "Grain Jars</b> — forming a closed loop from your best-performing blocks."),
+          "For own-culture production there are two upstream paths: "
+          "<b>Fruiting Block → Agar Plate → LC Jar → Grain Jars</b> (tissue via agar), "
+          "or <b>Fruiting Block → LC Jar → Grain Jars</b> (direct tissue clone, "
+          "skipping the agar plate step) — both form a closed loop from your best-performing blocks."),
         sp(8),
         h2("16.1  LC Syringe Lots"),
         p("Navigate to <b>Supply &rarr; Culture</b> in the top navigation bar to view and manage your "
@@ -2606,47 +2607,57 @@ def build():
             label="Analytics:"
         ),
         sp(14),
-        h2("16.3  LC Jars (Own-Culture)"),
+        h2("16.3  LC Jars"),
         p("Navigate to <b>Supply → LC Jars</b> to view and log liquid culture jar records. "
-          "An LC jar is one preparation of liquid culture medium inoculated from either "
-          "an agar plate (own-culture) or a purchased syringe (purchased). "
-          "It is the intermediate step between the culture source and the grain jars."),
+          "An LC jar is one jar (or flask) of liquid culture medium that has been inoculated "
+          "and colonized. It is the intermediate step between the culture source and "
+          "the grain jars you inoculate from it."),
         sp(6),
-        h3("Source Type Toggle"),
-        p("The add form opens with a two-option radio toggle:"),
+        h3("Source Type"),
+        p("The add form has three source options — select the one that matches "
+          "how the jar was started:"),
         sp(4),
         *bullet([
-            "<b>Purchased syringe (LC lot)</b> — select from your logged LC lots. "
-            "Use this for jars prepared from a vendor syringe. "
-            "The LC lot provides vendor-level traceability; the LC jar records "
-            "the specific preparation and outcome.",
-            "<b>Own-culture (agar plate)</b> — select from your logged agar plates. "
-            "Only the fields for the selected source type are submitted — "
-            "the other select is disabled so stale values cannot be written.",
+            "<b>Purchased syringe (LC lot)</b> — jar inoculated from a vendor syringe. "
+            "Select the LC lot to link vendor-level traceability to this specific jar.",
+            "<b>Own-culture (agar plate)</b> — jar inoculated from a colonized agar plate. "
+            "Select the source plate; the plate already records which block and flush "
+            "the tissue came from.",
+            "<b>Tissue clone (fruiting block)</b> — mushroom tissue placed directly into "
+            "the jar, skipping the agar plate step. "
+            "Select the source block and the flush the tissue was cut from. "
+            "The block dropdown shows BE% to help identify the best genetics to clone.",
         ]),
+        sp(4),
+        p("Only the fields for the selected source type are submitted — "
+          "hidden selects are disabled so stale values are never written."),
         sp(6),
         data_table(
             ["Field", "Required", "Notes"],
             [
-                ["Source Type",       "Yes",
-                 "purchased_syringe or agar_plate. Determines which source selector is shown."],
-                ["Source (LC Lot or Agar Plate)", "No",
-                 "The specific lot or plate this batch was expanded from. "
-                 "Can be left blank if the source was not recorded."],
-                ["Species",           "No",
-                 "Species of the culture. Inferred from the source record if you select one."],
-                ["Media Type",        "No",
+                ["Source Type",           "Yes",
+                 "purchased_syringe, agar_plate, or tissue_clone. "
+                 "Determines which source selector is shown."],
+                ["Source",                "No",
+                 "LC lot, agar plate, or fruiting block — whichever matches the source type. "
+                 "Can be left blank if not recorded."],
+                ["Flush # (tissue from)", "No",
+                 "Tissue clone only. Which flush the tissue was cut from. "
+                 "Tissue from flush 1 may behave differently from flush 3 — "
+                 "capturing this allows downstream correlation once data accumulates."],
+                ["Species",               "No",
+                 "Species of the culture."],
+                ["Media Type",            "No",
                  "Liquid medium: PDB (Potato Dextrose Broth), MEB (Malt Extract Broth), "
-                 "Coconut Water, Honey Water. "
-                 "Affects colonization speed and vigor on grain."],
-                ["Prepared Date",     "No",
-                 "When the LC was prepared and inoculated. Defaults to today."],
-                ["Colonization Date", "No",
-                 "When the LC was fully colonized and ready to use for grain inoculation."],
-                ["Outcome",           "No",
+                 "Coconut Water, Honey Water. Affects colonization speed and vigor on grain."],
+                ["Prepared Date",         "No",
+                 "When the jar was inoculated. Defaults to today."],
+                ["Colonization Date",     "No",
+                 "When the mycelium fully colonized the jar and it was ready to use."],
+                ["Outcome",               "No",
                  "clean / contaminated / slow / no growth. "
-                 "A clean batch moves forward; a contaminated batch is discarded "
-                 "and the event should be noted so you can identify failure patterns."],
+                 "A contaminated jar is discarded; log it here to track failure rates "
+                 "by source type over time."],
             ],
             col_widths=[3.8*cm, 2*cm, 10.4*cm],
         ),
@@ -2655,17 +2666,17 @@ def build():
         p("When logging a grain jar (Supply → Grain Jars), the form includes an "
           "<b>LC Jar</b> selector alongside the existing LC Lot selector. "
           "Set one or the other — not both. "
-          "If you inoculated from a purchased syringe directly, use LC Lot. "
-          "If you inoculated from a prepared LC jar (own or purchased via LC Jar), "
-          "use LC Jar. "
-          "This FK is the forward link that enables end-to-end traceability."),
+          "If you inoculated grain directly from a vendor syringe (no jar step), use LC Lot. "
+          "If you inoculated from a prepared LC jar of any source type, use LC Jar. "
+          "This link is the forward connection that enables end-to-end traceability."),
         sp(6),
         callout(
-            "The first LC Jar record with <b>source_type = agar_plate</b> marks the "
-            "transition from purchased to own-culture production. "
+            "The first LC Jar with <b>source_type = agar_plate</b> or "
+            "<b>source_type = tissue_clone</b> marks the transition from purchased to "
+            "own-culture production. "
             "Once you have both types, the yield comparison is a direct segmentation: "
             "BE% for grain jars linked via lc_lot_id (purchased) vs. "
-            "grain jars linked via lc_jar_id with source_type = agar_plate (own-culture).",
+            "grain jars linked via lc_jar_id (own-culture — agar plate or tissue clone).",
             label="Transition Moment:"
         ),
     ]
