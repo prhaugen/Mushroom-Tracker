@@ -3501,7 +3501,7 @@ def build():
     # 19. GROWING REFERENCE
     # ══════════════════════════════════════════════════════════════════════
     story += [
-        h1("25. Growing Reference"),
+        h1("26. Growing Reference"),
         rule(),
         h2("Optimal Fruiting Conditions by Species"),
         sp(4),
@@ -3620,7 +3620,7 @@ def build():
     # 20. TIPS & TROUBLESHOOTING
     # ══════════════════════════════════════════════════════════════════════
     story += [
-        h1("26. Tips & Troubleshooting"),
+        h1("27. Tips & Troubleshooting"),
         rule(),
         h2("Improving Your BE%"),
         *bullet([
