@@ -917,9 +917,11 @@ def init_scheduler(app):
 
         scheduler = BackgroundScheduler(daemon=True)
         scheduler.add_job(_briefing_job, trigger='cron', hour=6, minute=0,
-                          id='daily_briefing', replace_existing=True)
+                          id='daily_briefing', replace_existing=True,
+                          misfire_grace_time=300)
         scheduler.add_job(_govee_job, trigger='interval', minutes=10,
-                          id='govee_poll', replace_existing=True)
+                          id='govee_poll', replace_existing=True,
+                          misfire_grace_time=60)
         scheduler.start()
         atexit.register(scheduler.shutdown)
         logger.info("Scheduler started — briefing at 06:00, Govee poll every 10 min")
