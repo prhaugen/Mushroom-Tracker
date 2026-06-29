@@ -272,21 +272,28 @@ def _get_latest_flush_per_batch(conn, batch_ids: list) -> dict:
     return {row['batch_id']: dict(row) for row in rows}
 
 
-def _get_all_flushes_per_batch(conn, batch_ids: list) -> dict:
+def _get_all_flushes_per_batch(conn, batch_ids: list, max_per_batch: int = 8) -> dict:
     if not batch_ids:
         return {}
     ph = ','.join('?' * len(batch_ids))
     rows = conn.execute(f"""
-        SELECT f.*, b.dry_weight_g
+        SELECT f.batch_id, f.flush_number, f.harvest_date, f.pinning_date,
+               f.fresh_weight_g, f.quality_rating, f.notes,
+               b.dry_weight_g
         FROM flushes f
         JOIN batches b ON f.batch_id = b.id
         WHERE f.batch_id IN ({ph})
-        ORDER BY f.batch_id, f.flush_number
+        ORDER BY f.batch_id, f.flush_number DESC
     """, batch_ids).fetchall()
     result = {}
     for row in rows:
         bid = row['batch_id']
-        result.setdefault(bid, []).append(dict(row))
+        entries = result.setdefault(bid, [])
+        if len(entries) < max_per_batch:
+            entries.append(dict(row))
+    # Restore chronological order within each batch
+    for bid in result:
+        result[bid].sort(key=lambda r: r['flush_number'])
     return result
 
 
@@ -660,7 +667,8 @@ def get_snapshot(conn) -> dict:
         'contamination_recent':         contamination,
         'historical_averages':          historical,
         'goals_and_thresholds': {
-            'species_timelines':    SPECIES_TIMELINES,
+            'species_timelines':    {k: v for k, v in SPECIES_TIMELINES.items()
+                                     if k in {b['species'].lower() for b in active_batches}},
             'default_timeline':     DEFAULT_TIMELINE,
             'env_guardrails':       ENV_GUARDRAILS,
             'flush_degradation':    FLUSH_DEGRADATION,
@@ -708,7 +716,12 @@ def call_claude(snapshot: dict) -> dict:
             "The snapshot may be too large — consider reducing recent_env_logs history."
         )
 
+    if not message.content:
+        raise RuntimeError("Briefing response was empty (no content blocks returned).")
+
     raw = message.content[0].text.strip()
+    if not raw:
+        raise RuntimeError("Briefing response was empty (blank text content).")
     if raw.startswith("```"):
         lines = raw.split('\n')
         raw = '\n'.join(lines[1:-1] if lines[-1].strip() == '```' else lines[1:])
