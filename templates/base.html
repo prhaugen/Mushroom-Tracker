@@ -639,7 +639,8 @@ input[name="quality_rating"]{display:none}
         'lc_jars_list','lc_jar_add','lc_jar_edit',
         'grain_jars_list','grain_jar_add','grain_jar_edit',
         'agar_plates_list','agar_plate_add','agar_plate_edit',
-        'checklists_list','checklist_view') %}
+        'checklists_list','checklist_view',
+        'slants_list','slant_add','slant_edit','slant_detail') %}
     <div class="nav-dropdown">
       <div class="nav-link{% if _supply_active %} active{% endif %}" tabindex="0"
            style="cursor:default" role="button" aria-haspopup="true">
@@ -674,6 +675,17 @@ input[name="quality_rating"]{display:none}
             <path d="M5.5 6h3" stroke="var(--bg)" stroke-width=".9" opacity=".35" fill="none"/>
           </svg>
           LC Lots
+        </a>
+        <a href="{{ url_for('slants_list') }}"
+           class="nav-dd-item{% if request.endpoint in ('slants_list','slant_add','slant_edit','slant_detail') %} active{% endif %}">
+          <!-- test tube / slant icon -->
+          <svg viewBox="0 0 14 14" width="13" height="13" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+            <rect x="6" y="1" width="2" height="1" rx=".4" opacity=".5"/>
+            <rect x="5.5" y="2" width="3" height="7" rx="1.5" opacity=".85"/>
+            <ellipse cx="7" cy="9.5" rx="1.5" ry="1" opacity=".7"/>
+            <path d="M5.5 7.5h3" stroke="var(--bg)" stroke-width=".8" opacity=".4" fill="none"/>
+          </svg>
+          Slants
         </a>
         <a href="{{ url_for('lc_jars_list') }}"
            class="nav-dd-item{% if request.endpoint in ('lc_jars_list','lc_jar_add','lc_jar_edit') %} active{% endif %}">

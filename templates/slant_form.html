@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if slant else 'Add Slant' }} — Mushroom Tracker{% endblock %}
+{% block content %}
+<div class="page-head-row">
+  <div class="page-head">
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">
+      <a href="{{ url_for('slants_list') }}" style="color:var(--text-muted);text-decoration:none">Slants</a>
+      / {{ 'Edit' if slant else 'Add Slant' }}
+    </div>
+    <div class="page-title">{{ slant.label if slant else 'Add Slant' }}</div>
+  </div>
+  <a href="{{ url_for('slants_list') }}" class="btn btn-ghost btn-sm">Back</a>
+</div>
+
+<div class="card form-wrap">
+  <form method="POST">
+    <div class="fg-grid">
+
+      <!-- Identity -->
+      <div class="fg-section-label full">Identity</div>
+
+      <div class="fg">
+        <label>Label *</label>
+        <input type="text" name="label" required placeholder="e.g. BOM-S1, BOP-G3"
+               value="{{ slant.label if slant else '' }}">
+        <span class="form-hint">Short unique ID for this slant batch</span>
+      </div>
+
+      <div class="fg">
+        <label>Species *</label>
+        <input type="text" name="species" required placeholder="e.g. Blue Oyster"
+               value="{{ slant.species if slant else '' }}">
+      </div>
+
+      <div class="fg">
+        <label>Strain / Variant</label>
+        <input type="text" name="strain" placeholder="e.g. WC-4, PNW clone"
+               value="{{ slant.strain if slant and slant.strain else '' }}">
+      </div>
+
+      <div class="fg">
+        <label>Status</label>
+        <select name="status">
+          {% for s in statuses %}
+          <option value="{{ s }}" {% if slant and slant.status == s %}selected{% elif not slant and s == 'active' %}selected{% endif %}>
+            {{ s|title }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Inventory -->
+      <div class="fg-section-label full">Inventory</div>
+
+      <div class="fg">
+        <label>Date Made *</label>
+        <input type="date" name="made_date" required
+               value="{{ slant.made_date if slant and slant.made_date else '' }}">
+      </div>
+
+      <div class="fg">
+        <label>Tube Count</label>
+        <input type="number" name="tube_count" min="1" placeholder="1"
+               value="{{ slant.tube_count if slant else '1' }}">
+      </div>
+
+      {% if slant %}
+      <div class="fg">
+        <label>Tubes Remaining</label>
+        <input type="number" name="tubes_remaining" min="0"
+               value="{{ slant.tubes_remaining }}">
+      </div>
+      {% endif %}
+
+      <div class="fg">
+        <label>Generation #</label>
+        <input type="number" name="generation" min="1" placeholder="1"
+               value="{{ slant.generation if slant and slant.generation else '1' }}">
+        <span class="form-hint">Transfer count — 1 = original, 2 = first transfer, etc.</span>
+      </div>
+
+      <div class="fg">
+        <label>Storage Location</label>
+        <input type="text" name="storage_location" placeholder="e.g. Fridge shelf B, Box 2"
+               value="{{ slant.storage_location if slant and slant.storage_location else '' }}">
+      </div>
+
+      <div class="fg">
+        <label>Viability Date</label>
+        <input type="date" name="viability_date"
+               value="{{ slant.viability_date if slant and slant.viability_date else '' }}">
+        <span class="form-hint">Estimated expiry — typically 6–12 months from made date</span>
+      </div>
+
+      <!-- Source / Lineage -->
+      <div class="fg-section-label full">Source / Lineage</div>
+
+      <div class="fg">
+        <label>Source Type</label>
+        <select name="source_type">
+          <option value="">—</option>
+          {% for st in source_types %}
+          <option value="{{ st }}" {% if slant and slant.source_type == st %}selected{% endif %}>
+            {{ st|replace('_',' ')|title }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="fg">
+        <label>Parent Slant <span class="td-m">(if from another slant)</span></label>
+        <select name="source_slant_id">
+          <option value="">—</option>
+          {% for s in all_slants %}
+          <option value="{{ s.id }}"
+                  {% if slant and slant.source_slant_id == s.id %}selected{% endif %}>
+            {{ s.label }} — {{ s.species }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="fg">
+        <label>Source LC Lot <span class="td-m">(if from LC)</span></label>
+        <select name="source_lc_id">
+          <option value="">—</option>
+          {% for lc in lc_lots %}
+          <option value="{{ lc.id }}"
+                  {% if slant and slant.source_lc_id == lc.id %}selected{% endif %}>
+            {{ lc.species }} — {{ lc.vendor }}{% if lc.lot_number %} #{{ lc.lot_number }}{% endif %}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="fg full">
+        <label>Source Notes</label>
+        <input type="text" name="source_notes"
+               placeholder="e.g. Tissue culture from flush 2, batch #12"
+               value="{{ slant.source_notes if slant and slant.source_notes else '' }}">
+      </div>
+
+      <!-- Notes -->
+      <div class="fg-section-label full">Notes</div>
+
+      <div class="fg full">
+        <label>Notes</label>
+        <textarea name="notes" rows="3"
+                  placeholder="Growth observations, contamination checks, viability notes…">{{ slant.notes if slant and slant.notes else '' }}</textarea>
+      </div>
+
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">{{ 'Save Changes' if slant else 'Add Slant' }}</button>
+      <a href="{{ url_for('slants_list') }}" class="btn btn-ghost">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

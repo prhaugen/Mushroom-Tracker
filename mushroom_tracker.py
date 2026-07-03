@@ -775,6 +775,39 @@ def init_db():
             _defaults,
         )
 
+    # Slant / agar culture library
+    c.execute("""CREATE TABLE IF NOT EXISTS slants (
+        id               INTEGER PRIMARY KEY AUTOINCREMENT,
+        label            TEXT NOT NULL,
+        species          TEXT NOT NULL,
+        strain           TEXT,
+        source_type      TEXT,
+        source_lc_id     INTEGER REFERENCES lc_lots(id),
+        source_slant_id  INTEGER REFERENCES slants(id),
+        source_notes     TEXT,
+        generation       INTEGER DEFAULT 1,
+        made_date        TEXT NOT NULL,
+        tube_count       INTEGER NOT NULL DEFAULT 1,
+        tubes_remaining  INTEGER NOT NULL DEFAULT 1,
+        storage_location TEXT,
+        viability_date   TEXT,
+        status           TEXT DEFAULT 'active',
+        notes            TEXT,
+        created_at       TEXT DEFAULT CURRENT_TIMESTAMP
+    )""")
+
+    c.execute("""CREATE TABLE IF NOT EXISTS slant_uses (
+        id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+        slant_id             INTEGER NOT NULL REFERENCES slants(id),
+        use_date             TEXT NOT NULL,
+        use_type             TEXT,
+        tubes_used           INTEGER NOT NULL DEFAULT 1,
+        destination_lc_id    INTEGER REFERENCES lc_lots(id),
+        destination_slant_id INTEGER REFERENCES slants(id),
+        notes                TEXT,
+        created_at           TEXT DEFAULT CURRENT_TIMESTAMP
+    )""")
+
     # Performance indexes — CREATE INDEX IF NOT EXISTS is a no-op when already present
     c.execute("""CREATE INDEX IF NOT EXISTS idx_env_logs_chamber_time
                  ON environment_logs(chamber_id, logged_at)""")

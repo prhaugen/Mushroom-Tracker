@@ -1342,6 +1342,231 @@ def lc_lot_delete(lot_id):
     return redirect(url_for('lc_lots_list'))
 
 
+# ── Slants ────────────────────────────────────────────────────────────────────
+SLANT_SOURCE_TYPES = ['lc_lot', 'slant', 'fruiting_body', 'purchased', 'other']
+SLANT_STATUSES     = ['active', 'depleted', 'contaminated', 'retired']
+
+def _slant_lineage(conn, slant_id):
+    """Return (ancestors, descendants) lists for a slant."""
+    ancestors = []
+    node_id = slant_id
+    seen = set()
+    while True:
+        row = conn.execute(
+            "SELECT id, label, species, source_slant_id FROM slants WHERE id=?", (node_id,)
+        ).fetchone()
+        if not row or row['source_slant_id'] is None or row['source_slant_id'] in seen:
+            break
+        seen.add(node_id)
+        node_id = row['source_slant_id']
+        ancestors.insert(0, dict(row))
+
+    # direct children (slants made from this one)
+    children_s = conn.execute(
+        "SELECT id, label, species, strain, status, made_date FROM slants WHERE source_slant_id=?",
+        (slant_id,)
+    ).fetchall()
+    # LC lots made from this slant (stored in slant_uses destination_lc_id)
+    children_lc = conn.execute("""
+        SELECT su.id as use_id, su.use_date, lc.id as lc_id, lc.species, lc.vendor, lc.lot_number
+        FROM slant_uses su
+        JOIN lc_lots lc ON lc.id = su.destination_lc_id
+        WHERE su.slant_id=? AND su.destination_lc_id IS NOT NULL
+    """, (slant_id,)).fetchall()
+    return ancestors, [dict(r) for r in children_s], [dict(r) for r in children_lc]
+
+
+@app.route('/slants')
+def slants_list():
+    init_db()
+    conn = get_db()
+    q      = request.args.get('q', '').strip()
+    status = request.args.get('status', '')
+    sql = "SELECT * FROM slants WHERE 1=1"
+    params = []
+    if q:
+        sql += " AND (species LIKE ? OR label LIKE ? OR strain LIKE ?)"
+        params += [f'%{q}%', f'%{q}%', f'%{q}%']
+    if status:
+        sql += " AND status=?"
+        params.append(status)
+    sql += " ORDER BY made_date DESC, id DESC"
+    slants = conn.execute(sql, params).fetchall()
+    conn.close()
+    today = str(date.today())
+    return render_template('slants_list.html', slants=slants, q=q,
+                           status=status, statuses=SLANT_STATUSES, today=today)
+
+
+@app.route('/slants/add', methods=['GET', 'POST'])
+def slant_add():
+    init_db()
+    conn = get_db()
+    if request.method == 'POST':
+        f = request.form
+        label   = f.get('label', '').strip()
+        species = f.get('species', '').strip()
+        if not label or not species:
+            flash('Label and species are required.', 'error')
+        else:
+            tc = int(f.get('tube_count') or 1)
+            src_type = f.get('source_type') or None
+            src_lc   = int(f['source_lc_id'])   if f.get('source_lc_id')   else None
+            src_sl   = int(f['source_slant_id']) if f.get('source_slant_id') else None
+            gen = 1
+            if src_sl:
+                parent = conn.execute("SELECT generation FROM slants WHERE id=?", (src_sl,)).fetchone()
+                if parent:
+                    gen = (parent['generation'] or 1) + 1
+            conn.execute("""INSERT INTO slants
+                (label, species, strain, source_type, source_lc_id, source_slant_id,
+                 source_notes, generation, made_date, tube_count, tubes_remaining,
+                 storage_location, viability_date, status, notes)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (label, species,
+                 f.get('strain') or None, src_type, src_lc, src_sl,
+                 f.get('source_notes') or None, gen,
+                 f['made_date'], tc, tc,
+                 f.get('storage_location') or None,
+                 f.get('viability_date') or None,
+                 f.get('status', 'active'),
+                 f.get('notes') or None))
+            conn.commit()
+            flash(f'Slant "{label}" added.', 'success')
+            conn.close()
+            return redirect(url_for('slants_list'))
+    lc_lots  = conn.execute("SELECT id, species, vendor, lot_number FROM lc_lots ORDER BY species").fetchall()
+    all_slants = conn.execute("SELECT id, label, species FROM slants WHERE status='active' ORDER BY species").fetchall()
+    conn.close()
+    return render_template('slant_form.html', slant=None,
+                           lc_lots=lc_lots, all_slants=all_slants,
+                           source_types=SLANT_SOURCE_TYPES, statuses=SLANT_STATUSES)
+
+
+@app.route('/slants/<int:slant_id>')
+def slant_detail(slant_id):
+    init_db()
+    conn = get_db()
+    slant = conn.execute("SELECT * FROM slants WHERE id=?", (slant_id,)).fetchone()
+    if not slant:
+        conn.close(); flash('Slant not found.', 'error')
+        return redirect(url_for('slants_list'))
+    uses = conn.execute("""
+        SELECT su.*, lc.species as lc_species, lc.vendor as lc_vendor,
+               s2.label as child_slant_label, s2.species as child_slant_species
+        FROM slant_uses su
+        LEFT JOIN lc_lots lc ON lc.id = su.destination_lc_id
+        LEFT JOIN slants  s2 ON s2.id = su.destination_slant_id
+        WHERE su.slant_id=?
+        ORDER BY su.use_date DESC
+    """, (slant_id,)).fetchall()
+    src_lc    = conn.execute("SELECT * FROM lc_lots WHERE id=?", (slant['source_lc_id'],)).fetchone() if slant['source_lc_id'] else None
+    src_slant = conn.execute("SELECT * FROM slants WHERE id=?",  (slant['source_slant_id'],)).fetchone() if slant['source_slant_id'] else None
+    ancestors, children_s, children_lc = _slant_lineage(conn, slant_id)
+    lc_lots    = conn.execute("SELECT id, species, vendor, lot_number FROM lc_lots ORDER BY species").fetchall()
+    all_slants = conn.execute(
+        "SELECT id, label, species FROM slants WHERE status='active' AND id!=? ORDER BY species",
+        (slant_id,)
+    ).fetchall()
+    conn.close()
+    return render_template('slant_detail.html', slant=slant, uses=uses,
+                           src_lc=src_lc, src_slant=src_slant,
+                           ancestors=ancestors, children_s=children_s,
+                           children_lc=children_lc,
+                           lc_lots=lc_lots, all_slants=all_slants,
+                           today=str(date.today()))
+
+
+@app.route('/slants/<int:slant_id>/edit', methods=['GET', 'POST'])
+def slant_edit(slant_id):
+    init_db()
+    conn = get_db()
+    slant = conn.execute("SELECT * FROM slants WHERE id=?", (slant_id,)).fetchone()
+    if not slant:
+        conn.close(); flash('Slant not found.', 'error')
+        return redirect(url_for('slants_list'))
+    if request.method == 'POST':
+        f = request.form
+        label   = f.get('label', '').strip() or slant['label']
+        species = f.get('species', '').strip() or slant['species']
+        src_lc  = int(f['source_lc_id'])   if f.get('source_lc_id')   else None
+        src_sl  = int(f['source_slant_id']) if f.get('source_slant_id') else None
+        conn.execute("""UPDATE slants SET
+            label=?, species=?, strain=?, source_type=?, source_lc_id=?,
+            source_slant_id=?, source_notes=?, generation=?,
+            made_date=?, tube_count=?, tubes_remaining=?,
+            storage_location=?, viability_date=?, status=?, notes=?
+            WHERE id=?""",
+            (label, species,
+             f.get('strain') or None,
+             f.get('source_type') or None,
+             src_lc, src_sl,
+             f.get('source_notes') or None,
+             int(f.get('generation') or slant['generation'] or 1),
+             f.get('made_date') or slant['made_date'],
+             int(f.get('tube_count') or slant['tube_count']),
+             int(f.get('tubes_remaining') or slant['tubes_remaining']),
+             f.get('storage_location') or None,
+             f.get('viability_date') or None,
+             f.get('status', 'active'),
+             f.get('notes') or None,
+             slant_id))
+        conn.commit()
+        conn.close()
+        flash('Slant updated.', 'success')
+        return redirect(url_for('slant_detail', slant_id=slant_id))
+    lc_lots    = conn.execute("SELECT id, species, vendor, lot_number FROM lc_lots ORDER BY species").fetchall()
+    all_slants = conn.execute(
+        "SELECT id, label, species FROM slants WHERE status='active' AND id!=? ORDER BY species",
+        (slant_id,)
+    ).fetchall()
+    conn.close()
+    return render_template('slant_form.html', slant=slant,
+                           lc_lots=lc_lots, all_slants=all_slants,
+                           source_types=SLANT_SOURCE_TYPES, statuses=SLANT_STATUSES)
+
+
+@app.route('/slants/<int:slant_id>/use', methods=['POST'])
+def slant_use(slant_id):
+    init_db()
+    conn = get_db()
+    slant = conn.execute("SELECT * FROM slants WHERE id=?", (slant_id,)).fetchone()
+    if not slant:
+        conn.close(); flash('Slant not found.', 'error')
+        return redirect(url_for('slants_list'))
+    f = request.form
+    tubes_used = max(1, int(f.get('tubes_used') or 1))
+    use_type   = f.get('use_type') or 'other'
+    dest_lc    = int(f['destination_lc_id'])    if f.get('destination_lc_id')    else None
+    dest_sl    = int(f['destination_slant_id'])  if f.get('destination_slant_id') else None
+    new_remaining = max(0, (slant['tubes_remaining'] or 0) - tubes_used)
+    new_status    = 'depleted' if new_remaining == 0 else slant['status']
+    conn.execute("""INSERT INTO slant_uses
+        (slant_id, use_date, use_type, tubes_used, destination_lc_id, destination_slant_id, notes)
+        VALUES (?,?,?,?,?,?,?)""",
+        (slant_id, f.get('use_date') or str(date.today()),
+         use_type, tubes_used, dest_lc, dest_sl,
+         f.get('notes') or None))
+    conn.execute("UPDATE slants SET tubes_remaining=?, status=? WHERE id=?",
+                 (new_remaining, new_status, slant_id))
+    conn.commit()
+    conn.close()
+    flash(f'{tubes_used} tube(s) logged as used.', 'success')
+    return redirect(url_for('slant_detail', slant_id=slant_id))
+
+
+@app.route('/slants/<int:slant_id>/delete', methods=['POST'])
+def slant_delete(slant_id):
+    init_db()
+    conn = get_db()
+    conn.execute("DELETE FROM slant_uses WHERE slant_id=?", (slant_id,))
+    conn.execute("DELETE FROM slants WHERE id=?", (slant_id,))
+    conn.commit()
+    conn.close()
+    flash('Slant deleted.', 'success')
+    return redirect(url_for('slants_list'))
+
+
 # ── Flushes ───────────────────────────────────────────────────────────────────
 @app.route('/batch/<int:batch_id>/flush/add', methods=['GET','POST'])
 def flush_add(batch_id):

@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Slant Library — Mushroom Tracker{% endblock %}
+{% block content %}
+<div class="page-head-row">
+  <div class="page-head">
+    <div class="page-title">Slant Library</div>
+    <div class="page-sub">{{ slants|length }} slant{{ 's' if slants|length != 1 }} · long-term culture storage</div>
+  </div>
+  <a href="{{ url_for('slant_add') }}" class="btn btn-primary btn-sm">+ Add Slant</a>
+</div>
+
+<!-- Filters -->
+<div class="card mb-16" style="padding:14px 20px">
+  <form method="GET" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <input type="text" name="q" value="{{ q }}" placeholder="Search species, label, strain…"
+           style="flex:1;min-width:200px;background:var(--surface);border:1px solid var(--border);
+                  border-radius:var(--r);padding:7px 12px;color:var(--text);font-size:13px;outline:none">
+    <select name="status" onchange="this.form.submit()"
+            style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
+                   padding:7px 10px;color:var(--text);font-size:13px">
+      <option value="">All statuses</option>
+      {% for s in statuses %}
+      <option value="{{ s }}" {% if status == s %}selected{% endif %}>{{ s|title }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="btn btn-ghost btn-sm">Search</button>
+    {% if q or status %}
+    <a href="{{ url_for('slants_list') }}" class="btn btn-ghost btn-sm">Clear</a>
+    {% endif %}
+  </form>
+</div>
+
+{% if slants %}
+{% set status_color = {
+  'active':       'var(--green)',
+  'depleted':     'var(--text-muted)',
+  'contaminated': 'var(--red)',
+  'retired':      'var(--amber)'
+} %}
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Label</th>
+          <th>Species / Strain</th>
+          <th>Gen</th>
+          <th>Made</th>
+          <th>Tubes</th>
+          <th>Location</th>
+          <th>Viability</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in slants %}
+        {% set tubes_pct = (s.tubes_remaining / s.tube_count * 100)|int if s.tube_count else 0 %}
+        <tr>
+          <td class="fw-600">
+            <a href="{{ url_for('slant_detail', slant_id=s.id) }}"
+               style="color:var(--text);text-decoration:none">{{ s.label }}</a>
+          </td>
+          <td>
+            <span class="fw-600">{{ s.species }}</span>
+            {% if s.strain %}<br><span style="font-size:11px;color:var(--text-muted)">{{ s.strain }}</span>{% endif %}
+          </td>
+          <td class="td-m" style="font-size:12px;text-align:center">
+            {{ s.generation or '—' }}
+          </td>
+          <td class="td-m" style="font-size:12px">{{ s.made_date or '—' }}</td>
+          <td style="font-size:12px;white-space:nowrap">
+            <span style="color:{% if s.tubes_remaining == 0 %}var(--text-muted){% elif s.tubes_remaining <= 2 %}var(--amber){% else %}var(--green){% endif %};font-weight:700">
+              {{ s.tubes_remaining }}
+            </span>
+            <span class="td-m"> / {{ s.tube_count }}</span>
+          </td>
+          <td class="td-m" style="font-size:12px">{{ s.storage_location or '—' }}</td>
+          <td class="td-m" style="font-size:12px">
+            {% if s.viability_date %}
+              <span style="{% if s.viability_date < today %}color:var(--red){% elif s.viability_date[:7] == today[:7] %}color:var(--amber){% endif %}">
+                {{ s.viability_date }}
+              </span>
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            <span style="font-size:11px;font-weight:700;color:{{ status_color.get(s.status,'var(--text-muted)') }}">
+              {{ s.status|title }}
+            </span>
+          </td>
+          <td style="white-space:nowrap">
+            <a href="{{ url_for('slant_detail', slant_id=s.id) }}"
+               class="btn btn-ghost btn-sm" style="font-size:11px;padding:2px 8px">View</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="card" style="text-align:center;padding:48px 24px;color:var(--text-muted)">
+  <div style="font-size:32px;margin-bottom:12px">🧫</div>
+  <div class="fw-600" style="margin-bottom:8px">No slants yet</div>
+  <div style="font-size:13px;margin-bottom:20px">
+    Add slants to build your long-term culture library.
+  </div>
+  <a href="{{ url_for('slant_add') }}" class="btn btn-primary btn-sm">+ Add Slant</a>
+</div>
+{% endif %}
+{% endblock %}
