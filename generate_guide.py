@@ -456,9 +456,15 @@ def build():
         ("24.2", "Species Detail Page",                       "28"),
         ("24.3", "Description Field",                         "28"),
         ("24.4", "Adding Custom Species",                     "28"),
-        ("25",   "Command-Line Interface (CLI)",               "29"),
-        ("26",   "Growing Reference",                          "30"),
-        ("27",   "Tips & Troubleshooting",                     "32"),
+        ("25",   "Slant / Agar Culture Library",                "29"),
+        ("25.1", "What a Slant Record Tracks",                 "29"),
+        ("25.2", "Slant List",                                 "29"),
+        ("25.3", "Adding a Slant",                             "29"),
+        ("25.4", "Detail Page & Lineage",                      "30"),
+        ("25.5", "Logging Tube Use",                           "30"),
+        ("26",   "Command-Line Interface (CLI)",               "31"),
+        ("27",   "Growing Reference",                          "32"),
+        ("28",   "Tips & Troubleshooting",                     "34"),
     ]
     for num, title, pg in toc_entries:
         story.append(toc_row(num, title, pg))
@@ -3418,8 +3424,135 @@ def build():
     story.append(PageBreak())
 
     # ══════════════════════════════════════════════════════════════════════
+    # ══════════════════════════════════════════════════════════════════════
+    # 25. SLANT / AGAR CULTURE LIBRARY
+    # ══════════════════════════════════════════════════════════════════════
     story += [
-        h1("25. Command-Line Interface (CLI)"),
+        h1("25. Slant / Agar Culture Library"),
+        rule(),
+        p("The <b>Slants</b> page (Supply menu → Slants) is a dedicated library for tracking "
+          "agar slants and other long-term culture storage vessels. "
+          "It records what you have, how many tubes are left, where they are stored, "
+          "and the full genetic lineage from the original culture source all the way through "
+          "successive transfers — so you always know where a culture came from and what was made from it."),
+        sp(10),
+        h2("25.1  What a Slant Record Tracks"),
+        sp(6),
+        data_table(
+            ["Field", "Purpose"],
+            [
+                ["Label",            "Short unique ID you assign — e.g. BOM-S1, BOP-G3. "
+                                     "Appears everywhere the slant is referenced."],
+                ["Species / Strain", "Species name and optional strain or clone identifier."],
+                ["Generation",       "Transfer count from the original culture. "
+                                     "G1 = original isolate, G2 = first transfer, etc. "
+                                     "Auto-incremented when you link a parent slant."],
+                ["Made date",        "When the slant was prepared."],
+                ["Tube count",       "How many tubes were made in this batch."],
+                ["Tubes remaining",  "Live count decremented each time you log a tube use. "
+                                     "Color-coded: green → amber (≤ 2 left) → muted (depleted)."],
+                ["Storage location", "Where the tubes are physically stored — e.g. Fridge shelf B, Box 2."],
+                ["Viability date",   "Estimated expiry. Turns amber in the month of expiry, red when past."],
+                ["Status",           "Active / Depleted / Contaminated / Retired. "
+                                     "Automatically flips to Depleted when tubes remaining hits zero."],
+                ["Source / Lineage", "Source type (LC lot, slant, fruiting body, purchased, other), "
+                                     "FK link to a parent slant or LC lot, free-text source notes."],
+                ["Notes",            "Viability observations, contamination checks, colony morphology."],
+            ],
+            col_widths=[3.5*cm, 12.7*cm],
+        ),
+        sp(10),
+        h2("25.2  Slant List"),
+        p("The list shows all slant batches with a filterable search bar and a status dropdown. "
+          "Key columns at a glance:"),
+        sp(6),
+        *bullet([
+            "<b>Tubes</b> — remaining / total, color-coded so low-stock slants stand out immediately",
+            "<b>Generation</b> — how many transfers deep this culture is",
+            "<b>Viability</b> — red when past the estimated date, amber in the expiry month",
+            "<b>Status</b> — filter to Active only to see what's still usable",
+        ]),
+        sp(10),
+        h2("25.3  Adding a Slant"),
+        p("Click <b>+ Add Slant</b>. The form has three sections:"),
+        sp(6),
+        data_table(
+            ["Section", "Key fields"],
+            [
+                ["Identity",
+                 "Label (required, must be unique enough to find it later), species, strain, status."],
+                ["Inventory",
+                 "Date made, tube count (sets tubes remaining on creation), generation number, "
+                 "storage location, viability date. "
+                 "Generation is auto-set to parent generation + 1 if you select a parent slant."],
+                ["Source / Lineage",
+                 "Source type, parent slant dropdown (filters to active slants), "
+                 "source LC lot dropdown, free-text source notes. "
+                 "Linking a parent slant here is what builds the lineage chain on the detail page."],
+            ],
+            col_widths=[3.5*cm, 12.7*cm],
+        ),
+        sp(6),
+        callout(
+            "You do not need to fill in the Source section to create a slant — "
+            "it is optional for purchased or original cultures. "
+            "Fill it in whenever you want forward and backward traceability.",
+            label="Tip:", color=BLUE_BG, border=BLUE_BORDER
+        ),
+        sp(10),
+        h2("25.4  Detail Page & Lineage"),
+        p("The detail page for each slant has four areas:"),
+        sp(6),
+        *bullet([
+            "<b>Summary tiles</b> — tubes remaining (large, color-coded), generation, made date, and storage location "
+            "visible at a glance without scrolling",
+            "<b>Provenance card</b> — shows source type, linked parent slant, linked LC lot, "
+            "and a breadcrumb ancestor chain (grandparent → parent → this slant) "
+            "derived by walking the parent FK chain automatically",
+            "<b>Derived cultures card</b> — shows all child slants (slants whose parent is this one) "
+            "and all LC lots that were created from this slant via tube use events",
+            "<b>Use history table</b> — every tube use event logged, with date, type, tubes used, and "
+            "any linked destination",
+        ]),
+        sp(6),
+        callout(
+            "The lineage chain is built from FK links — it only appears when you have "
+            "explicitly linked parent slants at creation or edit time. "
+            "The more consistently you link sources, the more useful the lineage view becomes "
+            "as your culture library grows.",
+            label="Note:", color=AMBER_BG, border=AMBER_BORDER
+        ),
+        sp(10),
+        h2("25.5  Logging Tube Use"),
+        p("When a slant is Active and has tubes remaining, the detail page shows a "
+          "<b>Log Tube Use</b> form. Fill in:"),
+        sp(6),
+        data_table(
+            ["Field", "What to enter"],
+            [
+                ["Date",               "Date the tube was used (defaults to today)."],
+                ["Tubes Used",         "How many tubes were consumed — capped at tubes remaining."],
+                ["Used For",           "New slant transfer / New LC lot / Batch inoculation / "
+                                       "Discarded / Other. Drives the forward lineage links."],
+                ["Link to New Slant",  "Optional — select the child slant you created from this tube. "
+                                       "This makes the new slant appear in Derived Cultures."],
+                ["Link to LC Lot",     "Optional — select the LC lot you inoculated from this tube. "
+                                       "This makes the LC lot appear in Derived Cultures."],
+                ["Notes",              "Any notes about this specific use."],
+            ],
+            col_widths=[3.5*cm, 12.7*cm],
+        ),
+        sp(6),
+        p("After saving, tubes remaining is decremented automatically. "
+          "When it reaches zero, status flips to <b>Depleted</b> and the Log Tube Use form disappears. "
+          "You can manually adjust tubes remaining or status at any time via Edit."),
+    ]
+
+    story.append(PageBreak())
+
+    # ══════════════════════════════════════════════════════════════════════
+    story += [
+        h1("26. Command-Line Interface (CLI)"),
         rule(),
         p("The CLI (<b>mushroom_tracker.py</b>) provides the same core functions as the web app "
           "from a terminal. It is useful for quick data entry when you do not want to open "
@@ -3501,7 +3634,7 @@ def build():
     # 19. GROWING REFERENCE
     # ══════════════════════════════════════════════════════════════════════
     story += [
-        h1("26. Growing Reference"),
+        h1("27. Growing Reference"),
         rule(),
         h2("Optimal Fruiting Conditions by Species"),
         sp(4),
@@ -3620,7 +3753,7 @@ def build():
     # 20. TIPS & TROUBLESHOOTING
     # ══════════════════════════════════════════════════════════════════════
     story += [
-        h1("27. Tips & Troubleshooting"),
+        h1("28. Tips & Troubleshooting"),
         rule(),
         h2("Improving Your BE%"),
         *bullet([
