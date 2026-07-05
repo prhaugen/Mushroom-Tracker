@@ -1184,8 +1184,8 @@ def lc_jar_add():
         conn.execute("""
             INSERT INTO lc_jars
             (source_type, source_id, flush_number_source, species, media_type,
-             prepared_date, colonization_date, outcome, notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+             prepared_date, colonization_date, outcome, storage_location, storage_date, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (f.get('source_type') or 'purchased_syringe',
              int(f['source_id']) if f.get('source_id') else None,
              int(f['flush_number_source']) if f.get('flush_number_source') else None,
@@ -1194,6 +1194,8 @@ def lc_jar_add():
              f.get('prepared_date') or None,
              f.get('colonization_date') or None,
              f.get('outcome') or None,
+             f.get('storage_location') or None,
+             f.get('storage_date') or None,
              f.get('notes') or None))
         conn.commit(); conn.close()
         flash('LC jar logged.', 'success')
@@ -1227,7 +1229,8 @@ def lc_jar_edit(jar_id):
         conn.execute("""
             UPDATE lc_jars SET
             source_type=?, source_id=?, flush_number_source=?, species=?, media_type=?,
-            prepared_date=?, colonization_date=?, outcome=?, notes=?
+            prepared_date=?, colonization_date=?, outcome=?, storage_location=?,
+            storage_date=?, notes=?
             WHERE id=?""",
             (f.get('source_type') or 'purchased_syringe',
              int(f['source_id']) if f.get('source_id') else None,
@@ -1237,6 +1240,8 @@ def lc_jar_edit(jar_id):
              f.get('prepared_date') or None,
              f.get('colonization_date') or None,
              f.get('outcome') or None,
+             f.get('storage_location') or None,
+             f.get('storage_date') or None,
              f.get('notes') or None,
              jar_id))
         conn.commit(); conn.close()

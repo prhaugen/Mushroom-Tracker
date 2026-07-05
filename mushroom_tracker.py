@@ -529,6 +529,10 @@ def init_db():
     _lj_cols = {r[1] for r in c.execute("PRAGMA table_info(lc_jars)")}
     if 'flush_number_source' not in _lj_cols:
         c.execute("ALTER TABLE lc_jars ADD COLUMN flush_number_source INTEGER")
+    if 'storage_location' not in _lj_cols:
+        c.execute("ALTER TABLE lc_jars ADD COLUMN storage_location TEXT")
+    if 'storage_date' not in _lj_cols:
+        c.execute("ALTER TABLE lc_jars ADD COLUMN storage_date TEXT")
 
     # Non-destructive column additions for batches
     existing_b = {r[1] for r in c.execute("PRAGMA table_info(batches)")}

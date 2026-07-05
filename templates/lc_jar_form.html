@@ -131,13 +131,29 @@
         </div>
         <div class="fg">
           <label>Outcome</label>
-          <select name="outcome">
+          <select name="outcome" id="outcome-select" onchange="toggleStorageFields(this.value)">
             <option value="">— pending —</option>
             <option value="clean" {{ 'selected' if lc_jar and lc_jar.outcome == 'clean' }}>Clean</option>
+            <option value="in_storage" {{ 'selected' if lc_jar and lc_jar.outcome == 'in_storage' }}>In Storage (fridge)</option>
             <option value="contaminated" {{ 'selected' if lc_jar and lc_jar.outcome == 'contaminated' }}>Contaminated</option>
             <option value="slow" {{ 'selected' if lc_jar and lc_jar.outcome == 'slow' }}>Slow growth</option>
             <option value="no_growth" {{ 'selected' if lc_jar and lc_jar.outcome == 'no_growth' }}>No growth</option>
           </select>
+        </div>
+      </div>
+
+      <!-- Storage fields — shown only when outcome = in_storage -->
+      <div id="storage-fields" style="display:{% if lc_jar and lc_jar.outcome == 'in_storage' %}grid{% else %}none{% endif %};
+           grid-template-columns:1fr 1fr;gap:16px;margin-top:12px">
+        <div class="fg">
+          <label>Storage Location</label>
+          <input type="text" name="storage_location" placeholder="e.g. Fridge shelf B, Box 1"
+                 value="{{ lc_jar.storage_location if lc_jar and lc_jar.storage_location else '' }}">
+        </div>
+        <div class="fg">
+          <label>Date Stored</label>
+          <input type="date" name="storage_date"
+                 value="{{ lc_jar.storage_date if lc_jar and lc_jar.storage_date else '' }}">
         </div>
       </div>
     </div>
@@ -158,6 +174,9 @@
 </div>
 
 <script>
+function toggleStorageFields(val) {
+  document.getElementById('storage-fields').style.display = val === 'in_storage' ? 'grid' : 'none';
+}
 function toggleSourceFields() {
   const t = document.querySelector('input[name="source_type"]:checked').value;
   document.getElementById('field-syringe').style.display = t === 'purchased_syringe' ? '' : 'none';
