@@ -136,6 +136,41 @@ pattern_observations as a sign of a stubborn or slow-to-pin block. Do not flag a
 an attention item unless there is also a timing concern (e.g. very long colonization \
 window relative to species targets).
 
+UPSTREAM PIPELINE — if 'upstream_pipeline' is present in the snapshot, scan \
+these three lists and surface only items that require grower action today or \
+within the next few days. Apply the same false-positive discipline as for \
+batch flags: one well-calibrated item beats three marginal ones.
+
+slant_alerts — active slants flagged for low tube count or approaching/past \
+viability date. Rules:
+1. If viability_date is past: severity "warning" — the culture may still be \
+viable but should be transferred or verified soon. Suggest making a new \
+transfer slant or discarding if questionable.
+2. If viability_date is within 14 days: severity "warning". Within 15–30 days: \
+severity "info". Surface the label, species, and days remaining.
+3. If tubes_remaining is 0: severity "warning" — flag as depleted even if \
+status hasn't been updated. 1 tube remaining: severity "info" — note that \
+the last tube should be used for a transfer before it's gone.
+4. Do NOT flag slants that have no viability_date set — absence of a date is \
+not itself a problem.
+
+lc_jar_alerts — LC jars that have been sitting for 14+ days with no outcome \
+recorded. Rules:
+1. 14–21 days with no outcome: severity "info" — remind grower to record \
+colonization status.
+2. 21+ days with no outcome: severity "warning" — jar may be slow, stalled, \
+or forgotten. Suggest checking and logging outcome.
+3. Do NOT flag individual jars if there are more than 5 waiting — roll them \
+up into a single summary item to avoid list spam.
+
+grain_jar_alerts — fully colonized grain jars not yet assigned to a substrate \
+batch. Rules:
+1. 0–7 days since full_colonization_date: do not flag — this is normal staging.
+2. 7–14 days: severity "info" — note that colonized grain is ready.
+3. 14+ days: severity "warning" — grain held too long risks contamination or \
+quality loss. Suggest using it in a substrate batch soon.
+4. Same rollup rule as lc_jar_alerts: cap at one summary item if many jars qualify.
+
 ROADMAP CONTEXT — if 'roadmap_status' is present in the snapshot, use it to \
 inform your pattern_observations and summary. Note which milestones are at risk \
 and whether current cultivation performance is on track for the target phase gates. \
@@ -620,6 +655,92 @@ def _get_roadmap_status(conn) -> dict | None:
         return None
 
 
+def _get_slant_alerts(conn) -> list:
+    """Active slants with viability expiring within 30 days or only 1 tube left."""
+    today     = date.today()
+    threshold = str(today + timedelta(days=30))
+    rows = conn.execute("""
+        SELECT id, label, species, strain, tubes_remaining, viability_date, storage_location
+        FROM slants
+        WHERE status = 'active'
+          AND (
+              (viability_date IS NOT NULL AND viability_date <= ?)
+              OR tubes_remaining <= 1
+          )
+        ORDER BY viability_date ASC
+    """, (threshold,)).fetchall()
+    alerts = []
+    for r in rows:
+        reasons = []
+        if r['viability_date'] and r['viability_date'] <= str(today):
+            reasons.append('viability_date_past')
+        elif r['viability_date'] and r['viability_date'] <= threshold:
+            days_left = (date.fromisoformat(r['viability_date']) - today).days
+            reasons.append(f'viability_expires_in_{days_left}d')
+        if r['tubes_remaining'] <= 1:
+            reasons.append(f'only_{r["tubes_remaining"]}_tube_remaining')
+        alerts.append({
+            'slant_id':        r['id'],
+            'label':           r['label'],
+            'species':         r['species'],
+            'strain':          r['strain'],
+            'tubes_remaining': r['tubes_remaining'],
+            'viability_date':  r['viability_date'],
+            'storage':         r['storage_location'],
+            'alerts':          reasons,
+        })
+    return alerts
+
+
+def _get_lc_jar_alerts(conn) -> list:
+    """LC jars with no outcome after 14+ days (slow or forgotten)."""
+    threshold = str(date.today() - timedelta(days=14))
+    rows = conn.execute("""
+        SELECT id, species, media_type, prepared_date, source_type, outcome
+        FROM lc_jars
+        WHERE (outcome IS NULL OR outcome = '')
+          AND prepared_date IS NOT NULL
+          AND prepared_date <= ?
+        ORDER BY prepared_date ASC
+    """, (threshold,)).fetchall()
+    alerts = []
+    for r in rows:
+        days_waiting = _days_between(r['prepared_date'])
+        alerts.append({
+            'lc_jar_id':    r['id'],
+            'species':      r['species'],
+            'media_type':   r['media_type'],
+            'prepared_date': r['prepared_date'],
+            'days_waiting': days_waiting,
+            'source_type':  r['source_type'],
+        })
+    return alerts
+
+
+def _get_grain_jar_alerts(conn) -> list:
+    """Grain jars that are fully colonized but not yet used in a substrate batch."""
+    rows = conn.execute("""
+        SELECT id, species, inoculation_date, full_colonization_date,
+               used_in_substrate_batch_id, notes
+        FROM grain_jars
+        WHERE full_colonization_date IS NOT NULL
+          AND (used_in_substrate_batch_id IS NULL)
+          AND (outcome IS NULL OR outcome NOT IN ('contaminated','failed','discarded'))
+        ORDER BY full_colonization_date ASC
+    """).fetchall()
+    alerts = []
+    for r in rows:
+        days_ready = _days_between(r['full_colonization_date'])
+        alerts.append({
+            'grain_jar_id':          r['id'],
+            'species':               r['species'],
+            'inoculation_date':      r['inoculation_date'],
+            'full_colonization_date': r['full_colonization_date'],
+            'days_since_ready':      days_ready,
+        })
+    return alerts
+
+
 def get_snapshot(conn) -> dict:
     active_batches = _get_active_batches(conn)
     batch_ids = [b['id'] for b in active_batches]
@@ -657,7 +778,10 @@ def get_snapshot(conn) -> dict:
             historical.get(b['species'], {}).get('completed_batches', 0) >= MIN_HISTORY_BATCHES
         )
 
-    roadmap_status = _get_roadmap_status(conn)
+    roadmap_status  = _get_roadmap_status(conn)
+    slant_alerts    = _get_slant_alerts(conn)
+    lc_jar_alerts   = _get_lc_jar_alerts(conn)
+    grain_jar_alerts = _get_grain_jar_alerts(conn)
 
     snapshot = {
         'snapshot_date':                str(date.today()),
@@ -666,6 +790,11 @@ def get_snapshot(conn) -> dict:
         'env_flags':                    env_flags,
         'contamination_recent':         contamination,
         'historical_averages':          historical,
+        'upstream_pipeline': {
+            'slant_alerts':    slant_alerts,
+            'lc_jar_alerts':   lc_jar_alerts,
+            'grain_jar_alerts': grain_jar_alerts,
+        },
         'goals_and_thresholds': {
             'species_timelines':    {k: v for k, v in SPECIES_TIMELINES.items()
                                      if k in {b['species'].lower() for b in active_batches}},
