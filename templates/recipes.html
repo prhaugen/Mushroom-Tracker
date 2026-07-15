@@ -48,29 +48,22 @@
 
       <!-- Agar concentration — only shown on agar tab -->
       <div id="agar-concentration" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border-muted)">
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;
-                    color:var(--text-muted);margin-bottom:10px">Agar Concentration</div>
-        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
-          <div class="fg" style="min-width:90px">
-            <label>Percentage (%)</label>
-            <input type="number" id="agar-pct" min="0.5" max="4" step="0.1"
-                   value="1.5" oninput="syncAgar('pct')"
-                   style="text-align:center;font-weight:700">
-          </div>
-          <div style="font-size:18px;color:var(--text-muted);padding-bottom:8px">=</div>
-          <div class="fg" style="min-width:90px">
-            <label>g per Liter</label>
-            <input type="number" id="agar-gpl" min="5" max="40" step="0.5"
-                   value="15" oninput="syncAgar('gpl')"
-                   style="text-align:center;font-weight:700">
-          </div>
-          <div style="display:flex;gap:6px;padding-bottom:6px;flex-wrap:wrap">
-            <button class="btn btn-ghost btn-sm" onclick="setAgar(1.2)" title="Softer — easier to pour, good for plates">1.2%</button>
-            <button class="btn btn-ghost btn-sm" onclick="setAgar(1.5)" title="Standard">1.5%</button>
-            <button class="btn btn-ghost btn-sm" onclick="setAgar(2.0)" title="Firmer — better for slants">2.0%</button>
+        <label style="display:block;margin-bottom:8px">Agar Concentration</label>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" onclick="setAgar(1.2)" title="Soft pour — easier to fill plates">1.2%</button>
+          <button class="btn btn-ghost btn-sm" onclick="setAgar(1.5)" title="Standard">1.5%</button>
+          <button class="btn btn-ghost btn-sm" onclick="setAgar(2.0)" title="Firm — better for slants">2.0%</button>
+          <span style="color:var(--text-muted);font-size:13px">or</span>
+          <div style="display:flex;align-items:center;gap:4px">
+            <input type="number" id="agar-pct" min="0.5" max="5" step="0.1" value="1.5"
+                   oninput="syncAgar()"
+                   style="width:70px;text-align:center;font-weight:700">
+            <span style="font-size:13px;color:var(--text-muted)">%</span>
+            <span style="font-size:12px;color:var(--text-muted);margin-left:6px">=</span>
+            <span id="agar-gpl-label" style="font-size:13px;font-weight:700;color:var(--green);margin-left:4px">15 g/L</span>
           </div>
         </div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:4px">
+        <div style="font-size:11px;color:var(--text-muted);margin-top:6px">
           1.2% = soft pour &nbsp;·&nbsp; 1.5% = standard &nbsp;·&nbsp; 2.0% = firm/slants
         </div>
       </div>
@@ -372,21 +365,16 @@ const LC_RECIPES = {
 // ──────────────────────────────────────────────────────────────────
 let activeTab = 'agar';
 
-function syncAgar(source) {
-  if (source === 'pct') {
-    const pct = parseFloat(document.getElementById('agar-pct').value) || 1.5;
-    document.getElementById('agar-gpl').value = Math.round(pct * 10 * 10) / 10;
-  } else {
-    const gpl = parseFloat(document.getElementById('agar-gpl').value) || 15;
-    document.getElementById('agar-pct').value = Math.round(gpl / 10 * 100) / 100;
-  }
+function syncAgar() {
+  const pct = parseFloat(document.getElementById('agar-pct').value) || 1.5;
+  const gpl = Math.round(pct * 10 * 10) / 10;
+  document.getElementById('agar-gpl-label').textContent = gpl + ' g/L';
   calc();
 }
 
 function setAgar(pct) {
   document.getElementById('agar-pct').value = pct;
-  document.getElementById('agar-gpl').value = pct * 10;
-  calc();
+  syncAgar();
 }
 
 function switchTab(tab) {
@@ -460,7 +448,7 @@ function calc() {
     : volMl + ' ml total';
 
   // Agar concentration override
-  const agarGpl = parseFloat(document.getElementById('agar-gpl').value) || 15;
+  const agarGpl = (parseFloat(document.getElementById('agar-pct').value) || 1.5) * 10;
 
   // Ingredient rows
   const tbody = document.getElementById('ingredient-rows');
