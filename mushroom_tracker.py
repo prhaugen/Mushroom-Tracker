@@ -706,6 +706,9 @@ def init_db():
     elif 'colonization_temp_hi_f' not in _sp_cols:
         c.execute("ALTER TABLE species_db ADD COLUMN colonization_temp_hi_f REAL")
 
+    if 'grow_guide_url' not in _sp_cols:
+        c.execute("ALTER TABLE species_db ADD COLUMN grow_guide_url TEXT")
+
     # Vendor master list
     c.execute("""CREATE TABLE IF NOT EXISTS vendors (
         id         INTEGER PRIMARY KEY,

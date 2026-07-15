@@ -3880,6 +3880,11 @@ def _roadmap_display_status(m: dict, gate_results: dict, today: date) -> tuple:
     return m['status'], None
 
 
+@app.route('/recipes')
+def recipes():
+    return render_template('recipes.html')
+
+
 @app.route('/roadmap')
 def roadmap():
     init_db()

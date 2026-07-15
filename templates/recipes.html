@@ -1,0 +1,472 @@
+{% extends "base.html" %}
+{% block title %}Recipes — Mushroom Tracker{% endblock %}
+{% block content %}
+<div class="page-head-row">
+  <div class="page-head">
+    <div class="page-title">Recipe Calculator</div>
+    <div class="page-sub">Scale agar and liquid culture recipes to any volume</div>
+  </div>
+</div>
+
+<!-- Media type tabs -->
+<div style="display:flex;gap:0;margin-bottom:20px;border:1px solid var(--border);border-radius:var(--r);overflow:hidden;width:fit-content">
+  <button id="tab-agar" onclick="switchTab('agar')"
+          style="padding:8px 24px;font-size:13px;font-weight:600;border:none;cursor:pointer;
+                 background:var(--green);color:#fff;transition:all .15s">
+    Agar
+  </button>
+  <button id="tab-lc" onclick="switchTab('lc')"
+          style="padding:8px 24px;font-size:13px;font-weight:600;border:none;cursor:pointer;
+                 background:var(--card);color:var(--text-muted);transition:all .15s;border-left:1px solid var(--border)">
+    Liquid Culture
+  </button>
+</div>
+
+<div class="g2" style="align-items:start">
+
+  <!-- ── Left: controls ── -->
+  <div>
+    <!-- Recipe selector -->
+    <div class="card mb-16">
+      <div class="card-title" style="margin-bottom:14px">Recipe</div>
+
+      <div id="agar-recipes">
+        <div class="fg">
+          <label>Agar Recipe</label>
+          <select id="agar-recipe" onchange="calc()">
+            <option value="mea">MEA — Malt Extract Agar</option>
+            <option value="pda">PDA — Potato Dextrose Agar</option>
+            <option value="oa">OA — Oatmeal Agar</option>
+            <option value="mypa">MYPA — Malt Yeast Peptone Agar</option>
+            <option value="ccma">CCMA — Cornmeal + Malt Agar</option>
+            <option value="bda">BDA — Bran Dextrose Agar</option>
+            <option value="dfa">Dog Food Agar</option>
+            <option value="wa">WA — Water Agar (plain)</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="lc-recipes" style="display:none">
+        <div class="fg">
+          <label>Liquid Culture Recipe</label>
+          <select id="lc-recipe" onchange="calc()">
+            <option value="honey">Honey LC</option>
+            <option value="malt">Malt Extract Broth (MEB)</option>
+            <option value="karo">Karo Light Corn Syrup LC</option>
+            <option value="pdb">Potato Dextrose Broth (PDB)</option>
+            <option value="coconut">Coconut Water LC</option>
+            <option value="honey_malt">Honey + Malt (multi-nutrient)</option>
+            <option value="oat">Oat Extract LC</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Volume / vessels -->
+    <div class="card mb-16">
+      <div class="card-title" style="margin-bottom:14px">Volume</div>
+
+      <div class="fg-grid">
+        <div class="fg full">
+          <label>Total Volume (ml)</label>
+          <input type="number" id="volume-ml" min="10" max="50000" step="10"
+                 value="500" oninput="syncVolume('ml')"
+                 style="font-size:20px;font-weight:700;text-align:center">
+        </div>
+      </div>
+
+      <!-- Quick-pick buttons -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+        <button class="btn btn-ghost btn-sm" onclick="setVol(250)">250 ml</button>
+        <button class="btn btn-ghost btn-sm" onclick="setVol(500)">500 ml</button>
+        <button class="btn btn-ghost btn-sm" onclick="setVol(1000)">1 L</button>
+        <button class="btn btn-ghost btn-sm" onclick="setVol(2000)">2 L</button>
+        <button class="btn btn-ghost btn-sm" onclick="setVol(4000)">4 L</button>
+      </div>
+
+      <!-- Vessel helper -->
+      <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border-muted)">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;
+                    color:var(--text-muted);margin-bottom:10px">— or calculate by vessel count —</div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <div class="fg" style="min-width:80px">
+            <label>Vessels</label>
+            <input type="number" id="vessel-count" min="1" max="500" step="1"
+                   placeholder="20" oninput="syncVolume('vessels')">
+          </div>
+          <div style="font-size:18px;color:var(--text-muted);padding-top:18px">×</div>
+          <div class="fg" style="min-width:100px">
+            <label>ml each</label>
+            <select id="vessel-ml" onchange="syncVolume('vessels')">
+              <option value="">— select —</option>
+              <optgroup id="agar-vessel-opts" label="Agar">
+                <option value="15">15 ml — petri dish (60mm)</option>
+                <option value="20">20 ml — petri dish (90mm)</option>
+                <option value="25">25 ml — petri dish (100mm)</option>
+                <option value="10">10 ml — slant tube</option>
+              </optgroup>
+              <optgroup id="lc-vessel-opts" label="Liquid Culture" style="display:none">
+                <option value="100">100 ml — small flask/jar</option>
+                <option value="250">250 ml — half-pint jar</option>
+                <option value="500">500 ml — pint jar</option>
+                <option value="1000">1000 ml — quart jar</option>
+              </optgroup>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recipe notes -->
+    <div class="card" id="notes-card">
+      <div class="card-title" style="margin-bottom:8px">Notes</div>
+      <div id="recipe-notes" style="font-size:13px;color:var(--text);line-height:1.7"></div>
+    </div>
+  </div>
+
+  <!-- ── Right: results ── -->
+  <div>
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div class="card-title" id="result-title">Ingredients</div>
+        <div style="font-size:12px;color:var(--text-muted)" id="result-vol-label"></div>
+      </div>
+
+      <div class="table-wrap">
+        <table id="ingredient-table">
+          <thead>
+            <tr>
+              <th>Ingredient</th>
+              <th style="text-align:right">Per Liter</th>
+              <th style="text-align:right;color:var(--green)" id="your-col">Your Amount</th>
+            </tr>
+          </thead>
+          <tbody id="ingredient-rows"></tbody>
+          <tfoot>
+            <tr>
+              <td colspan="2" style="font-size:11px;color:var(--text-muted);padding-top:10px">
+                Total volume (before boil)
+              </td>
+              <td style="text-align:right;font-weight:700;font-size:14px;padding-top:10px" id="total-row"></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <!-- Vessel estimate -->
+      <div id="vessel-estimate" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border-muted);
+           display:none;font-size:13px;color:var(--text-muted)"></div>
+    </div>
+
+    <!-- Sterilization quick-ref -->
+    <div class="card" style="margin-top:16px">
+      <div class="card-title" style="margin-bottom:10px">Sterilization Reference</div>
+      <div id="sterilization-ref" style="font-size:13px;line-height:1.8;color:var(--text)"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ──────────────────────────────────────────────────────────────────
+// Recipe data — all amounts per 1000ml (1 L)
+// ──────────────────────────────────────────────────────────────────
+const AGAR_RECIPES = {
+  mea: {
+    name: "MEA — Malt Extract Agar",
+    ingredients: [
+      { name: "Malt Extract (light DME)", perL: 20, unit: "g" },
+      { name: "Agar Powder",              perL: 15, unit: "g" },
+      { name: "Water",                    perL: 1000, unit: "ml" },
+    ],
+    notes: "Versatile all-purpose agar. Works well for most gourmet and medicinal species. Use light dried malt extract (DME). Adjust malt to 10g/L for a leaner plate, 30g/L for a richer one.",
+    steril: "PC @ 15 psi for 30 min (volumes ≤ 1L) or 45 min (>1L). Pour at 55–60°C.",
+    petriYield: 20, // ml per 90mm dish
+  },
+  pda: {
+    name: "PDA — Potato Dextrose Agar",
+    ingredients: [
+      { name: "Potato Dextrose Agar powder", perL: 39, unit: "g" },
+      { name: "Water",                       perL: 1000, unit: "ml" },
+    ],
+    notes: "Pre-blended commercial formula (Sigma-Aldrich / HiMedia standard = 39g/L). Excellent for most oysters, shiitake, and contaminant identification. Adjust pH to ~5.6 with citric acid for slower-growing contaminants.",
+    steril: "PC @ 15 psi for 15 min. Avoid over-sterilizing — sugars caramelize. Pour at 50–55°C.",
+    petriYield: 20,
+  },
+  oa: {
+    name: "OA — Oatmeal Agar",
+    ingredients: [
+      { name: "Oat Flour (or blended rolled oats)", perL: 40, unit: "g" },
+      { name: "Agar Powder",                        perL: 15, unit: "g" },
+      { name: "Water",                              perL: 1000, unit: "ml" },
+    ],
+    notes: "Simmer oats in water for 20 min, strain through cheesecloth, then add agar. Great for morels, truffles, and wild isolates. Lower nutrient profile slows contaminants.",
+    steril: "PC @ 15 psi for 30 min. Filter liquid before adding agar.",
+    petriYield: 20,
+  },
+  mypa: {
+    name: "MYPA — Malt Yeast Peptone Agar",
+    ingredients: [
+      { name: "Malt Extract (DME)",  perL: 20, unit: "g" },
+      { name: "Yeast Extract",       perL: 2,  unit: "g" },
+      { name: "Peptone",             perL: 2,  unit: "g" },
+      { name: "Agar Powder",         perL: 15, unit: "g" },
+      { name: "Water",               perL: 1000, unit: "ml" },
+    ],
+    notes: "Richer nutrient profile for slow colonizers (lion's mane, reishi, chaga). Yeast extract and peptone provide amino acids that speed germination and early mycelial growth.",
+    steril: "PC @ 15 psi for 30 min.",
+    petriYield: 20,
+  },
+  ccma: {
+    name: "CCMA — Cornmeal + Malt Agar",
+    ingredients: [
+      { name: "Cornmeal (fine)", perL: 17,   unit: "g" },
+      { name: "Malt Extract",   perL: 20,   unit: "g" },
+      { name: "Agar Powder",    perL: 15,   unit: "g" },
+      { name: "Water",          perL: 1000, unit: "ml" },
+    ],
+    notes: "Strong rhizomorphic growth stimulant. Often used for isolations where robust aerial mycelium is desired. Cornmeal provides slow-release carbohydrates.",
+    steril: "PC @ 15 psi for 30 min.",
+    petriYield: 20,
+  },
+  bda: {
+    name: "BDA — Bran Dextrose Agar",
+    ingredients: [
+      { name: "Wheat Bran",  perL: 40,   unit: "g" },
+      { name: "Dextrose",    perL: 10,   unit: "g" },
+      { name: "Agar Powder", perL: 15,   unit: "g" },
+      { name: "Water",       perL: 1000, unit: "ml" },
+    ],
+    notes: "Simmer bran in water 20 min, strain well. High-fiber substrate mimics grain spawn. Good for grain-loving species (oysters, wine caps).",
+    steril: "PC @ 15 psi for 30 min. Strain liquid thoroughly before adding agar.",
+    petriYield: 20,
+  },
+  dfa: {
+    name: "Dog Food Agar",
+    ingredients: [
+      { name: "Dry Dog Food (ground)", perL: 50,   unit: "g" },
+      { name: "Agar Powder",           perL: 15,   unit: "g" },
+      { name: "Water",                 perL: 1000, unit: "ml" },
+    ],
+    notes: "Cheap, readily available, nutrient-dense. Simmer ground dog food 20 min, strain. High protein can encourage bacteria — use good sterile technique. Works surprisingly well for oysters, shiitake.",
+    steril: "PC @ 15 psi for 45 min. Strain very well.",
+    petriYield: 20,
+  },
+  wa: {
+    name: "WA — Water Agar",
+    ingredients: [
+      { name: "Agar Powder", perL: 15,   unit: "g" },
+      { name: "Water",       perL: 1000, unit: "ml" },
+    ],
+    notes: "Nutrient-free. Used for germinating contaminant-prone cultures, single spore isolation, or pinpoint sectors. Low nutrients slow everything down — only robust mycelium survives.",
+    steril: "PC @ 15 psi for 20 min.",
+    petriYield: 20,
+  },
+};
+
+const LC_RECIPES = {
+  honey: {
+    name: "Honey LC",
+    ingredients: [
+      { name: "Raw Honey",  perL: 15,   unit: "g", note: "~1 tbsp" },
+      { name: "Water",      perL: 1000, unit: "ml" },
+    ],
+    notes: "Simple, readily available. Use raw honey (anti-microbial compounds mostly cook off). 1–2% by weight. Produces thick, fluffy mycelium. Sensitive to overloading — stay ≤20g/L.",
+    steril: "PC @ 15 psi for 20–25 min, or pressure cooker 15 min. Honey darkens with heat.",
+    jarYield: 500,
+  },
+  malt: {
+    name: "Malt Extract Broth (MEB)",
+    ingredients: [
+      { name: "Dried Malt Extract (DME)", perL: 10,   unit: "g" },
+      { name: "Water",                    perL: 1000, unit: "ml" },
+    ],
+    notes: "Reliable, clean, consistent. 1% DME is low enough to avoid contamination risk while still providing good nutrition. Great as a universal LC for most species. Scale to 20g/L for medicinals.",
+    steril: "PC @ 15 psi for 20 min. Avoid longer — sugars caramelize.",
+    jarYield: 500,
+  },
+  karo: {
+    name: "Karo Light Corn Syrup LC",
+    ingredients: [
+      { name: "Karo Light Corn Syrup", perL: 15,   unit: "ml", note: "≈1 tbsp" },
+      { name: "Water",                 perL: 1000, unit: "ml" },
+    ],
+    notes: "Classic, cheap, widely used. Light corn syrup (no HFCS) = glucose + water. 1–2%. Produces clear LC with stringy mycelium. Easy to see contamination early.",
+    steril: "PC @ 15 psi for 20 min.",
+    jarYield: 500,
+  },
+  pdb: {
+    name: "Potato Dextrose Broth (PDB)",
+    ingredients: [
+      { name: "PDB Powder", perL: 23,   unit: "g" },
+      { name: "Water",      perL: 1000, unit: "ml" },
+    ],
+    notes: "Standard lab-grade broth. Consistent, balanced nutrition. 23g/L is the standard (Difco/BD specification). Good for difficult colonizers.",
+    steril: "PC @ 15 psi for 15–20 min. Avoid over-sterilizing.",
+    jarYield: 500,
+  },
+  coconut: {
+    name: "Coconut Water LC",
+    ingredients: [
+      { name: "Coconut Water (pure, no additives)", perL: 750, unit: "ml" },
+      { name: "Water",                              perL: 250, unit: "ml" },
+    ],
+    notes: "Electrolyte-rich, contains cytokinins that promote cell division. Many growers report faster colonization. Use plain coconut water — no added sugar or flavor. Can use 100% coconut water if desired.",
+    steril: "PC @ 15 psi for 15–20 min. Some browning is normal.",
+    jarYield: 500,
+  },
+  honey_malt: {
+    name: "Honey + Malt (multi-nutrient)",
+    ingredients: [
+      { name: "Raw Honey",           perL: 10,   unit: "g" },
+      { name: "Dried Malt Extract",  perL: 10,   unit: "g" },
+      { name: "Yeast Extract",       perL: 1,    unit: "g", note: "optional" },
+      { name: "Water",               perL: 1000, unit: "ml" },
+    ],
+    notes: "Multi-carbohydrate profile: honey provides fructose/glucose, malt adds maltose + trace minerals. Combined nutrition supports robust, healthy mycelium. Good for medicinals (lion's mane, reishi).",
+    steril: "PC @ 15 psi for 20–25 min.",
+    jarYield: 500,
+  },
+  oat: {
+    name: "Oat Extract LC",
+    ingredients: [
+      { name: "Rolled Oats",  perL: 50,   unit: "g" },
+      { name: "Water",        perL: 1000, unit: "ml" },
+    ],
+    notes: "Simmer oats in water 20 min, strain through cheesecloth — use the starchy liquid. Cheap, slow-release carbohydrates. Produces a slightly cloudy LC. Good for oysters and wood-lovers.",
+    steril: "Strain liquid first, then PC @ 15 psi for 20 min.",
+    jarYield: 500,
+  },
+};
+
+// ──────────────────────────────────────────────────────────────────
+// State
+// ──────────────────────────────────────────────────────────────────
+let activeTab = 'agar';
+
+function switchTab(tab) {
+  activeTab = tab;
+  document.getElementById('agar-recipes').style.display   = tab === 'agar' ? '' : 'none';
+  document.getElementById('lc-recipes').style.display     = tab === 'lc'   ? '' : 'none';
+
+  // Swap vessel option groups
+  document.getElementById('agar-vessel-opts').style.display = tab === 'agar' ? '' : 'none';
+  document.getElementById('lc-vessel-opts').style.display   = tab === 'lc'   ? '' : 'none';
+  document.getElementById('vessel-ml').value = '';
+
+  // Tab button styles
+  const green = 'var(--green)', card = 'var(--card)', muted = 'var(--text-muted)', white = '#fff';
+  document.getElementById('tab-agar').style.background = tab === 'agar' ? green : card;
+  document.getElementById('tab-agar').style.color      = tab === 'agar' ? white : muted;
+  document.getElementById('tab-lc').style.background   = tab === 'lc'   ? green : card;
+  document.getElementById('tab-lc').style.color        = tab === 'lc'   ? white : muted;
+
+  calc();
+}
+
+function setVol(ml) {
+  document.getElementById('volume-ml').value = ml;
+  document.getElementById('vessel-count').value = '';
+  document.getElementById('vessel-ml').value = '';
+  calc();
+}
+
+function syncVolume(source) {
+  if (source === 'vessels') {
+    const count = parseFloat(document.getElementById('vessel-count').value) || 0;
+    const each  = parseFloat(document.getElementById('vessel-ml').value) || 0;
+    if (count && each) {
+      document.getElementById('volume-ml').value = Math.ceil(count * each * 1.1); // +10% for waste
+    }
+  }
+  calc();
+}
+
+function fmt(val, unit) {
+  if (unit === 'ml') {
+    if (val >= 1000) return (val / 1000).toFixed(2).replace(/\.?0+$/, '') + ' L (' + Math.round(val) + ' ml)';
+    return Math.round(val * 10) / 10 + ' ml';
+  }
+  if (val < 1) return (val * 1000).toFixed(0) + ' mg';
+  if (val >= 1000) return (val / 1000).toFixed(2).replace(/\.?0+$/, '') + ' kg';
+  return (Math.round(val * 10) / 10) + ' g';
+}
+
+function fmtPerL(val, unit) {
+  if (unit === 'ml') return val + ' ml';
+  return val + ' g';
+}
+
+function calc() {
+  const volMl = parseFloat(document.getElementById('volume-ml').value) || 0;
+  const ratio = volMl / 1000;
+
+  const recipe = activeTab === 'agar'
+    ? AGAR_RECIPES[document.getElementById('agar-recipe').value]
+    : LC_RECIPES[document.getElementById('lc-recipe').value];
+
+  if (!recipe || !volMl) return;
+
+  // Result title
+  document.getElementById('result-title').textContent = recipe.name;
+  document.getElementById('result-vol-label').textContent = volMl >= 1000
+    ? (volMl / 1000).toFixed(2).replace(/\.?0+$/, '') + ' L total'
+    : volMl + ' ml total';
+
+  // Ingredient rows
+  const tbody = document.getElementById('ingredient-rows');
+  tbody.innerHTML = recipe.ingredients.map(ing => {
+    const scaled = ing.perL * ratio;
+    const noteSpan = ing.note ? ` <span style="font-size:10px;color:var(--text-muted)">(${ing.note})</span>` : '';
+    return `<tr>
+      <td>${ing.name}${noteSpan}</td>
+      <td style="text-align:right;color:var(--text-muted);font-size:12px">${fmtPerL(ing.perL, ing.unit)}</td>
+      <td style="text-align:right;font-weight:700;color:var(--green)">${fmt(scaled, ing.unit)}</td>
+    </tr>`;
+  }).join('');
+
+  // Total row
+  document.getElementById('total-row').textContent = volMl >= 1000
+    ? (volMl / 1000).toFixed(2).replace(/\.?0+$/, '') + ' L'
+    : volMl + ' ml';
+
+  // Vessel estimate
+  const est = document.getElementById('vessel-estimate');
+  if (activeTab === 'agar') {
+    const mlPerDish = 20;
+    const dishes = Math.floor(volMl / mlPerDish);
+    est.style.display = '';
+    est.innerHTML = `<span style="color:var(--text)">Yields approximately</span>
+      <strong style="color:var(--green);font-size:15px;margin:0 4px">${dishes}</strong>
+      <span style="color:var(--text)">× 90mm petri dishes at 20 ml each</span>
+      <span style="color:var(--text-muted);font-size:11px;display:block;margin-top:2px">
+        (or ${Math.floor(volMl/15)} dishes at 15 ml · ${Math.floor(volMl/25)} dishes at 25 ml · ${Math.floor(volMl/10)} slant tubes at 10 ml)
+      </span>`;
+  } else {
+    const jarMl = 500;
+    const jars = (volMl / jarMl).toFixed(1);
+    est.style.display = '';
+    est.innerHTML = `<span style="color:var(--text)">Fills approximately</span>
+      <strong style="color:var(--green);font-size:15px;margin:0 4px">${jars}</strong>
+      <span style="color:var(--text)">× 500ml jars</span>
+      <span style="color:var(--text-muted);font-size:11px;display:block;margin-top:2px">
+        (or ${(volMl/250).toFixed(1)} × 250ml · ${(volMl/1000).toFixed(2)} × 1L)
+      </span>`;
+  }
+
+  // Notes
+  document.getElementById('recipe-notes').textContent = recipe.notes;
+
+  // Sterilization
+  document.getElementById('sterilization-ref').innerHTML =
+    `<strong>Sterilization:</strong> ${recipe.steril}<br>` +
+    (activeTab === 'agar'
+      ? `<strong>Pour temp:</strong> Let cool to 50–60°C before pouring (jar feels very warm but you can hold it). Pour slowly to avoid bubbles.`
+      : `<strong>Inoculation:</strong> Let cool to room temp before inoculating. Shake to break up mycelium every 1–2 days during colonization.`);
+}
+
+// ──────────────────────────────────────────────────────────────────
+// Init
+// ──────────────────────────────────────────────────────────────────
+calc();
+</script>
+{% endblock %}

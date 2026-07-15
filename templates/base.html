@@ -640,7 +640,8 @@ input[name="quality_rating"]{display:none}
         'grain_jars_list','grain_jar_add','grain_jar_edit',
         'agar_plates_list','agar_plate_add','agar_plate_edit',
         'checklists_list','checklist_view',
-        'slants_list','slant_add','slant_edit','slant_detail') %}
+        'slants_list','slant_add','slant_edit','slant_detail',
+        'recipes') %}
     <div class="nav-dropdown">
       <div class="nav-link{% if _supply_active %} active{% endif %}" tabindex="0"
            style="cursor:default" role="button" aria-haspopup="true">
@@ -728,6 +729,19 @@ input[name="quality_rating"]{display:none}
             <path d="M4 10.5h4" stroke="currentColor" stroke-width="1" stroke-linecap="round" opacity=".3" fill="none"/>
           </svg>
           Checklists
+        </a>
+        <div class="nav-dd-sep"></div>
+        <a href="{{ url_for('recipes') }}"
+           class="nav-dd-item{% if request.endpoint == 'recipes' %} active{% endif %}">
+          <!-- beaker / flask icon -->
+          <svg viewBox="0 0 14 14" width="13" height="13" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+            <path d="M5 1.5h4v5.5L11 12H3L5 7Z" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round" opacity=".8"/>
+            <path d="M3.5 9.5h7" stroke="currentColor" stroke-width=".9" opacity=".4" fill="none"/>
+            <circle cx="6" cy="10.5" r=".6" opacity=".6"/>
+            <circle cx="8.5" cy="11" r=".5" opacity=".5"/>
+            <path d="M5 1.5h4" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" fill="none" opacity=".5"/>
+          </svg>
+          Recipes
         </a>
       </div>
     </div>
