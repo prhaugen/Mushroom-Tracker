@@ -82,13 +82,20 @@
           </select>
         </div>
         <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border-muted)">
-          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none">
-            <input type="checkbox" id="lc-peptone" onchange="calc()"
-                   style="width:16px;height:16px;accent-color:var(--green);cursor:pointer">
-            <span style="font-size:13px">Add Peptone
-              <span style="font-size:11px;color:var(--text-muted);margin-left:4px">0.5 g/L — nitrogen supplement, promotes vigorous growth</span>
-            </span>
-          </label>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none">
+              <input type="checkbox" id="lc-peptone" onchange="calc()"
+                     style="width:16px;height:16px;accent-color:var(--green);cursor:pointer">
+              <span style="font-size:13px;font-weight:600">Add Peptone</span>
+            </label>
+            <div style="display:flex;align-items:center;gap:4px">
+              <input type="number" id="lc-peptone-gpl" min="0.1" max="10" step="0.1" value="0.5"
+                     oninput="calc()"
+                     style="width:60px;text-align:center;font-weight:700">
+              <span style="font-size:13px;color:var(--text-muted)">g/L</span>
+            </div>
+            <span style="font-size:11px;color:var(--text-muted)">nitrogen supplement — typical range 0.5–2 g/L</span>
+          </div>
         </div>
       </div>
     </div>
@@ -465,7 +472,9 @@ function calc() {
   const addPeptone = activeTab === 'lc' && peptoneEl && peptoneEl.checked;
   let ingredients = recipe.ingredients;
   if (addPeptone) {
-    const peptone = { name: "Peptone", perL: 0.5, unit: "g" };
+    const gplEl = document.getElementById('lc-peptone-gpl');
+    const peptoneGpl = (parseFloat(gplEl ? gplEl.value : '0.5') || 0.5);
+    const peptone = { name: "Peptone", perL: peptoneGpl, unit: "g" };
     const waterIdx = ingredients.findIndex(i => i.name === 'Water');
     ingredients = [...ingredients];
     ingredients.splice(waterIdx === -1 ? ingredients.length : waterIdx, 0, peptone);
