@@ -9,6 +9,13 @@ from pathlib import Path
 from datetime import datetime, date, timedelta
 import sys
 
+try:
+    sys.path.insert(0, r"C:\Projects\AI API Usage Tracker")
+    from api_usage_tracker import log_from_anthropic_response as _log_anthropic
+    _TRACKER_AVAILABLE = True
+except Exception:
+    _TRACKER_AVAILABLE = False
+
 sys.path.insert(0, str(Path(__file__).parent))
 import mushroom_tracker as _mt
 from roadmap_gates import evaluate_gates
@@ -329,6 +336,8 @@ def chamber_suggest():
         ),
         messages=[{'role': 'user', 'content': prompt}],
     )
+    if _TRACKER_AVAILABLE:
+        _log_anthropic(msg, label="mushroom_chamber_fit")
 
     raw = msg.content[0].text.strip()
     try:
@@ -864,6 +873,57 @@ PROCESS_DEFINITIONS = {
              'title': 'Confirm ready for inoculation',
              'detail': 'All blocks are at room temperature, sealed, and visually clear. '
                        'Inoculation area is prepared. Proceed to spawn run.'},
+        ],
+    },
+    'agar_slants': {
+        'name': 'Agar Slants (50 mL Centrifuge Tubes)',
+        'description': 'No-condensation MEA slants in 50 mL PP5 centrifuge tubes. '
+                       'Recipe per 1 L: malt extract 20 g, nutritional yeast 2 g (optional), '
+                       'agar-agar 22-25 g (2.2-2.5%), water 1000 mL. Yield: ~80-100 slants.',
+        'steps': [
+            {'key': 'simmer_dissolve',
+             'title': 'Simmer until fully dissolved',
+             'detail': 'Combine all ingredients. Bring to boil then simmer with constant stirring '
+                       'until media is completely clear — no cloudiness, specks, or grit. '
+                       'Do NOT rely on the pressure cooker to dissolve the agar; it must be clear on the stove first.'},
+            {'key': 'pour_tubes',
+             'title': 'Pour 10-12 mL per tube',
+             'detail': 'Dispense 10-12 mL of hot media into each 50 mL centrifuge tube. '
+                       'Cap loosely — tubes must vent steam during pressure cooking or caps will blow off.'},
+            {'key': 'pressure_cook',
+             'title': 'Pressure cook 15-20 min at 15 PSI',
+             'detail': 'Sterilize at 15 PSI / 121 C for 15-20 minutes only. '
+                       'Keep the run short to protect malt sugars — over-autoclaving darkens media and harms growth. '
+                       'Start timer once full pressure is reached.'},
+            {'key': 're_slant',
+             'title': 'Re-slant immediately while molten',
+             'detail': 'The moment the PC depressurizes, transfer tubes to a slant rack at the target angle. '
+                       'Leave completely still until stone cold. Any movement while the agar is setting creates '
+                       'an uneven surface and air pockets.'},
+            {'key': 'crack_caps',
+             'title': 'Crack caps immediately after PC',
+             'detail': 'This is the highest condensation-risk moment. Unseal each tube slightly as soon as '
+                       'you re-slant — never leave a hot sealed tube sitting. Trapped steam equals pooled water '
+                       'on the agar surface.'},
+            {'key': 'cure_drydown',
+             'title': 'Cure loosely capped 48-72 hours',
+             'detail': 'Leave tubes loosely capped in a clean, dry environment for 48-72 hours to drive off '
+                       'residual moisture (syneresis). Never bag, parafilm, or fully seal a warm tube — '
+                       'condensation will pool on the agar surface.'},
+            {'key': 'flash_dry',
+             'title': '(Optional) Flash-dry in laminar flow',
+             'detail': 'If a surface moisture film remains after curing, stand tubes open in front of a '
+                       'laminar flow hood or FFU for 10-15 minutes. Re-cap loosely after.'},
+            {'key': 'storage',
+             'title': 'Store at shallow angle, cap end up',
+             'detail': 'Store in a large ventilated container at a 5-10 degree angle, cap end elevated. '
+                       'Insulate the container from cold surfaces (e.g. refrigerator shelf) to prevent '
+                       'temperature-driven condensation. Keep the container breathable — not airtight.'},
+            {'key': 'parafilm',
+             'title': 'Parafilm only after colonization and dry-down',
+             'detail': 'Do not parafilm slants during storage or immediately after inoculation. '
+                       'Apply parafilm only after the slant is fully colonized AND fully dried down. '
+                       'Sealing a still-metabolically-active or damp slant traps moisture.'},
         ],
     },
 }
@@ -4122,6 +4182,8 @@ def ask():
                 messages=messages,
             )
             last_resp = resp
+            if _TRACKER_AVAILABLE:
+                _log_anthropic(resp, label="mushroom_qa")
             messages.append({'role': 'assistant', 'content': resp.content})
 
             if resp.stop_reason in ('end_turn', None):

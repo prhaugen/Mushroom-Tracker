@@ -30,6 +30,15 @@ try:
 except ImportError:
     _GEMINI_AVAILABLE = False
 
+try:
+    import sys as _sys_t
+    _sys_t.path.insert(0, r"C:\Projects\AI API Usage Tracker")
+    from api_usage_tracker import log_from_anthropic_response as _log_anthropic
+    from api_usage_tracker import log_from_gemini_response as _log_gemini
+    _TRACKER_AVAILABLE = True
+except Exception:
+    _TRACKER_AVAILABLE = False
+
 GEMINI_MODEL = "gemini-2.5-flash"
 
 import mushroom_tracker as _mt
@@ -838,6 +847,8 @@ def call_claude(snapshot: dict) -> dict:
         system=SYSTEM_PROMPT,
         messages=[{"role": "user", "content": json.dumps(snapshot, default=str)}],
     )
+    if _TRACKER_AVAILABLE:
+        _log_anthropic(message, label="mushroom_agent")
 
     if message.stop_reason == 'max_tokens':
         raise RuntimeError(
@@ -898,6 +909,9 @@ def call_gemini(snapshot: dict) -> dict:
             thinking_config=_genai_types.ThinkingConfig(thinking_budget=0),
         ),
     )
+
+    if _TRACKER_AVAILABLE:
+        _log_gemini(response, model=GEMINI_MODEL, label="mushroom_agent")
 
     if response.candidates[0].finish_reason.name == 'MAX_TOKENS':
         raise RuntimeError(

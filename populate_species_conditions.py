@@ -20,6 +20,13 @@ import sqlite3
 from pathlib import Path
 
 import anthropic
+import sys
+try:
+    sys.path.insert(0, r"C:\Projects\AI API Usage Tracker")
+    from api_usage_tracker import log_from_anthropic_response as _log_anthropic
+    _TRACKER_AVAILABLE = True
+except Exception:
+    _TRACKER_AVAILABLE = False
 from agent_config import SPECIES_TIMELINES
 
 PROD_DB    = Path(__file__).parent / "mushroom_data.db"
@@ -185,6 +192,8 @@ def extract_from_descriptions_claude(conn):
                           "cache_control": {"type": "ephemeral"}}],
                 messages=[{"role": "user", "content": user_text}],
             )
+            if _TRACKER_AVAILABLE:
+                _log_anthropic(resp, label="mushroom_species_extract")
             text = resp.content[0].text.strip()
             if text.startswith("```"):
                 text = text.split("\n", 1)[1].rsplit("```", 1)[0]

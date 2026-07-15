@@ -7,7 +7,11 @@
     <div class="page-sub">Step-by-step SOPs linked to your substrate and batch records</div>
   </div>
   <form method="POST" action="{{ url_for('checklist_start') }}" style="display:flex;gap:8px;align-items:center">
-    <input type="hidden" name="process_type" value="substrate_block_prep">
+    <select name="process_type" class="form-control" style="min-width:220px">
+      {% for key, defn in process_defs.items() %}
+      <option value="{{ key }}">{{ defn.name }}</option>
+      {% endfor %}
+    </select>
     <button type="submit" class="btn btn-primary">+ New Checklist</button>
   </form>
 </div>
@@ -65,9 +69,13 @@
   <div class="empty">
     <div class="empty-title">No checklists yet</div>
     <div class="empty-sub">Start a checklist to walk through a step-by-step process and keep a completion record.</div>
-    <form method="POST" action="{{ url_for('checklist_start') }}">
-      <input type="hidden" name="process_type" value="substrate_block_prep">
-      <button type="submit" class="btn btn-primary">Start Substrate Block Prep</button>
+    <form method="POST" action="{{ url_for('checklist_start') }}" style="display:flex;gap:8px;justify-content:center">
+      <select name="process_type" class="form-control" style="min-width:220px">
+        {% for key, defn in process_defs.items() %}
+        <option value="{{ key }}">{{ defn.name }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="btn btn-primary">Start Checklist</button>
     </form>
   </div>
 </div>
