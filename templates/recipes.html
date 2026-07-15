@@ -46,6 +46,35 @@
         </div>
       </div>
 
+      <!-- Agar concentration — only shown on agar tab -->
+      <div id="agar-concentration" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border-muted)">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;
+                    color:var(--text-muted);margin-bottom:10px">Agar Concentration</div>
+        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+          <div class="fg" style="min-width:90px">
+            <label>Percentage (%)</label>
+            <input type="number" id="agar-pct" min="0.5" max="4" step="0.1"
+                   value="1.5" oninput="syncAgar('pct')"
+                   style="text-align:center;font-weight:700">
+          </div>
+          <div style="font-size:18px;color:var(--text-muted);padding-bottom:8px">=</div>
+          <div class="fg" style="min-width:90px">
+            <label>g per Liter</label>
+            <input type="number" id="agar-gpl" min="5" max="40" step="0.5"
+                   value="15" oninput="syncAgar('gpl')"
+                   style="text-align:center;font-weight:700">
+          </div>
+          <div style="display:flex;gap:6px;padding-bottom:6px;flex-wrap:wrap">
+            <button class="btn btn-ghost btn-sm" onclick="setAgar(1.2)" title="Softer — easier to pour, good for plates">1.2%</button>
+            <button class="btn btn-ghost btn-sm" onclick="setAgar(1.5)" title="Standard">1.5%</button>
+            <button class="btn btn-ghost btn-sm" onclick="setAgar(2.0)" title="Firmer — better for slants">2.0%</button>
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:4px">
+          1.2% = soft pour &nbsp;·&nbsp; 1.5% = standard &nbsp;·&nbsp; 2.0% = firm/slants
+        </div>
+      </div>
+
       <div id="lc-recipes" style="display:none">
         <div class="fg">
           <label>Liquid Culture Recipe</label>
@@ -343,10 +372,28 @@ const LC_RECIPES = {
 // ──────────────────────────────────────────────────────────────────
 let activeTab = 'agar';
 
+function syncAgar(source) {
+  if (source === 'pct') {
+    const pct = parseFloat(document.getElementById('agar-pct').value) || 1.5;
+    document.getElementById('agar-gpl').value = Math.round(pct * 10 * 10) / 10;
+  } else {
+    const gpl = parseFloat(document.getElementById('agar-gpl').value) || 15;
+    document.getElementById('agar-pct').value = Math.round(gpl / 10 * 100) / 100;
+  }
+  calc();
+}
+
+function setAgar(pct) {
+  document.getElementById('agar-pct').value = pct;
+  document.getElementById('agar-gpl').value = pct * 10;
+  calc();
+}
+
 function switchTab(tab) {
   activeTab = tab;
-  document.getElementById('agar-recipes').style.display   = tab === 'agar' ? '' : 'none';
-  document.getElementById('lc-recipes').style.display     = tab === 'lc'   ? '' : 'none';
+  document.getElementById('agar-recipes').style.display        = tab === 'agar' ? '' : 'none';
+  document.getElementById('agar-concentration').style.display  = tab === 'agar' ? '' : 'none';
+  document.getElementById('lc-recipes').style.display          = tab === 'lc'   ? '' : 'none';
 
   // Swap vessel option groups
   document.getElementById('agar-vessel-opts').style.display = tab === 'agar' ? '' : 'none';
@@ -412,14 +459,19 @@ function calc() {
     ? (volMl / 1000).toFixed(2).replace(/\.?0+$/, '') + ' L total'
     : volMl + ' ml total';
 
+  // Agar concentration override
+  const agarGpl = parseFloat(document.getElementById('agar-gpl').value) || 15;
+
   // Ingredient rows
   const tbody = document.getElementById('ingredient-rows');
   tbody.innerHTML = recipe.ingredients.map(ing => {
-    const scaled = ing.perL * ratio;
+    const isAgar = activeTab === 'agar' && ing.name === 'Agar Powder';
+    const perL   = isAgar ? agarGpl : ing.perL;
+    const scaled = perL * ratio;
     const noteSpan = ing.note ? ` <span style="font-size:10px;color:var(--text-muted)">(${ing.note})</span>` : '';
     return `<tr>
       <td>${ing.name}${noteSpan}</td>
-      <td style="text-align:right;color:var(--text-muted);font-size:12px">${fmtPerL(ing.perL, ing.unit)}</td>
+      <td style="text-align:right;color:var(--text-muted);font-size:12px">${fmtPerL(perL, ing.unit)}</td>
       <td style="text-align:right;font-weight:700;color:var(--green)">${fmt(scaled, ing.unit)}</td>
     </tr>`;
   }).join('');
