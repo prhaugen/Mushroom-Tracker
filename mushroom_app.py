@@ -373,6 +373,12 @@ def batch_add():
     all_chambers = conn.execute("SELECT * FROM chambers ORDER BY id").fetchall()
     all_substrate_batches = _substrate_batches_with_count(conn)
     all_vendors = _get_vendors(conn)
+    all_grain_jars = conn.execute(
+        "SELECT g.id, g.species, g.inoculation_date, g.outcome, l.vendor "
+        "FROM grain_jars g LEFT JOIN lc_lots l ON g.lc_lot_id=l.id "
+        "WHERE g.outcome NOT IN ('contaminated') OR g.outcome IS NULL "
+        "ORDER BY g.inoculation_date DESC"
+    ).fetchall()
     conn.close()
 
     if request.method == 'POST':
@@ -396,8 +402,8 @@ def batch_add():
              steril_method,steril_temp_f,steril_duration_min,
              inoculation_date,spawn_type,spawn_strain,spawn_rate_pct,spawn_source,spawn_lot,
              colonization_start_date,fruiting_start_date,sourced_block,status,notes,
-             substrate_batch_id,shelf,cut_type,num_cuts)
-            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+             substrate_batch_id,shelf,cut_type,num_cuts,grain_jar_id)
+            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (fruiting_chamber_id,
              int(f['colonization_chamber_id']) if f.get('colonization_chamber_id') else None,
              f['label'], species, f.get('strain') or None,
@@ -422,13 +428,15 @@ def batch_add():
              int(f['substrate_batch_id']) if f.get('substrate_batch_id') else None,
              int(f['shelf']) if f.get('shelf') else None,
              f.get('cut_type') or None,
-             int(f['num_cuts']) if f.get('num_cuts') else None))
+             int(f['num_cuts']) if f.get('num_cuts') else None,
+             int(f['grain_jar_id']) if f.get('grain_jar_id') else None))
         conn.commit(); conn.close()
         flash(f"Batch '{f['label']}' added.", 'success')
         return redirect(url_for('batches'))
 
     return render_template('batch_form.html', chamber=chamber, batch=None, all_chambers=all_chambers,
                            all_substrate_batches=all_substrate_batches, all_vendors=all_vendors,
+                           all_grain_jars=all_grain_jars,
                            species_defaults=json.dumps(_SPECIES_DEFAULTS),
                            CUT_TYPES=CUT_TYPES, today=str(date.today()))
 
@@ -993,6 +1001,12 @@ def grain_jar_add():
     init_db()
     conn = get_db()
     lc_lots = conn.execute("SELECT * FROM lc_lots ORDER BY order_date DESC").fetchall()
+    lc_jars = conn.execute(
+        "SELECT j.id, j.species, j.prepared_date, j.outcome, l.vendor, l.lot_number "
+        "FROM lc_jars j LEFT JOIN lc_lots l ON j.source_type='purchased_syringe' AND j.source_id=l.id "
+        "WHERE j.outcome NOT IN ('contaminated','no_growth') OR j.outcome IS NULL "
+        "ORDER BY j.prepared_date DESC"
+    ).fetchall()
     substrate_batches = conn.execute(
         "SELECT * FROM substrate_batches ORDER BY date_prepared DESC"
     ).fetchall()
@@ -1000,10 +1014,11 @@ def grain_jar_add():
         f = request.form
         conn.execute("""
             INSERT INTO grain_jars
-                (lc_lot_id, spawn_source, species, inoculation_date,
+                (lc_lot_id, lc_jar_id, spawn_source, species, inoculation_date,
                  full_colonization_date, outcome, used_in_substrate_batch_id, notes)
-            VALUES (?,?,?,?,?,?,?,?)""",
+            VALUES (?,?,?,?,?,?,?,?,?)""",
             (int(f['lc_lot_id']) if f.get('lc_lot_id') else None,
+             int(f['lc_jar_id']) if f.get('lc_jar_id') else None,
              f.get('spawn_source', '').strip() or None,
              f['species'].strip(),
              f.get('inoculation_date') or None,
@@ -1017,7 +1032,8 @@ def grain_jar_add():
         return redirect(url_for('grain_jars_list'))
     conn.close()
     return render_template('grain_jar_form.html', jar=None,
-                           lc_lots=lc_lots, substrate_batches=substrate_batches)
+                           lc_lots=lc_lots, lc_jars=lc_jars,
+                           substrate_batches=substrate_batches)
 
 
 @app.route('/grain-jars/<int:jar_id>/edit', methods=['GET', 'POST'])
@@ -1028,6 +1044,11 @@ def grain_jar_edit(jar_id):
         conn.close(); flash('Grain jar not found.', 'error')
         return redirect(url_for('grain_jars_list'))
     lc_lots = conn.execute("SELECT * FROM lc_lots ORDER BY order_date DESC").fetchall()
+    lc_jars = conn.execute(
+        "SELECT j.id, j.species, j.prepared_date, j.outcome, l.vendor, l.lot_number "
+        "FROM lc_jars j LEFT JOIN lc_lots l ON j.source_type='purchased_syringe' AND j.source_id=l.id "
+        "ORDER BY j.prepared_date DESC"
+    ).fetchall()
     substrate_batches = conn.execute(
         "SELECT * FROM substrate_batches ORDER BY date_prepared DESC"
     ).fetchall()
@@ -1035,10 +1056,11 @@ def grain_jar_edit(jar_id):
         f = request.form
         conn.execute("""
             UPDATE grain_jars SET
-                lc_lot_id=?, spawn_source=?, species=?, inoculation_date=?,
+                lc_lot_id=?, lc_jar_id=?, spawn_source=?, species=?, inoculation_date=?,
                 full_colonization_date=?, outcome=?, used_in_substrate_batch_id=?, notes=?
             WHERE id=?""",
             (int(f['lc_lot_id']) if f.get('lc_lot_id') else None,
+             int(f['lc_jar_id']) if f.get('lc_jar_id') else None,
              f.get('spawn_source', '').strip() or None,
              f['species'].strip(),
              f.get('inoculation_date') or None,
@@ -1053,7 +1075,8 @@ def grain_jar_edit(jar_id):
         return redirect(url_for('grain_jars_list'))
     conn.close()
     return render_template('grain_jar_form.html', jar=jar,
-                           lc_lots=lc_lots, substrate_batches=substrate_batches)
+                           lc_lots=lc_lots, lc_jars=lc_jars,
+                           substrate_batches=substrate_batches)
 
 
 @app.route('/grain-jars/<int:jar_id>/delete', methods=['POST'])
@@ -1184,8 +1207,9 @@ def lc_jar_add():
         conn.execute("""
             INSERT INTO lc_jars
             (source_type, source_id, flush_number_source, species, media_type,
-             prepared_date, colonization_date, outcome, storage_location, storage_date, notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+             prepared_date, colonization_date, outcome, storage_location, storage_date,
+             recipe_id, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (f.get('source_type') or 'purchased_syringe',
              int(f['source_id']) if f.get('source_id') else None,
              int(f['flush_number_source']) if f.get('flush_number_source') else None,
@@ -1196,6 +1220,7 @@ def lc_jar_add():
              f.get('outcome') or None,
              f.get('storage_location') or None,
              f.get('storage_date') or None,
+             int(f['recipe_id']) if f.get('recipe_id') else None,
              f.get('notes') or None))
         conn.commit(); conn.close()
         flash('LC jar logged.', 'success')
@@ -1211,10 +1236,14 @@ def lc_jar_add():
     batches_src = conn.execute(
         "SELECT id, label, species, total_yield_g, dry_weight_g FROM batches ORDER BY label"
     ).fetchall()
+    saved_recipes = conn.execute(
+        "SELECT id, name, base_recipe FROM saved_recipes WHERE type='lc' ORDER BY name"
+    ).fetchall()
     conn.close()
     return render_template('lc_jar_form.html', lc_jar=None,
                            agar_plates_src=agar_plates_src, lc_lots_src=lc_lots_src,
-                           batches_src=batches_src, today=str(date.today()))
+                           batches_src=batches_src, saved_recipes=saved_recipes,
+                           today=str(date.today()))
 
 
 @app.route('/lc-jars/<int:jar_id>/edit', methods=['GET', 'POST'])
@@ -1230,7 +1259,7 @@ def lc_jar_edit(jar_id):
             UPDATE lc_jars SET
             source_type=?, source_id=?, flush_number_source=?, species=?, media_type=?,
             prepared_date=?, colonization_date=?, outcome=?, storage_location=?,
-            storage_date=?, notes=?
+            storage_date=?, recipe_id=?, notes=?
             WHERE id=?""",
             (f.get('source_type') or 'purchased_syringe',
              int(f['source_id']) if f.get('source_id') else None,
@@ -1242,6 +1271,7 @@ def lc_jar_edit(jar_id):
              f.get('outcome') or None,
              f.get('storage_location') or None,
              f.get('storage_date') or None,
+             int(f['recipe_id']) if f.get('recipe_id') else None,
              f.get('notes') or None,
              jar_id))
         conn.commit(); conn.close()
@@ -1258,10 +1288,14 @@ def lc_jar_edit(jar_id):
     batches_src = conn.execute(
         "SELECT id, label, species, total_yield_g, dry_weight_g FROM batches ORDER BY label"
     ).fetchall()
+    saved_recipes = conn.execute(
+        "SELECT id, name, base_recipe FROM saved_recipes WHERE type='lc' ORDER BY name"
+    ).fetchall()
     conn.close()
     return render_template('lc_jar_form.html', lc_jar=lc_jar,
                            agar_plates_src=agar_plates_src, lc_lots_src=lc_lots_src,
-                           batches_src=batches_src, today=str(date.today()))
+                           batches_src=batches_src, saved_recipes=saved_recipes,
+                           today=str(date.today()))
 
 
 @app.route('/lc-jars/<int:jar_id>/delete', methods=['POST'])
@@ -2717,6 +2751,11 @@ def batch_edit(batch_id):
     all_chambers = conn.execute("SELECT * FROM chambers ORDER BY id").fetchall()
     all_substrate_batches = _substrate_batches_with_count(conn)
     all_vendors = _get_vendors(conn)
+    all_grain_jars = conn.execute(
+        "SELECT g.id, g.species, g.inoculation_date, g.outcome, l.vendor "
+        "FROM grain_jars g LEFT JOIN lc_lots l ON g.lc_lot_id=l.id "
+        "ORDER BY g.inoculation_date DESC"
+    ).fetchall()
     if request.method == 'POST':
         f = request.form
         species = f.get('species_custom','').strip() if f.get('species') == '__other__' else f.get('species','')
@@ -2738,7 +2777,7 @@ def batch_edit(batch_id):
             steril_method=?,steril_temp_f=?,steril_duration_min=?,
             inoculation_date=?,spawn_type=?,spawn_strain=?,spawn_rate_pct=?,
             spawn_source=?,spawn_lot=?,fruiting_start_date=?,sourced_block=?,notes=?,
-            substrate_batch_id=?,shelf=?,cut_type=?,num_cuts=?
+            substrate_batch_id=?,shelf=?,cut_type=?,num_cuts=?,grain_jar_id=?
             WHERE id=?""",
             (edit_chamber_id,
              f['label'], species, f.get('strain') or None,
@@ -2764,6 +2803,7 @@ def batch_edit(batch_id):
              int(f['shelf']) if f.get('shelf') else None,
              f.get('cut_type') or None,
              int(f['num_cuts']) if f.get('num_cuts') else None,
+             int(f['grain_jar_id']) if f.get('grain_jar_id') else None,
              batch_id))
         conn.commit(); conn.close()
         flash(f"Batch '{f['label']}' updated.", 'success')
@@ -2771,6 +2811,7 @@ def batch_edit(batch_id):
     conn.close()
     return render_template('batch_form.html', chamber=chamber, batch=batch, all_chambers=all_chambers,
                            all_substrate_batches=all_substrate_batches, all_vendors=all_vendors,
+                           all_grain_jars=all_grain_jars,
                            species_defaults=json.dumps(_SPECIES_DEFAULTS),
                            CUT_TYPES=CUT_TYPES, today=str(date.today()))
 
@@ -3878,6 +3919,54 @@ def _roadmap_display_status(m: dict, gate_results: dict, today: date) -> tuple:
             days_out = (target - today).days
             return ('at_risk' if days_out <= 30 else 'pending'), gate
     return m['status'], None
+
+
+@app.route('/saved-recipes')
+def saved_recipes_list():
+    init_db()
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT * FROM saved_recipes ORDER BY type, name"
+    ).fetchall()
+    conn.close()
+    recipes = []
+    for r in rows:
+        try:
+            params = json.loads(r['params_json']) if r['params_json'] else {}
+        except Exception:
+            params = {}
+        recipes.append({'row': r, 'params': params})
+    return render_template('saved_recipes.html', recipes=recipes)
+
+
+@app.route('/api/save-recipe', methods=['POST'])
+def api_save_recipe():
+    init_db()
+    data = request.get_json()
+    if not data or not data.get('name') or not data.get('type') or not data.get('base_recipe'):
+        return {'ok': False, 'error': 'Missing required fields'}, 400
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO saved_recipes (name, type, base_recipe, params_json, notes) VALUES (?,?,?,?,?)",
+        (data['name'].strip(),
+         data['type'],
+         data['base_recipe'],
+         json.dumps(data.get('params', {})),
+         data.get('notes', '').strip() or None))
+    conn.commit()
+    new_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.close()
+    return {'ok': True, 'id': new_id}
+
+
+@app.route('/saved-recipes/<int:recipe_id>/delete', methods=['POST'])
+def saved_recipe_delete(recipe_id):
+    conn = get_db()
+    conn.execute("DELETE FROM saved_recipes WHERE id=?", (recipe_id,))
+    conn.commit()
+    conn.close()
+    flash('Recipe preset deleted.', 'success')
+    return redirect(url_for('saved_recipes_list'))
 
 
 @app.route('/recipes')

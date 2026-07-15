@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Saved Recipes — Mushroom Tracker{% endblock %}
+{% block content %}
+<div class="page-head-row">
+  <div class="page-head">
+    <div class="page-title">Saved Recipe Presets</div>
+    <div class="page-sub">Named presets saved from the recipe calculator</div>
+  </div>
+  <a href="{{ url_for('recipes') }}" class="btn btn-primary btn-sm">Open Calculator</a>
+</div>
+
+{% if recipes %}
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Base Recipe</th>
+          <th>Parameters</th>
+          <th>Saved</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in recipes %}
+        {% set r = item.row %}
+        {% set p = item.params %}
+        <tr>
+          <td class="fw-600">{{ r.name }}</td>
+          <td>
+            <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;
+                         color:{% if r.type == 'agar' %}var(--amber){% else %}var(--blue){% endif %}">
+              {{ r.type | upper }}
+            </span>
+          </td>
+          <td style="font-size:13px">{{ r.base_recipe }}</td>
+          <td style="font-size:12px;color:var(--text-muted)">
+            {% if p %}
+              {% if p.agar_pct is defined %}Agar {{ p.agar_pct }}%{% endif %}
+              {% if p.peptone_gpl is defined %}Peptone {{ p.peptone_gpl }} g/L{% endif %}
+              {% if p.volume_ml is defined %} · {{ p.volume_ml | int }} ml{% endif %}
+            {% else %}—{% endif %}
+          </td>
+          <td style="font-size:12px;color:var(--text-muted)">{{ r.created_at[:10] if r.created_at else '—' }}</td>
+          <td>
+            <form method="post" action="{{ url_for('saved_recipe_delete', recipe_id=r.id) }}"
+                  onsubmit="return confirm('Delete preset \'{{ r.name }}\'?')">
+              <button class="btn btn-ghost btn-sm" style="font-size:11px;color:var(--red)">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="card">
+  <div class="empty">
+    <div class="empty-title">No saved presets yet</div>
+    <div class="empty-sub">Open the <a href="{{ url_for('recipes') }}" style="color:var(--green)">Recipe Calculator</a>,
+    dial in your recipe, then click <strong>Save Preset</strong> in the results panel.</div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

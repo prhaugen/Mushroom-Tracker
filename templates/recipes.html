@@ -167,7 +167,12 @@
     <div class="card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
         <div class="card-title" id="result-title">Ingredients</div>
-        <div style="font-size:12px;color:var(--text-muted)" id="result-vol-label"></div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="font-size:12px;color:var(--text-muted)" id="result-vol-label"></div>
+          <button class="btn btn-ghost btn-sm" onclick="openSaveModal()" title="Save as named preset">
+            Save Preset
+          </button>
+        </div>
       </div>
 
       <div class="table-wrap">
@@ -540,5 +545,93 @@ function calc() {
 // Init
 // ──────────────────────────────────────────────────────────────────
 calc();
+
+// ──────────────────────────────────────────────────────────────────
+// Save Preset
+// ──────────────────────────────────────────────────────────────────
+function openSaveModal() {
+  const recipeKey = activeTab === 'agar'
+    ? document.getElementById('agar-recipe').value
+    : document.getElementById('lc-recipe').value;
+  const recipeObj = activeTab === 'agar' ? AGAR_RECIPES[recipeKey] : LC_RECIPES[recipeKey];
+  if (!recipeObj) return;
+  document.getElementById('save-modal-recipe').textContent = recipeObj.name;
+  document.getElementById('save-preset-name').value = recipeObj.name;
+  document.getElementById('save-modal').style.display = 'flex';
+  document.getElementById('save-preset-name').select();
+}
+
+function closeSaveModal() {
+  document.getElementById('save-modal').style.display = 'none';
+  document.getElementById('save-modal-status').textContent = '';
+}
+
+async function savePreset() {
+  const name = document.getElementById('save-preset-name').value.trim();
+  if (!name) { document.getElementById('save-preset-name').focus(); return; }
+
+  const recipeKey = activeTab === 'agar'
+    ? document.getElementById('agar-recipe').value
+    : document.getElementById('lc-recipe').value;
+
+  const params = {};
+  if (activeTab === 'agar') {
+    params.agar_pct = parseFloat(document.getElementById('agar-pct').value) || 1.5;
+  } else {
+    const pepEl = document.getElementById('lc-peptone');
+    if (pepEl && pepEl.checked) {
+      params.peptone_gpl = parseFloat(document.getElementById('lc-peptone-gpl').value) || 0.5;
+    }
+  }
+  params.volume_ml = parseFloat(document.getElementById('volume-ml').value) || 500;
+
+  const statusEl = document.getElementById('save-modal-status');
+  statusEl.textContent = 'Saving…';
+  try {
+    const res = await fetch('/api/save-recipe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, type: activeTab, base_recipe: recipeKey, params }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      statusEl.style.color = 'var(--green)';
+      statusEl.textContent = 'Saved!';
+      setTimeout(closeSaveModal, 800);
+    } else {
+      statusEl.style.color = 'var(--red)';
+      statusEl.textContent = data.error || 'Save failed.';
+    }
+  } catch (e) {
+    statusEl.style.color = 'var(--red)';
+    statusEl.textContent = 'Network error.';
+  }
+}
 </script>
+
+<!-- Save Preset Modal -->
+<div id="save-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);
+     z-index:1000;align-items:center;justify-content:center">
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);
+              padding:28px;min-width:340px;max-width:90vw">
+    <div style="font-size:15px;font-weight:700;margin-bottom:4px">Save Recipe Preset</div>
+    <div id="save-modal-recipe" style="font-size:12px;color:var(--text-muted);margin-bottom:16px"></div>
+    <div class="fg" style="margin-bottom:16px">
+      <label>Preset Name</label>
+      <input type="text" id="save-preset-name" placeholder="e.g. My Honey LC + Peptone 1.2"
+             onkeydown="if(event.key==='Enter')savePreset()"
+             style="font-size:14px">
+    </div>
+    <div style="display:flex;gap:10px;align-items:center">
+      <button class="btn btn-primary btn-sm" onclick="savePreset()">Save</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeSaveModal()">Cancel</button>
+      <span id="save-modal-status" style="font-size:12px;margin-left:4px"></span>
+    </div>
+    <div style="font-size:11px;color:var(--text-muted);margin-top:12px">
+      Saves current recipe, concentration, and peptone settings.
+      View saved presets under <a href="{{ url_for('saved_recipes_list') }}"
+        style="color:var(--green)">Supply → Saved Recipes</a>.
+    </div>
+  </div>
+</div>
 {% endblock %}

@@ -815,6 +815,30 @@ def init_db():
         created_at           TEXT DEFAULT CURRENT_TIMESTAMP
     )""")
 
+    # Named recipe presets (saved from the calculator)
+    c.execute("""CREATE TABLE IF NOT EXISTS saved_recipes (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        name        TEXT NOT NULL,
+        type        TEXT NOT NULL,
+        base_recipe TEXT NOT NULL,
+        params_json TEXT NOT NULL,
+        notes       TEXT,
+        created_at  TEXT DEFAULT CURRENT_TIMESTAMP
+    )""")
+
+    # Lineage FK columns — add if not present
+    _lc_jar_cols = {r[1] for r in c.execute("PRAGMA table_info(lc_jars)")}
+    if 'recipe_id' not in _lc_jar_cols:
+        c.execute("ALTER TABLE lc_jars ADD COLUMN recipe_id INTEGER REFERENCES saved_recipes(id)")
+
+    _gj_cols = {r[1] for r in c.execute("PRAGMA table_info(grain_jars)")}
+    if 'lc_jar_id' not in _gj_cols:
+        c.execute("ALTER TABLE grain_jars ADD COLUMN lc_jar_id INTEGER REFERENCES lc_jars(id)")
+
+    _batch_cols = {r[1] for r in c.execute("PRAGMA table_info(batches)")}
+    if 'grain_jar_id' not in _batch_cols:
+        c.execute("ALTER TABLE batches ADD COLUMN grain_jar_id INTEGER REFERENCES grain_jars(id)")
+
     # Performance indexes — CREATE INDEX IF NOT EXISTS is a no-op when already present
     c.execute("""CREATE INDEX IF NOT EXISTS idx_env_logs_chamber_time
                  ON environment_logs(chamber_id, logged_at)""")

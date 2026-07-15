@@ -118,6 +118,23 @@
             <option value="Honey Water">
           </datalist>
         </div>
+
+        <div class="fg full">
+          <label>Recipe Preset (optional)</label>
+          <select name="recipe_id">
+            <option value="">— none / free-text media type above —</option>
+            {% for r in saved_recipes %}
+            <option value="{{ r.id }}"
+              {% if lc_jar and lc_jar.recipe_id == r.id %}selected{% endif %}>
+              {{ r.name }} ({{ r.base_recipe }})
+            </option>
+            {% endfor %}
+          </select>
+          <div class="form-hint">
+            Link to a saved recipe preset from the calculator.
+            {% if not saved_recipes %}<a href="{{ url_for('recipes') }}" style="color:var(--blue)">Save a preset from the Recipes page first.</a>{% endif %}
+          </div>
+        </div>
         <div class="fg">
           <label>Prepared Date</label>
           <input type="date" name="prepared_date"

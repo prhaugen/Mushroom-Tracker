@@ -302,6 +302,25 @@
         Tracking spawn lot lets you trace contamination back to a bad batch from your supplier.
       </div>
       <div class="fg-grid">
+        <div class="fg full">
+          <label>Grain Jar (source)</label>
+          <select name="grain_jar_id">
+            <option value="">— none / not tracked —</option>
+            {% for g in all_grain_jars %}
+            <option value="{{ g.id }}"
+              {% if editing and batch.grain_jar_id == g.id %}selected{% endif %}>
+              #{{ g.id }} — {{ g.species }}
+              {% if g.inoculation_date %} ({{ g.inoculation_date[:10] }}){% endif %}
+              {% if g.vendor %} · {{ g.vendor }}{% endif %}
+              {% if g.outcome %} · {{ g.outcome }}{% endif %}
+            </option>
+            {% endfor %}
+          </select>
+          <div class="form-hint">
+            Link this block to the grain jar it was inoculated from — enables full LC → grain → block lineage tracing.
+            {% if not all_grain_jars %}<a href="{{ url_for('grain_jar_add') }}" style="color:var(--blue)">Log a grain jar first.</a>{% endif %}
+          </div>
+        </div>
         <div class="fg">
           <label>Spawn Type</label>
           <select name="spawn_type">

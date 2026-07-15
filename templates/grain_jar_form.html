@@ -16,7 +16,27 @@
       <div class="section-label">Source</div>
       <div class="fg-grid">
         <div class="fg full">
-          <label>LC Lot (optional)</label>
+          <label>LC Jar (expanded culture)</label>
+          <select name="lc_jar_id">
+            <option value="">— none / not tracked —</option>
+            {% for j in lc_jars %}
+            <option value="{{ j.id }}"
+              {% if jar and jar.lc_jar_id == j.id %}selected{% endif %}>
+              #{{ j.id }} — {{ j.species or '?' }}
+              {% if j.prepared_date %} ({{ j.prepared_date[:10] }}){% endif %}
+              {% if j.vendor %} · {{ j.vendor }}{% if j.lot_number %} {{ j.lot_number }}{% endif %}{% endif %}
+              {% if j.outcome %} · {{ j.outcome }}{% endif %}
+            </option>
+            {% endfor %}
+          </select>
+          <div class="form-hint">
+            The expanded LC jar this grain was inoculated from.
+            {% if not lc_jars %}<a href="{{ url_for('lc_jar_add') }}" style="color:var(--blue)">Log an LC jar first.</a>{% endif %}
+          </div>
+        </div>
+
+        <div class="fg full">
+          <label>LC Lot (vendor syringe)</label>
           <select name="lc_lot_id" id="lc_lot_id">
             <option value="">— no LC lot / use spawn source below —</option>
             {% for lot in lc_lots %}
@@ -31,7 +51,7 @@
           {% if not lc_lots %}
           <div class="form-hint">No LC lots yet — <a href="{{ url_for('lc_lot_add') }}" style="color:var(--blue)">add one</a> or use spawn source below.</div>
           {% else %}
-          <div class="form-hint">Select the LC lot this jar was inoculated from. Leave blank if using a free-text spawn source.</div>
+          <div class="form-hint">The original vendor syringe lot. Used for traceability — select the expanded jar above when possible.</div>
           {% endif %}
         </div>
 
