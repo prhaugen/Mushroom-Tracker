@@ -81,6 +81,15 @@
             <option value="oat">Oat Extract LC</option>
           </select>
         </div>
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border-muted)">
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none">
+            <input type="checkbox" id="lc-peptone" onchange="calc()"
+                   style="width:16px;height:16px;accent-color:var(--green);cursor:pointer">
+            <span style="font-size:13px">Add Peptone
+              <span style="font-size:11px;color:var(--text-muted);margin-left:4px">0.5 g/L — nitrogen supplement, promotes vigorous growth</span>
+            </span>
+          </label>
+        </div>
       </div>
     </div>
 
@@ -451,9 +460,19 @@ function calc() {
   const _agarPctEl = document.getElementById('agar-pct');
   const agarGpl = (parseFloat(_agarPctEl ? _agarPctEl.value : '1.5') || 1.5) * 10;
 
-  // Ingredient rows
+  // Ingredient rows — for LC, optionally inject Peptone before Water
+  const peptoneEl = document.getElementById('lc-peptone');
+  const addPeptone = activeTab === 'lc' && peptoneEl && peptoneEl.checked;
+  let ingredients = recipe.ingredients;
+  if (addPeptone) {
+    const peptone = { name: "Peptone", perL: 0.5, unit: "g" };
+    const waterIdx = ingredients.findIndex(i => i.name === 'Water');
+    ingredients = [...ingredients];
+    ingredients.splice(waterIdx === -1 ? ingredients.length : waterIdx, 0, peptone);
+  }
+
   const tbody = document.getElementById('ingredient-rows');
-  tbody.innerHTML = recipe.ingredients.map(ing => {
+  tbody.innerHTML = ingredients.map(ing => {
     const isAgar  = activeTab === 'agar' && ing.name.toLowerCase().includes('agar powder');
     const usePerL = isAgar ? agarGpl : ing.perL;
     const scaled  = usePerL * ratio;
