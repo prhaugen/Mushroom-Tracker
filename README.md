@@ -87,17 +87,17 @@ The database file (`mushroom_data.db`) is created automatically in the same fold
 | Feature | Where |
 |---|---|
 | Batch tracking — substrate, spawn, lifecycle, flush log, sales | Batches → Batch Detail |
-| **Culture lineage** — LC lot → LC jar (with recipe) → grain jar → fruiting block | Supply → LC Lots / LC Jars / Grain Jars |
-| **Recipe calculator** — agar and LC recipes scaled by volume, adjustable concentration | Supply → Recipes |
-| **Saved recipe presets** — name and save custom recipes from the calculator | Supply → Saved Recipes |
-| **Slant / culture library** — track agar slants by species, generation, and use history | Supply → Slants |
-| **Substrate batches** — log and reuse prepared substrate batches across blocks | Supply → Substrate Batches |
-| **Vendor management** — master vendor list linked to LC lots, expenses, and spawn | Supply → Vendors |
-| **Expense & labor logs** — money out and time in, optionally linked to batches | Reports → Expenses / Labor |
-| **Sales tracking** — log sales per batch with species, weight, and price | Sales (nav bar) |
-| **Checklists (SOPs)** — step-by-step process checklists (substrate block prep, agar slants, more) | Supply → Checklists |
-| **Species reference library** — 258 entries with grow parameters and out-grow.com guide links | Species (nav bar) |
-| **AI Q&A assistant** — ask cultivation questions answered in context of your live data | Ask (nav bar) |
+| Culture lineage — LC lot → LC jar (with recipe) → grain jar → fruiting block | Supply → LC Lots / LC Jars / Grain Jars |
+| Recipe calculator — agar and LC recipes scaled by volume, adjustable concentration | Supply → Recipes |
+| Saved recipe presets — name and save custom recipes from the calculator | Supply → Saved Recipes |
+| Slant / culture library — track agar slants by species, generation, and use history | Supply → Slants |
+| Substrate batches — log and reuse prepared substrate batches across blocks | Supply → Substrate Batches |
+| Vendor management — master vendor list linked to LC lots, expenses, and spawn | Supply → Vendors |
+| Expense & labor logs — money out and time in, optionally linked to batches | Reports → Expenses / Labor |
+| Sales tracking — log sales per batch with species, weight, and price | Sales (nav bar) |
+| Checklists (SOPs) — step-by-step process checklists (substrate block prep, agar slants, more) | Supply → Checklists |
+| Species reference library — 258 entries with grow parameters and out-grow.com guide links | Species (nav bar) |
+| AI Q&A assistant — ask cultivation questions answered in context of your live data | Ask (nav bar) |
 | Govee sensor auto-sync (H5179 / H5140) — polls every 10 min | Environment → Govee Auto-Sync |
 | Multi-shelf sensor charts — separate line per shelf on batch charts | Batch Detail → Environment tab |
 | Smart light & plug control (H6159 strip, H5083 plugs) | Lights (nav bar) |
